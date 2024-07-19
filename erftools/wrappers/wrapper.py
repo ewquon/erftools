@@ -72,12 +72,15 @@ class Wrapper(object):
               n_cell=[0,0,0],
               prob_extent=[0.0,0.0,0.0],
               periodic=[True,True,False],
-              max_level=1,
+              max_level=0, # level index, not the number of levels
               zlo_type="MOST", MOST_z0=0.1, MOST_surf_temp=300.0,
               les_type="None",
               pbl_type="None",
               molec_diff_type="None",
               **kwargs):
+        """
+        This is a template
+        """
         assert np.all([n>0 for n in n_cell]), 'Need to specify number of cells'
         assert np.all([L>0 for L in prob_extent]), 'Need to specify problem extent'
         sim_params = {
@@ -101,6 +104,7 @@ class Wrapper(object):
         """
         This is a template
         """
+        # do some input validation...
 
     def create_input_files(self):
         input_sounding_file = os.path.join(self.rundir,'input_sounding')
@@ -109,9 +113,6 @@ class Wrapper(object):
         self.inputs.write(input_file,ideal=True)
 
     def run(self,stop_time,dt,rundir='.rundir',ncpu=1):
-        """
-        This is a template
-        """
         assert self.initialized, 'Need to call init()'
         assert self.setup_complete, 'Need to call setup()'
         self.inputs['stop_time'] = stop_time
@@ -124,10 +125,10 @@ class Wrapper(object):
         # call solver
         ncpu = min(ncpu, self.ncpus_avail)
         if self.mpirun != '':
-            cmd = [self.mpirun,'-n',ncpu]
+            cmd = [self.mpirun,'-n',str(ncpu)]
         else:
             cmd = []
-        cmd += [self.solver,'inputs']
+        cmd += [self.solver, 'inputs']
         with open(os.path.join(rundir,'log.out'),'w') as outfile, \
              open(os.path.join(rundir,'log.err'),'w') as errfile:
             result = subprocess.run(cmd, cwd=rundir,
@@ -156,3 +157,4 @@ class ABLWrapper(Wrapper):
 
     def __init__(self,builddir=None):
         super().__init__(builddir=builddir)
+        self.solver = os.path.join(self.builddir,self.solver)
