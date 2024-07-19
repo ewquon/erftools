@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -75,6 +76,26 @@ class InputSounding(object):
         self.qv = init[:,2] * 0.001
         self.u  = init[:,3]
         self.v  = init[:,4]
+
+
+    def write(self,fpath,overwrite=False):
+        if not overwrite:
+            assert not os.path.isfile(fpath), f'{fpath} already exists'
+        with open(fpath,'w') as f:
+            # The first line includes the surface pressure (hPa), potential
+            # temperature (K) and moisture mixing ratio (g/kg).
+            f.write(f'{self.p_surf/100:6g} {self.th_surf:5g} {self.qv_surf*1000:5g}\n')
+
+            # Each subsequent line has five input values: height (meters above
+            # sea-level), dry potential temperature (K), vapor mixing ratio
+            # (g/kg), x-direction wind component (m/s), and y-direction wind
+            # component (m/s)
+            for zi, thi, qvi, ui, vi in zip(self.z,
+                                            self.th,
+                                            self.qv*1000,
+                                            self.u,
+                                            self.v):
+                f.write(f'{zi:6g} {thi:5g} {qvi:5g} {ui:.8g} {vi:.8g}\n')
 
 
     def interp_levels(self,z):
