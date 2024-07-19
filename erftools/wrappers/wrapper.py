@@ -17,8 +17,8 @@ class Wrapper(object):
 
     def _find_build_dir(self,builddir):
         if builddir is None:
-            erf_abl_path = shutils.which('erf_abl')
-            assert erf_abl_path != '', 'Need to specify ERF builddir'
+            erf_abl_path = shutil.which('erf_abl')
+            assert erf_abl_path is not None, 'Need to specify ERF builddir'
             # erf_abl_path = /path/to/builddir/Exec/ABL/erf_abl
             self.builddir = os.sep.join(erf_abl_path.split(os.sep)[:-3])
         else:
@@ -34,11 +34,11 @@ class Wrapper(object):
             self.ncpus_avail = mp.cpu_count()
 
     def _get_mpi_environ(self):
-        mpirun = shutils.which('mpirun')
+        mpirun = shutil.which('mpirun')
         if mpirun == '':
-            mpirun = shutils.which('mpiexec')
+            mpirun = shutil.which('mpiexec')
         if mpirun == '':
-            mpirun = shutils.which('srun')
+            mpirun = shutil.which('srun')
         if mpirun == '':
             print('Note: MPI environment not found')
         self.mpirun = mpirun
@@ -61,7 +61,6 @@ class Wrapper(object):
             print('Need to call setup()')
         self.check_inputs()
         # setup run directory
-        self.rundir = rundir
         os.makedir(rundir, exist_ok=True)
         self._create_inputs(rundir)
         # call solver

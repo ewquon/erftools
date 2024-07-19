@@ -5,5 +5,5 @@ class GeostrophicWindEstimator(ABLWrapper):
     wind speed at a reference height
     """
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self,**kwargs):
+        super().__init__(**kwargs)
