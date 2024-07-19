@@ -34,8 +34,6 @@ class ERFInputFile(MutableMapping):
             'erf.rotational_time_period': 86400.0,
             # estimated quantities
             'erf.z_levels': [],  # can estimate from wrfinput_d01
-            # defaults
-            'erf.rho0_trans': 1.0,
         })
         self.update(dict(*args, **kwargs))  # use the free update to set keys
 
@@ -75,11 +73,14 @@ class ERFInputFile(MutableMapping):
         return key
 
     def write(self,fpath=None,ideal=False):
+        inputs = self.store.copy()
+
         refinement_boxes = ''
-        boxes = self.store['amr.refinement_indicators'].split()
+        refinement_indicators = inputs.pop('amr.refinement_indicators')
+        boxes = refinement_indicators.split()
         for box in boxes:
-            loindices = ' '.join([str(val) for val in self.store[f'amr.{box}.in_box_lo']])
-            hiindices = ' '.join([str(val) for val in self.store[f'amr.{box}.in_box_hi']])
+            loindices = ' '.join([str(val) for val in inputs.pop(f'amr.{box}.in_box_lo')])
+            hiindices = ' '.join([str(val) for val in inputs.pop(f'amr.{box}.in_box_hi')])
             refinement_boxes += f'amr.{box}.in_box_lo = {loindices}\n' 
             refinement_boxes += f'amr.{box}.in_box_hi = {hiindices}\n' 
 
@@ -92,28 +93,30 @@ amrex.fpe_trap_invalid = 1
 fabarray.mfiter_tile_size = 1024 1024 1024
 
 # PROBLEM SIZE & GEOMETRY
-amr.n_cell           = {' '.join([str(v) for v in self.store['amr.n_cell']])}
-geometry.prob_extent = {' '.join([str(v) for v in self.store['geometry.prob_extent']])}
-geometry.is_periodic = {' '.join([str(int(b)) for b in self.store['geometry.is_periodic']])}
+amr.n_cell           = {' '.join([str(v) for v in inputs.pop('amr.n_cell')])}
+geometry.prob_extent = {' '.join([str(v) for v in inputs.pop('geometry.prob_extent')])}
+geometry.is_periodic = {' '.join([str(int(b)) for b in inputs.pop('geometry.is_periodic')])}
 """)
-            if len(self.store['erf.z_levels']) > 0:
+            zlevels = inputs.pop('erf.z_levels')
+            if len(zlevels) > 0:
                 f.write(f"""
-#erf.z_levels = {' '.join([str(v) for v in self.store['erf.z_levels']])}  # TODO: need to implement this input
+#erf.z_levels = {' '.join([str(v) for v in zlevels])}  # TODO: need to implement this input
 """)
+            max_level = inputs.pop('amr.max_level')
             f.write(f"""
 # TIME STEP CONTROL
 max_step           = 0
-stop_time          = {self.store['stop_time']}
-erf.fixed_dt       = {self.store['erf.fixed_dt']}  # fixed time step depending on grid resolution
+stop_time          = {inputs.pop('stop_time')}
+erf.fixed_dt       = {inputs.pop('erf.fixed_dt')}  # fixed time step depending on grid resolution
 erf.use_native_mri = 1
 
 # REFINEMENT / REGRIDDING
-amr.max_level      = {self.store['amr.max_level']}  # maximum level number allowed
+amr.max_level      = {max_level}  # maximum level number allowed
 """)
-            if self.store['amr.refinement_indicators'] != '':  
+            if refinement_indicators != '':
                 f.write("""
-amr.ref_ratio_vect = {' '.join([str(v) for v in self.store['amr.ref_ratio_vect']])}
-amr.refinement_indicators = {self.store['amr.refinement_indicators']}
+amr.ref_ratio_vect = {' '.join([str(v) for v in inputs.pop('amr.ref_ratio_vect')])}
+amr.refinement_indicators = {refinement_indicators}
 {refinement_boxes.rstrip()}
 """)
 
@@ -123,17 +126,19 @@ amr.refinement_indicators = {self.store['amr.refinement_indicators']}
                 for xyz in ['x','y','z']
                 for lohi in ['lo','hi']]
             BCs_to_write = [name for name in BCtypes
-                            if name in self.store.keys()]
+                            if name in inputs.keys()]
             for bcname in BCs_to_write:
-                bcdef = self.store[bcname]
+                bcdef = inputs.pop(bcname)
+                if bcname=='zlo.type':
+                    zlo_type = bcdef
                 f.write(f'{bcname} = "{bcdef}"\n')
 
-            if self.store['zlo.type'].upper() == 'MOST':
-                assert self.store['erf.most.z0'] is not None
-                assert self.store['erf.most.surf_temp'] is not None
+            if zlo_type.upper() == 'MOST':
+                assert inputs['erf.most.z0'] is not None
+                assert inputs['erf.most.surf_temp'] is not None
                 f.write(f"""
-erf.most.z0 = {self.store['erf.most.z0']}  # TODO: use roughness map
-erf.most.surf_temp = {self.store['erf.most.surf_temp']}  # TODO: use surface temperature map
+erf.most.z0 = {inputs.pop('erf.most.z0')}  # TODO: use roughness map
+erf.most.surf_temp = {inputs.pop('erf.most.surf_temp')}  # TODO: use surface temperature map
 """)
 
             if ideal:
@@ -145,7 +150,7 @@ erf.init_sounding_ideal = 1
             else:
                 bdylist = ' '.join([f'"wrfbdy_d{idom+1:02d}"'
                                     for idom in
-                                    range(self.store['amr.max_level']+1)])
+                                    range(max_level+1)])
                 f.write(f"""
 # INITIAL CONDITIONS
 erf.init_type    = "real"
@@ -155,34 +160,37 @@ erf.nc_bdy_file  = {bdylist}
 
             f.write(f"""
 # PHYSICS OPTIONS
-erf.les_type = "{self.store['erf.les_type']}"
-erf.pbl_type = "{self.store['erf.pbl_type']}"  # TODO: specify for each level
+erf.les_type = "{inputs.pop('erf.les_type')}"  # TODO: specify for each level
+erf.pbl_type = "{inputs.pop('erf.pbl_type')}"  # TODO: specify for each level
 erf.abl_driver_type = "None"
 erf.use_gravity = true
 erf.use_coriolis = true
-erf.latitude = {self.store['erf.latitude']}
-erf.rotational_time_period = {self.store['erf.rotational_time_period']}
+erf.latitude = {inputs.pop('erf.latitude')}
+erf.rotational_time_period = {inputs.pop('erf.rotational_time_period')}
 """)
 
-            if self.store['erf.molec_diff_type'].lower() != "none":
+            molec_diff_type = inputs.pop('erf.molec_diff_type')
+            if molec_diff_type.lower() != "none":
                 f.write(f"""
-erf.molec_diff_type = "{self.store['erf.molec_diff_type']}"
-erf.rho0_trans = {self.store['erf.rho0_trans']}  # i.e., dynamic == kinematic coefficients
-erf.dynamicViscosity = {self.store['erf.dynamicViscosity']}  # TODO: specify for each level
-erf.alpha_T = {self.store['erf.alpha_T']}  # TODO: specify for each level
-erf.alpha_C = {self.store['erf.alpha_C']}  # TODO: specify for each level
+erf.molec_diff_type = "{molec_diff_type}"
+erf.rho0_trans = {inputs.pop('erf.rho0_trans')}  # i.e., dynamic == kinematic coefficients
+erf.dynamicViscosity = {inputs.pop('erf.dynamicViscosity')}  # TODO: specify for each level
+erf.alpha_T = {inputs.pop('erf.alpha_T')}  # TODO: specify for each level
+erf.alpha_C = {inputs.pop('erf.alpha_C')}  # TODO: specify for each level
 """)
 
             f.write(f"""
-# SOLVER CHOICES
-erf.spatial_order = 2
-
 # DIAGNOSTICS & VERBOSITY
 erf.sum_interval = 1  # timesteps between computing mass
 erf.v            = 1  # verbosity in ERF.cpp
 amr.v            = 1  # verbosity in Amr.cpp
 
 """)
-        if fpath is not None:
+            if len(inputs.keys()) > 0:
+                f.write('# OTHER PARAMS\n')
+                for key,val in inputs.items():
+                    f.write(f'{key} = {val}\n')
+
+        if self.verbose and (fpath is not None):
             print('Wrote',fpath)
             
