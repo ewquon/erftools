@@ -98,6 +98,11 @@ class Wrapper(object):
         for key,val in kwargs.items():
             sim_params[key] = val
         self.inputs = ERFInputFile(sim_params, verbose=False)
+
+        self.inputs['zhi.theta_grad'] = \
+                (self.input_sounding.th[-1] - self.input_sounding.th[-2]) \
+              / (self.input_sounding.z[ -1] - self.input_sounding.z[ -2])
+
         self.setup_complete = True
 
     def check_inputs(self):
