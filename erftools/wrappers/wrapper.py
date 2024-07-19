@@ -143,6 +143,9 @@ class Wrapper(object):
             result = subprocess.run(cmd, cwd=rundir,
                                     stdout=outfile,
                                     stderr=errfile)
+        if result.returncode != 0:
+            print('Return code:',result.returncode)
+        return result
 
     def cleanup(self,rundir=None,realclean=True):
         if rundir is None:
