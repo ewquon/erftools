@@ -32,8 +32,10 @@ class ERFInputFile(MutableMapping):
             'erf.most.surf_temp': None,
             'erf.latitude': 90.0,
             'erf.rotational_time_period': 86400.0,
-            # estimated quuantities
+            # estimated quantities
             'erf.z_levels': [],  # can estimate from wrfinput_d01
+            # defaults
+            'erf.rho0_trans': 1.0,
         })
         self.update(dict(*args, **kwargs))  # use the free update to set keys
 
@@ -126,10 +128,11 @@ amr.refinement_indicators = {self.store['amr.refinement_indicators']}
                 bcdef = self.store[bcname]
                 f.write(f'{bcname} = "{bcdef}"\n')
 
-            if self.store['zlo.type'] == 'MOST':
+            if self.store['zlo.type'].upper() == 'MOST':
+                assert self.store['erf.most.z0'] is not None
+                assert self.store['erf.most.surf_temp'] is not None
                 f.write(f"""
 erf.most.z0 = {self.store['erf.most.z0']}  # TODO: use roughness map
-erf.most.zref = 200.0  # TODO: update this
 erf.most.surf_temp = {self.store['erf.most.surf_temp']}  # TODO: use surface temperature map
 """)
 
@@ -159,13 +162,18 @@ erf.use_gravity = true
 erf.use_coriolis = true
 erf.latitude = {self.store['erf.latitude']}
 erf.rotational_time_period = {self.store['erf.rotational_time_period']}
+""")
 
+            if self.store['erf.molec_diff_type'].lower() != "none":
+                f.write(f"""
 erf.molec_diff_type = "{self.store['erf.molec_diff_type']}"
 erf.rho0_trans = {self.store['erf.rho0_trans']}  # i.e., dynamic == kinematic coefficients
 erf.dynamicViscosity = {self.store['erf.dynamicViscosity']}  # TODO: specify for each level
 erf.alpha_T = {self.store['erf.alpha_T']}  # TODO: specify for each level
 erf.alpha_C = {self.store['erf.alpha_C']}  # TODO: specify for each level
+""")
 
+            f.write(f"""
 # SOLVER CHOICES
 erf.spatial_order = 2
 

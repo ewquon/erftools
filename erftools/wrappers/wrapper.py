@@ -4,6 +4,7 @@ import glob
 import subprocess
 import numpy as np
 
+from ..inputs import ERFInputFile
 from ..input_sounding import InputSounding
 
 class Wrapper(object):
@@ -67,22 +68,54 @@ class Wrapper(object):
             v_profile=v_profile)
         self.initialized = True
 
-    def setup(self):
+    def setup(self,
+              n_cell=[0,0,0],
+              prob_extent=[0.0,0.0,0.0],
+              periodic=[True,True,False],
+              max_level=1,
+              zlo_type="MOST", MOST_z0=0.1, MOST_surf_temp=300.0,
+              les_type="None",
+              pbl_type="None",
+              molec_diff_type="None",
+              **kwargs):
+        assert np.all([n>0 for n in n_cell]), 'Need to specify number of cells'
+        assert np.all([L>0 for L in prob_extent]), 'Need to specify problem extent'
+        sim_params = {
+            'amr.n_cell': n_cell,
+            'geometry.prob_extent': prob_extent,
+            'geometry.is_periodic': periodic,
+            'amr.max_level': max_level,
+            'zlo.type': zlo_type,
+            'erf.most.z0': MOST_z0,
+            'erf.most.surf_temp': MOST_surf_temp,
+            'erf.les_type': les_type,
+            'erf.pbl_type': pbl_type,
+            'erf.molec_diff_type': molec_diff_type,
+        }
+        for key,val in kwargs.items():
+            sim_params[key] = val
+        self.inputs = ERFInputFile(sim_params, verbose=False)
         self.setup_complete = True
 
     def check_inputs(self):
-        """This is a template"""
+        """
+        This is a template
+        """
 
     def create_input_files(self):
         input_sounding_file = os.path.join(self.rundir,'input_sounding')
         self.input_sounding.write(input_sounding_file, overwrite=True)
+        input_file = os.path.join(self.rundir,'inputs')
+        self.inputs.write(input_file,ideal=True)
 
-    def run(self,rundir='.rundir',ncpu=1):
+    def run(self,stop_time,dt,rundir='.rundir',ncpu=1):
         """
         This is a template
         """
         assert self.initialized, 'Need to call init()'
         assert self.setup_complete, 'Need to call setup()'
+        self.inputs['stop_time'] = stop_time
+        self.inputs['erf.fixed_dt'] = dt
         self.check_inputs()
         # setup run directory
         os.makedirs(rundir, exist_ok=True)
