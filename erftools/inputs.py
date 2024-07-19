@@ -35,6 +35,10 @@ class ERFInputFile(MutableMapping):
             'erf.rotational_time_period': 86400.0,
             # estimated quantities
             'erf.z_levels': [],  # can estimate from wrfinput_d01
+            # output
+            'erf.check_int': -1,
+            'erf.plot_int': -1,
+            'erf.plot_vars': ['density','x_velocity','y_velocity','z_velocity','pressure','theta'],
         })
         self.update(dict(*args, **kwargs))  # use the free update to set keys
 
@@ -183,7 +187,17 @@ erf.alpha_T = {inputs.pop('erf.alpha_T')}  # TODO: specify for each level
 erf.alpha_C = {inputs.pop('erf.alpha_C')}  # TODO: specify for each level
 """)
 
+            plotvars = ' '.join(inputs.pop('erf.plot_vars'))
             f.write(f"""
+# CHECKPOINT FILES
+erf.check_file      = chk        # root name of checkpoint file
+erf.check_int       = {inputs.pop('erf.check_int')}         # number of timesteps between checkpoints
+
+# PLOTFILES
+erf.plot_file_1     = plt       # prefix of plotfile name
+erf.plot_int_1      = {inputs.pop('erf.plot_int')}       # number of timesteps between plotfiles
+erf.plot_vars_1     = {plotvars}
+
 # DIAGNOSTICS & VERBOSITY
 erf.sum_interval = 1  # timesteps between computing mass
 erf.v            = 1  # verbosity in ERF.cpp

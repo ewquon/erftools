@@ -117,11 +117,15 @@ class Wrapper(object):
         input_file = os.path.join(self.rundir,'inputs')
         self.inputs.write(input_file,ideal=True)
 
-    def run(self,stop_time,dt,rundir='.rundir',ncpu=1):
+    def run(self, stop_time, dt,
+            plot_int=-1, check_int=-1,
+            rundir='.rundir', ncpu=1):
         assert self.initialized, 'Need to call init()'
         assert self.setup_complete, 'Need to call setup()'
         self.inputs['stop_time'] = stop_time
         self.inputs['erf.fixed_dt'] = dt
+        self.inputs['erf.plot_int'] = plot_int
+        self.inputs['erf.check_int'] = check_int
         self.check_inputs()
         # setup run directory
         os.makedirs(rundir, exist_ok=True)
