@@ -8,6 +8,12 @@ from ..inputs import ERFInputFile
 from ..input_sounding import InputSounding
 
 class Wrapper(object):
+    """Base class for developing wrappers around ERF solvers
+
+    This includes all essential functionality to setup and run ERF, but
+    the derived classes provide an opportunity to do some specialized
+    setup and input validation (see "template" below).
+    """
     solver = 'EXEC_REL_PATH'
 
     def __init__(self,builddir=None):
@@ -110,6 +116,9 @@ class Wrapper(object):
         This is a template
         """
         # do some input validation...
+        if 'erf.restart' in self.inputs.keys():
+            chkpt = os.path.join(self.rundir, self.inputs['erf.restart'])
+            assert os.path.isdir(chkpt), f'Checkpoint {chkpt} not found'
 
     def create_input_files(self):
         input_sounding_file = os.path.join(self.rundir,'input_sounding')
@@ -117,19 +126,23 @@ class Wrapper(object):
         input_file = os.path.join(self.rundir,'inputs')
         self.inputs.write(input_file,ideal=True)
 
-    def run(self, stop_time, dt,
+    def run(self, stop_time, dt, restart=None,
             plot_int=-1, check_int=-1,
             rundir='.rundir', ncpu=1):
         assert self.initialized, 'Need to call init()'
         assert self.setup_complete, 'Need to call setup()'
+        self.rundir = rundir
         self.inputs['stop_time'] = stop_time
         self.inputs['erf.fixed_dt'] = dt
         self.inputs['erf.plot_int'] = plot_int
         self.inputs['erf.check_int'] = check_int
+        if restart is None:
+            self.inputs.pop('erf.restart',None)
+        else:
+            self.inputs['erf.restart'] = restart
         self.check_inputs()
         # setup run directory
         os.makedirs(rundir, exist_ok=True)
-        self.rundir = rundir
         self.create_input_files()
         # call solver
         ncpu = min(ncpu, self.ncpus_avail)
