@@ -79,7 +79,7 @@ class Wrapper(object):
               prob_extent=[0.0,0.0,0.0],
               periodic=[True,True,False],
               max_level=0, # level index, not the number of levels
-              zlo_type="MOST", MOST_z0=0.1, MOST_surf_temp=300.0,
+              zlo_type="MOST", MOST_z0=0.1, MOST_surf_temp=None,
               les_type="None",
               pbl_type="None",
               molec_diff_type="None",
@@ -89,6 +89,8 @@ class Wrapper(object):
         """
         assert np.all([n>0 for n in n_cell]), 'Need to specify number of cells'
         assert np.all([L>0 for L in prob_extent]), 'Need to specify problem extent'
+        if MOST_surf_temp is None:
+            MOST_surf_temp = self.input_sounding.th_surf
         sim_params = {
             'amr.n_cell': n_cell,
             'geometry.prob_extent': prob_extent,
