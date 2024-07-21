@@ -175,7 +175,7 @@ class Wrapper(object):
                 for dpath in glob.glob(os.path.join(rundir,'chk*')):
                     if os.path.isdir(dpath):
                         shutil.rmtree(dpath)
-        else:
+        elif rundir != '':
             print(f'{rundir} not found?')
 
 
