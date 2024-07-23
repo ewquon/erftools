@@ -112,7 +112,29 @@ class GeostrophicWindEstimator(ABLWrapper):
 
         return U0,V0
 
+    def init_geo(self):
+        """Initialize input_sounding profile with constant velocity
+        profile equal to the geostrophic wind
+        """
+        self.init(self.init_z_profile,
+                  self.abl_geo_wind[0] * np.ones_like(self.init_z_profile),
+                  self.abl_geo_wind[1] * np.ones_like(self.init_z_profile),
+                  self.init_th_profile)
+
+    def setup_geo(self,**kwargs):
+        """Call ABLWrapper.setup()"""
+        sim_params = {key:val for key,val in self.sim_params.items()}
+        for key,val in kwargs.items():
+            if key in sim_params.keys():
+                print('Overriding',key,'=',sim_params[key],'with',val)
+            sim_params[key] = val
+        self.setup(**sim_params)
+
     def opt(self,Tsim=None,dt=None,maxiter=10,tol=1e-3,**run_kwargs):
+        """Repeatedly run simulations, adjusting erf.abl_geo_wind, until
+        the target wind speed matches the simulated wind speed magnitude
+        (within wind-speed tolerance `tol`) at the target height
+        """
         nstep = 0
         if Tsim is None:
             Tsim = self.Tsim
@@ -125,10 +147,7 @@ class GeostrophicWindEstimator(ABLWrapper):
         self.cleanup(realclean=False)
 
         print('[ STEP',nstep,']')
-        self.init(self.init_z_profile,
-                  self.abl_geo_wind[0] * np.ones_like(self.init_z_profile),
-                  self.abl_geo_wind[1] * np.ones_like(self.init_z_profile),
-                  self.init_th_profile)
+        self.init_geo()
         self.setup(**self.sim_params)
         result = self.run(Tsim, dt=dt, check_int=check_int, **run_kwargs)
         assert result.returncode == 0
@@ -145,10 +164,7 @@ class GeostrophicWindEstimator(ABLWrapper):
             self.abl_geo_wind *= mag_corr
 
             print(f'[ STEP {nstep}] output written to {self.rundir}/log.out')
-            self.init(self.init_z_profile,
-                      self.abl_geo_wind[0] * np.ones_like(self.init_z_profile),
-                      self.abl_geo_wind[1] * np.ones_like(self.init_z_profile),
-                      self.init_th_profile)
+            self.init_geo()
             self.sim_params['erf.abl_geo_wind'] = f'{self.abl_geo_wind[0]:g} {self.abl_geo_wind[1]:g}'
             self.setup(**self.sim_params)
             result = self.run(Tsim, dt=dt, check_int=check_int, **run_kwargs)
