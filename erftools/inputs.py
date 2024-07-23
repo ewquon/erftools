@@ -176,7 +176,6 @@ erf.nc_bdy_file  = {bdylist}
 # PHYSICS OPTIONS
 erf.les_type = "{inputs.pop('erf.les_type')}"  # TODO: specify for each level
 erf.pbl_type = "{inputs.pop('erf.pbl_type')}"  # TODO: specify for each level
-erf.abl_driver_type = "None"
 erf.use_gravity = true
 erf.use_coriolis = true
 erf.latitude = {inputs.pop('erf.latitude')}

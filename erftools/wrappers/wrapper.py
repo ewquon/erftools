@@ -182,6 +182,12 @@ class Wrapper(object):
 class ABLWrapper(Wrapper):
     solver = 'Exec/ABL/erf_abl'
 
-    def __init__(self,builddir=None):
-        super().__init__(builddir=builddir)
+    def __init__(self,n_cell,prob_extent,builddir=None,**kwargs):
+        super().__init__(builddir=builddir,**kwargs)
         self.solver = os.path.join(self.builddir,self.solver)
+        self.sim_params = {
+            'n_cell': n_cell,
+            'prob_extent': prob_extent,
+        }
+        for key,val in kwargs.items():
+            self.sim_params[key] = val
