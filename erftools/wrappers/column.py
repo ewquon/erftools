@@ -6,7 +6,7 @@ from ..postprocessing import AveragedProfiles
 
 class GeostrophicWindEstimator(ABLWrapper):
     """This will estimate the geostrophic wind that gives a specified
-    wind speed at a reference height
+    wind speed at a reference height.
     """
 
     def __init__(self,
@@ -20,6 +20,7 @@ class GeostrophicWindEstimator(ABLWrapper):
                  target_height=85.0,
                  target_wind_speed=8.0,
                  target_wind_direction=270.0,
+                 abl_geo_wind=None, # guess
                  latitude=90.0,
                  rotation_time_period=86400.0,
                  builddir=None,
@@ -49,9 +50,12 @@ class GeostrophicWindEstimator(ABLWrapper):
         self.sim_params['erf.rotation_time_period'] = rotation_time_period
 
         # Geostrophic forcing
-        self.abl_geo_wind = self.target_wind_speed * \
-                np.array([np.cos(self.target_angle_rad),
-                          np.sin(self.target_angle_rad)])
+        if abl_geo_wind is None:
+            self.abl_geo_wind = self.target_wind_speed * \
+                    np.array([np.cos(self.target_angle_rad),
+                              np.sin(self.target_angle_rad)])
+        else:
+            self.abl_geo_wind = np.array(abl_geo_wind[:2])
         self.sim_params['erf.abl_driver_type'] = 'GeostrophicWind'
         self.sim_params['erf.abl_geo_wind'] = f'{self.abl_geo_wind[0]:g} {self.abl_geo_wind[1]:g}'
 
