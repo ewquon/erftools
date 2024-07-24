@@ -117,23 +117,28 @@ class GeostrophicWindEstimator(ABLWrapper):
 
         return U0,V0
 
-    def init_geo(self):
+    def init(self):
         """Initialize input_sounding profile with constant velocity
         profile equal to the geostrophic wind
         """
-        self.init(self.init_z_profile,
-                  self.abl_geo_wind[0] * np.ones_like(self.init_z_profile),
-                  self.abl_geo_wind[1] * np.ones_like(self.init_z_profile),
-                  self.init_th_profile)
+        super().init(self.init_z_profile,
+                     self.abl_geo_wind[0] * np.ones_like(self.init_z_profile),
+                     self.abl_geo_wind[1] * np.ones_like(self.init_z_profile),
+                     self.init_th_profile)
 
-    def setup_geo(self,**kwargs):
+    def setup(self,**kwargs):
         """Call ABLWrapper.setup()"""
+        # make sure we update the input files with the correct geo wind
+        self.sim_params['erf.abl_geo_wind'] = f'{self.abl_geo_wind[0]} {self.abl_geo_wind[1]}'
+        # collect all optional sim params from kwargs and pass them all together
+        # TODO: Hand off everything to ABLWrapper, once we can better handle
+        #       input defaults and dtypes...
         sim_params = {key:val for key,val in self.sim_params.items()}
         for key,val in kwargs.items():
             if key in sim_params.keys():
                 print('Overriding',key,'=',sim_params[key],'with',val)
             sim_params[key] = val
-        self.setup(**sim_params)
+        super().setup(**sim_params)
 
     def opt(self,Tsim=None,dt=None,maxiter=10,tol=1e-4,**run_kwargs):
         """Repeatedly run simulations, adjusting erf.abl_geo_wind, until
@@ -157,7 +162,7 @@ class GeostrophicWindEstimator(ABLWrapper):
         self.cleanup(realclean=False)
 
         print('[ STEP',nstep,']')
-        self.init_geo()
+        self.init()
         self.setup(**self.sim_params)
         result = self.run(Tsim, dt=dt, check_int=check_int, **run_kwargs)
         assert result.returncode == 0
@@ -188,8 +193,7 @@ class GeostrophicWindEstimator(ABLWrapper):
                 print('  extrapolated abl_geo_wind to',self.abl_geo_wind)
 
             print(f'[ STEP {nstep} ] output written to {self.rundir}/log.out')
-            self.init_geo()
-            self.sim_params['erf.abl_geo_wind'] = f'{self.abl_geo_wind[0]} {self.abl_geo_wind[1]}'
+            self.init()
             self.setup(**self.sim_params)
             result = self.run(Tsim, dt=dt, check_int=check_int, **run_kwargs)
             assert result.returncode == 0
@@ -213,8 +217,7 @@ class GeostrophicWindEstimator(ABLWrapper):
         print(self.abl_geo_wind)
 
         # get sim ready if we want to run again with final setup
-        self.init_geo()
-        self.sim_params['erf.abl_geo_wind'] = f'{self.abl_geo_wind[0]} {self.abl_geo_wind[1]}'
+        self.init()
         self.setup(**self.sim_params)
 
         return U0_hist, V0_hist, abl_geo_wind_hist
