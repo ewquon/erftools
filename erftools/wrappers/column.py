@@ -99,6 +99,7 @@ class GeostrophicWindEstimator(ABLWrapper):
                   f' (ω_d={ω_d:g} rad/s, ζ={ζ:g})')
 
         if plot:
+            import matplotlib.pyplot as plt
             t0_u = umax.t[0].values
             t0_v = vmax.t[0].item()
 
