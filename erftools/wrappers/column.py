@@ -134,12 +134,17 @@ class GeostrophicWindEstimator(ABLWrapper):
             sim_params[key] = val
         self.setup(**sim_params)
 
-    def opt(self,Tsim=None,dt=None,maxiter=10,tol=1e-3,**run_kwargs):
+    def opt(self,Tsim=None,dt=None,maxiter=10,tol=1e-4,**run_kwargs):
         """Repeatedly run simulations, adjusting erf.abl_geo_wind, until
         the target wind speed matches the simulated wind speed magnitude
-        (within wind-speed tolerance `tol`) at the target height
+        (within wind-speed tolerance `tol`) at the target height.
+        Lastly, rotate the geostrophic wind vector to obtain the target
+        wind direction at the target height.
         """
         nstep = 0
+        U0_hist = []
+        V0_hist = []
+        abl_geo_wind_hist = []
         if Tsim is None:
             Tsim = self.Tsim
             assert Tsim is not None, 'Need to specify Tsim during init or call to opt()'
@@ -159,17 +164,31 @@ class GeostrophicWindEstimator(ABLWrapper):
         U0, V0 = self.estimate_asymptotic_wind_at_height(self.target_height)
         Umag_sim = (U0**2 + V0**2)**0.5
         err = np.abs(Umag_sim - self.target_wind_speed)
+
         print('  simulated |U| =',Umag_sim,' error =',err)
+        U0_hist.append(U0)
+        V0_hist.append(V0)
+        abl_geo_wind_hist.append(self.abl_geo_wind.copy())
 
         while (err > tol) and (nstep < maxiter):
             nstep += 1
-            mag_corr = self.target_wind_speed / Umag_sim
-            print('  scaling abl_geo_wind by',mag_corr)
-            self.abl_geo_wind *= mag_corr
+            if len(abl_geo_wind_hist) == 1:
+                mag_corr = self.target_wind_speed / Umag_sim
+                self.abl_geo_wind *= mag_corr
+                print('  scaled abl_geo_wind to',self.abl_geo_wind)
+            else:
+                # extrapolate
+                Umag1 = np.sqrt(U0_hist[-1]**2 + V0_hist[-1]**2)
+                Umag0 = np.sqrt(U0_hist[-2]**2 + V0_hist[-2]**2)
+                Ug_vec1 = abl_geo_wind_hist[-1]
+                Ug_vec0 = abl_geo_wind_hist[-2]
+                self.abl_geo_wind = Ug_vec1 + \
+                        (Ug_vec1 - Ug_vec0)/(Umag1 - Umag0) * (self.target_wind_speed - Umag1)
+                print('  extrapolated abl_geo_wind to',self.abl_geo_wind)
 
-            print(f'[ STEP {nstep}] output written to {self.rundir}/log.out')
+            print(f'[ STEP {nstep} ] output written to {self.rundir}/log.out')
             self.init_geo()
-            self.sim_params['erf.abl_geo_wind'] = f'{self.abl_geo_wind[0]:g} {self.abl_geo_wind[1]:g}'
+            self.sim_params['erf.abl_geo_wind'] = f'{self.abl_geo_wind[0]} {self.abl_geo_wind[1]}'
             self.setup(**self.sim_params)
             result = self.run(Tsim, dt=dt, check_int=check_int, **run_kwargs)
             assert result.returncode == 0
@@ -177,4 +196,24 @@ class GeostrophicWindEstimator(ABLWrapper):
             U0, V0 = self.estimate_asymptotic_wind_at_height(self.target_height)
             Umag_sim = (U0**2 + V0**2)**0.5
             err = np.abs(Umag_sim - self.target_wind_speed)
+
             print('  simulated |U| =',Umag_sim,' error =',err)
+            U0_hist.append(U0)
+            V0_hist.append(V0)
+            abl_geo_wind_hist.append(self.abl_geo_wind.copy())
+
+        print('Rotating geostrophic wind vector to get target wind direction')
+        wdir_sim = 180. + np.degrees(np.arctan2(U0_hist[-1], V0_hist[-1]))
+        wdir_corr = self.target_wind_direction - wdir_sim  # this is still following meteorlogical convention, so >0 ==> clockwise
+        ang = np.radians(wdir_corr)
+        Rmat = np.array([[ np.cos(ang),np.sin(ang)],
+                         [-np.sin(ang),np.cos(ang)]])
+        self.abl_geo_wind = Rmat.dot(self.abl_geo_wind)
+        print(self.abl_geo_wind)
+
+        # get sim ready if we want to run again with final setup
+        self.init_geo()
+        self.sim_params['erf.abl_geo_wind'] = f'{self.abl_geo_wind[0]} {self.abl_geo_wind[1]}'
+        self.setup(**self.sim_params)
+
+        return U0_hist, V0_hist, abl_geo_wind_hist
