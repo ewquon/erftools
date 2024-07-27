@@ -1,1 +1,1 @@
-from .column import GeostrophicWindEstimator
+from .scm import GeostrophicWindEstimator
