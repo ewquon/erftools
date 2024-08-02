@@ -10,15 +10,10 @@ class SCM(ABLWrapper):
     def __init__(self,
                  nz,
                  ztop,
-                 init_z_profile,
-                 init_th_profile,
-                 Tsim=None,
-                 dt=None,
+                 Tsim=None, # default for run()
+                 dt=None, # default for run()
+                 abl_geo_wind=[0,0],
                  pbl_type='MYNN2.5',
-                 target_height=85.0,
-                 target_wind_speed=8.0,
-                 target_wind_direction=270.0,
-                 abl_geo_wind=None, # guess
                  latitude=90.0,
                  rotation_time_period=86400.0,
                  builddir=None,
@@ -30,13 +25,6 @@ class SCM(ABLWrapper):
         prob_extent = dz * np.array(n_cell)
         super().__init__(n_cell,prob_extent,builddir=builddir,**kwargs)
 
-        self.init_z_profile = init_z_profile # [m]
-        self.init_th_profile = init_th_profile # potential temperature [K]
-        self.target_height = target_height # [m]
-        self.target_wind_speed = target_wind_speed # [m/s]
-        self.target_wind_direction = target_wind_direction # [deg]
-        self.target_angle_rad = np.radians(270.0 - target_wind_direction)
-
         self.ds = None # solution profiles
 
         self.sim_params['pbl_type'] = pbl_type
@@ -47,13 +35,7 @@ class SCM(ABLWrapper):
         self.sim_params['erf.latitude'] = latitude
         self.sim_params['erf.rotation_time_period'] = rotation_time_period
 
-        # Geostrophic forcing
-        if abl_geo_wind is None:
-            self.abl_geo_wind = self.target_wind_speed * \
-                    np.array([np.cos(self.target_angle_rad),
-                              np.sin(self.target_angle_rad)])
-        else:
-            self.abl_geo_wind = np.array(abl_geo_wind[:2])
+        self.abl_geo_wind = np.array(abl_geo_wind[:2])
         self.sim_params['erf.abl_driver_type'] = 'GeostrophicWind'
         self.sim_params['erf.abl_geo_wind'] = f'{self.abl_geo_wind[0]:g} {self.abl_geo_wind[1]:g}'
 
@@ -61,15 +43,28 @@ class SCM(ABLWrapper):
         self.sim_params['erf.data_log'] = 'surf.dat mean.dat'
         self.sim_params['erf.profile_int'] = 60
 
-    def init(self):
+    def init(self,
+             init_z_profile,  # [m]
+             init_th_profile, # potential temperature [K]
+             init_u_profile=None,
+             init_v_profile=None,
+            ):
         """Initialize input_sounding profile with constant velocity
         profile equal to the geostrophic wind
         """
-        super(ABLWrapper,self).init(
-                self.init_z_profile,
-                self.abl_geo_wind[0] * np.ones_like(self.init_z_profile),
-                self.abl_geo_wind[1] * np.ones_like(self.init_z_profile),
-                self.init_th_profile)
+        if init_u_profile is None:
+            init_u_profile = self.abl_geo_wind[0] * np.ones_like(self.init_z_profile)
+        if init_v_profile is None:
+            init_v_profile = self.abl_geo_wind[1] * np.ones_like(self.init_z_profile)
+        super(ABLWrapper,self).init(init_z_profile,
+                                    init_u_profile,
+                                    init_v_profile,
+                                    init_th_profile)
+
+    def setup(self,**sim_params):
+        if not sim_params:
+            sim_params = self.sim_params
+        super(ABLWrapper,self).setup(**sim_params)
 
 
 class GeostrophicWindEstimator(SCM):
@@ -82,8 +77,27 @@ class GeostrophicWindEstimator(SCM):
                  ztop,
                  init_z_profile,
                  init_th_profile,
+                 abl_geo_wind=None,
+                 target_height=85.0,
+                 target_wind_speed=8.0,
+                 target_wind_direction=270.0,
                  **kwargs):
-        super().__init__(nz,ztop,init_z_profile,init_th_profile,**kwargs)
+        self.target_height = target_height # [m]
+        self.target_wind_speed = target_wind_speed # [m/s]
+        self.target_wind_direction = target_wind_direction # [deg]
+        self.target_angle_rad = np.radians(270.0 - target_wind_direction)
+
+        # save initial conditions -- u,v are set to the geostrophic wind
+        self.init_z_profile = init_z_profile
+        self.init_th_profile = init_th_profile
+
+        # Geostrophic forcing
+        if abl_geo_wind is None:
+            self.abl_geo_wind = self.target_wind_speed * \
+                    np.array([np.cos(self.target_angle_rad),
+                              np.sin(self.target_angle_rad)])
+
+        super().__init__(nz,ztop,**kwargs)
 
     def estimate_asymptotic_wind_at_height(self, zref, verbose=True,
                                            plot=False):
@@ -175,7 +189,7 @@ class GeostrophicWindEstimator(SCM):
         self.cleanup(realclean=False)
 
         print('[ STEP',nstep,']')
-        self.init()
+        self.init(self.init_z_profile, self.init_th_profile)
         self.setup(**self.sim_params)
         result = self.run(Tsim, dt=dt, check_int=check_int, **run_kwargs)
         assert result.returncode == 0
@@ -206,7 +220,7 @@ class GeostrophicWindEstimator(SCM):
                 print('  extrapolated abl_geo_wind to',self.abl_geo_wind)
 
             print(f'[ STEP {nstep} ] output written to {self.rundir}/log.out')
-            self.init()
+            self.init(self.init_z_profile, self.init_th_profile)
             self.setup(**self.sim_params)
             result = self.run(Tsim, dt=dt, check_int=check_int, **run_kwargs)
             assert result.returncode == 0
@@ -230,7 +244,7 @@ class GeostrophicWindEstimator(SCM):
         print(self.abl_geo_wind)
 
         # get sim ready if we want to run again with final setup
-        self.init()
+        self.init(self.init_z_profile, self.init_th_profile)
         self.setup(**self.sim_params)
 
         return U0_hist, V0_hist, abl_geo_wind_hist
