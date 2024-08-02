@@ -34,7 +34,7 @@ class SCM(ABLWrapper):
         self.f_c = 4*np.pi / rotational_time_period * np.sin(np.radians(latitude))
         self.sim_params['erf.latitude'] = latitude
         self.sim_params['erf.rotational_time_period'] = rotational_time_period
-        self.sim_params['erf.coriolis_3d'] = False
+        self.sim_params['erf.coriolis_3d'] = 0
 
         self.abl_geo_wind = np.array(abl_geo_wind[:2])
         self.sim_params['erf.abl_driver_type'] = 'GeostrophicWind'
@@ -97,8 +97,10 @@ class GeostrophicWindEstimator(SCM):
             self.abl_geo_wind = self.target_wind_speed * \
                     np.array([np.cos(self.target_angle_rad),
                               np.sin(self.target_angle_rad)])
+        else:
+            self.abl_geo_wind = np.array(abl_geo_wind)
 
-        super().__init__(nz,ztop,**kwargs)
+        super().__init__(nz, ztop, abl_geo_wind=self.abl_geo_wind, **kwargs)
 
     def estimate_asymptotic_wind_at_height(self, zref, verbose=True,
                                            plot=False):
@@ -191,9 +193,9 @@ class GeostrophicWindEstimator(SCM):
 
         print('[ STEP',nstep,']')
         self.init(self.init_z_profile, self.init_th_profile)
-        self.setup(**self.sim_params)
+        self.setup()
         result = self.run(Tsim, dt=dt, check_int=check_int, **run_kwargs)
-        assert result.returncode == 0
+        assert result.returncode == 0, f'Check {self.rundir}/log.err'
         self.df = AveragedProfiles(f'{self.rundir}/mean.dat')
         U0, V0 = self.estimate_asymptotic_wind_at_height(self.target_height)
         Umag_sim = (U0**2 + V0**2)**0.5
@@ -222,7 +224,7 @@ class GeostrophicWindEstimator(SCM):
 
             print(f'[ STEP {nstep} ] output written to {self.rundir}/log.out')
             self.init(self.init_z_profile, self.init_th_profile)
-            self.setup(**self.sim_params)
+            self.setup()
             result = self.run(Tsim, dt=dt, check_int=check_int, **run_kwargs)
             assert result.returncode == 0
             self.df = AveragedProfiles(f'{self.rundir}/mean.dat')
@@ -246,6 +248,6 @@ class GeostrophicWindEstimator(SCM):
 
         # get sim ready if we want to run again with final setup
         self.init(self.init_z_profile, self.init_th_profile)
-        self.setup(**self.sim_params)
+        self.setup()
 
         return U0_hist, V0_hist, abl_geo_wind_hist
