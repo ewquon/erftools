@@ -15,7 +15,7 @@ class SCM(ABLWrapper):
                  abl_geo_wind=[0,0],
                  pbl_type='MYNN2.5',
                  latitude=90.0,
-                 rotation_time_period=86400.0,
+                 rotational_time_period=86400.0,
                  builddir=None,
                  **kwargs):
         n_cell = [2,2,nz] # minimum blocking factor
@@ -31,9 +31,10 @@ class SCM(ABLWrapper):
         self.sim_params['erf.fixed_mri_dt_ratio'] = 4
 
         # Coriolis
-        self.f_c = 4*np.pi / rotation_time_period * np.sin(np.radians(latitude))
+        self.f_c = 4*np.pi / rotational_time_period * np.sin(np.radians(latitude))
         self.sim_params['erf.latitude'] = latitude
-        self.sim_params['erf.rotation_time_period'] = rotation_time_period
+        self.sim_params['erf.rotational_time_period'] = rotational_time_period
+        self.sim_params['erf.coriolis_3d'] = False
 
         self.abl_geo_wind = np.array(abl_geo_wind[:2])
         self.sim_params['erf.abl_driver_type'] = 'GeostrophicWind'
