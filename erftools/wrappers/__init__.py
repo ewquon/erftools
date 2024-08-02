@@ -1,1 +1,1 @@
-from .scm import GeostrophicWindEstimator
+from .scm import SCM, GeostrophicWindEstimator

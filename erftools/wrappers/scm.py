@@ -4,14 +4,12 @@ from scipy.signal import find_peaks
 from .wrapper import ABLWrapper
 from ..postprocessing import AveragedProfiles
 
-class GeostrophicWindEstimator(ABLWrapper):
-    """This will estimate the geostrophic wind that gives a specified
-    wind speed at a reference height.
-    """
+class SCM(ABLWrapper):
+    """Basic single-column model driver"""
 
     def __init__(self,
                  nz,
-                 zmax,
+                 ztop,
                  init_z_profile,
                  init_th_profile,
                  Tsim=None,
@@ -25,8 +23,8 @@ class GeostrophicWindEstimator(ABLWrapper):
                  rotation_time_period=86400.0,
                  builddir=None,
                  **kwargs):
-        n_cell = [4,4,nz]
-        dz = np.round(zmax/nz)
+        n_cell = [4,4,nz] # minimum blocking factor
+        dz = np.round(ztop/nz)
         self.Tsim = Tsim
         self.dt = dt
         prob_extent = dz * np.array(n_cell)
@@ -62,6 +60,30 @@ class GeostrophicWindEstimator(ABLWrapper):
         # Outputs
         self.sim_params['erf.data_log'] = 'surf.dat mean.dat'
         self.sim_params['erf.profile_int'] = 60
+
+    def init(self):
+        """Initialize input_sounding profile with constant velocity
+        profile equal to the geostrophic wind
+        """
+        super(ABLWrapper,self).init(
+                self.init_z_profile,
+                self.abl_geo_wind[0] * np.ones_like(self.init_z_profile),
+                self.abl_geo_wind[1] * np.ones_like(self.init_z_profile),
+                self.init_th_profile)
+
+
+class GeostrophicWindEstimator(SCM):
+    """This will estimate the geostrophic wind that gives a specified
+    wind speed at a reference height.
+    """
+
+    def __init__(self,
+                 nz,
+                 ztop,
+                 init_z_profile,
+                 init_th_profile,
+                 **kwargs):
+        super().__init__(nz,ztop,init_z_profile,init_th_profile,**kwargs)
 
     def estimate_asymptotic_wind_at_height(self, zref, verbose=True,
                                            plot=False):
@@ -116,15 +138,6 @@ class GeostrophicWindEstimator(ABLWrapper):
                 ax.grid(alpha=0.2)
 
         return U0,V0
-
-    def init(self):
-        """Initialize input_sounding profile with constant velocity
-        profile equal to the geostrophic wind
-        """
-        super().init(self.init_z_profile,
-                     self.abl_geo_wind[0] * np.ones_like(self.init_z_profile),
-                     self.abl_geo_wind[1] * np.ones_like(self.init_z_profile),
-                     self.init_th_profile)
 
     def setup(self,**kwargs):
         """Call ABLWrapper.setup()"""
