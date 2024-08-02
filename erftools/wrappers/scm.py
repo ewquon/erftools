@@ -23,7 +23,7 @@ class SCM(ABLWrapper):
                  rotation_time_period=86400.0,
                  builddir=None,
                  **kwargs):
-        n_cell = [4,4,nz] # minimum blocking factor
+        n_cell = [2,2,nz] # minimum blocking factor
         dz = np.round(ztop/nz)
         self.Tsim = Tsim
         self.dt = dt
