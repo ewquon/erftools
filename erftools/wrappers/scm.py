@@ -45,22 +45,22 @@ class SCM(ABLWrapper):
         self.sim_params['erf.profile_int'] = 60
 
     def init(self,
-             init_z_profile,  # [m]
-             init_th_profile, # potential temperature [K]
-             init_u_profile=None,
-             init_v_profile=None,
+             z_profile,  # [m]
+             th_profile, # potential temperature [K]
+             u_profile=None,
+             v_profile=None,
             ):
         """Initialize input_sounding profile with constant velocity
         profile equal to the geostrophic wind
         """
-        if init_u_profile is None:
-            init_u_profile = self.abl_geo_wind[0] * np.ones_like(self.init_z_profile)
-        if init_v_profile is None:
-            init_v_profile = self.abl_geo_wind[1] * np.ones_like(self.init_z_profile)
-        super(ABLWrapper,self).init(init_z_profile,
-                                    init_u_profile,
-                                    init_v_profile,
-                                    init_th_profile)
+        if u_profile is None:
+            u_profile = self.abl_geo_wind[0] * np.ones_like(z_profile)
+        if v_profile is None:
+            v_profile = self.abl_geo_wind[1] * np.ones_like(z_profile)
+        super(ABLWrapper,self).init(z_profile,
+                                    u_profile,
+                                    v_profile,
+                                    th_profile)
 
     def setup(self,**sim_params):
         if not sim_params:
