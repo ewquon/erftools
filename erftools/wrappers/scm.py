@@ -104,11 +104,11 @@ class GeostrophicWindEstimator(SCM):
 
     def estimate_asymptotic_wind_at_height(self, zref, verbose=True,
                                            plot=False):
-        uref = self.df['u'].sel(z=zref)
+        uref = self.ds['u'].sel(z=zref)
         umax = uref.isel(t=find_peaks(uref)[0])
         assert len(umax) >= 2, 'Need longer u timeseries'
 
-        vref = self.df['v'].sel(z=zref)
+        vref = self.ds['v'].sel(z=zref)
         vmax = vref.isel(t=find_peaks(vref)[0])
         assert len(vmax) >= 2, 'Need longer v timeseries'
 
@@ -196,7 +196,7 @@ class GeostrophicWindEstimator(SCM):
         self.setup()
         result = self.run(Tsim, dt=dt, check_int=check_int, **run_kwargs)
         assert result.returncode == 0, f'Check {self.rundir}/log.err'
-        self.df = AveragedProfiles(f'{self.rundir}/mean.dat')
+        self.ds = AveragedProfiles(f'{self.rundir}/mean.dat')
         U0, V0 = self.estimate_asymptotic_wind_at_height(self.target_height)
         Umag_sim = (U0**2 + V0**2)**0.5
         err = np.abs(Umag_sim - self.target_wind_speed)
@@ -227,7 +227,7 @@ class GeostrophicWindEstimator(SCM):
             self.setup()
             result = self.run(Tsim, dt=dt, check_int=check_int, **run_kwargs)
             assert result.returncode == 0
-            self.df = AveragedProfiles(f'{self.rundir}/mean.dat')
+            self.ds = AveragedProfiles(f'{self.rundir}/mean.dat')
             U0, V0 = self.estimate_asymptotic_wind_at_height(self.target_height)
             Umag_sim = (U0**2 + V0**2)**0.5
             err = np.abs(Umag_sim - self.target_wind_speed)
