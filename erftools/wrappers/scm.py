@@ -67,6 +67,11 @@ class SCM(ABLWrapper):
             sim_params = self.sim_params
         super(ABLWrapper,self).setup(**sim_params)
 
+    def post(self):
+        avg = AveragedProfiles(f'{self.rundir}/mean.dat',
+                               verbose=False)
+        self.ds = avg.ds
+
 
 class GeostrophicWindEstimator(SCM):
     """This will estimate the geostrophic wind that gives a specified

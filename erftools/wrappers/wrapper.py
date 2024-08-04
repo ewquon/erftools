@@ -130,6 +130,7 @@ class Wrapper(object):
 
     def run(self, stop_time, dt, restart=None,
             plot_int=-1, check_int=-1,
+            postproc=True,
             rundir='.rundir', ncpu=1):
         assert self.initialized, 'Need to call init()'
         assert self.setup_complete, 'Need to call setup()'
@@ -160,7 +161,16 @@ class Wrapper(object):
                                     stderr=errfile)
         if result.returncode != 0:
             print('Return code:',result.returncode)
+        elif postproc:
+            self.post()
+
         return result
+
+    def post(self):
+        """
+        This is a template
+        """
+        self.ds = None
 
     def cleanup(self,rundir=None,realclean=True):
         if rundir is None:
