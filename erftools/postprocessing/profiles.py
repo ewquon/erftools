@@ -51,7 +51,8 @@ class AveragedProfiles(object):
                      "τ13", "τ23",
                      "τθw", "τqvw", "τqcw"]
 
-    def __init__(self, *args, t0=0.0, sampling_interval_s=None, zexact=None):
+    def __init__(self, *args, t0=0.0, sampling_interval_s=None, zexact=None,
+                 verbose=True):
         """Load diagnostic profile data from 3 datafiles
 
         Parameters
@@ -70,6 +71,7 @@ class AveragedProfiles(object):
             domain, used to overwrite the height dimension coordinate
             and address issues with insufficient precision
         """
+        self.verbose = verbose
         assert (len(args) == 1) or (len(args) == 3)
         if len(args) == 1:
             if isinstance(args[0], list):
@@ -104,23 +106,23 @@ class AveragedProfiles(object):
         alldata = []
         idxvars = [self.timename, self.heightname]
         assert os.path.isfile(mean_fpath)
-        print('Loading mean profiles from',mean_fpath)
+        if self.verbose: print('Loading mean profiles from',mean_fpath)
         mean = self._read_text_data(mean_fpath, idxvars+self.profile1vars)
         alldata.append(mean)
 
         # optional profile data
         if (flux_fpath is not None) and os.path.isfile(flux_fpath):
-            print('Loading resolved flux profiles from',flux_fpath)
+            if self.verbose: print('Loading resolved flux profiles from',flux_fpath)
             fluxes = self._read_text_data(flux_fpath, idxvars+self.profile2vars)
             alldata.append(fluxes)
         else:
-            print('No resolved stress data available')
+            if self.verbose: print('No resolved stress data available')
         if (sfs_fpath is not None) and os.path.isfile(sfs_fpath):
-            print('Loading SFS stress profiles from',sfs_fpath)
+            if self.verbose: print('Loading SFS stress profiles from',sfs_fpath)
             sfs = self._read_text_data(sfs_fpath, idxvars+self.profile3vars)
             alldata.append(sfs)
         else:
-            print('No SFS data available')
+            if self.verbose: print('No SFS data available')
 
         self.ds = pd.concat(alldata, axis=1).to_xarray()
 
@@ -130,7 +132,7 @@ class AveragedProfiles(object):
             # profiles are not on staggered grid
             return
         assert topval == 0
-        print('**Staggered output detected**')
+        if self.verbose: print('**Staggered output detected**')
         zstag = self.ds.coords['z'].values
         zcc = 0.5 * (zstag[1:] + zstag[:-1])
         # collect cell-centered and staggered outputs that are available
