@@ -97,7 +97,8 @@ class AveragedProfiles(object):
     def _read_text_data(self, fpath, columns):
         df = pd.read_csv(
             fpath, delim_whitespace=True,
-            header=None, names=columns)
+            header=None, names=columns,
+            dtype=np.float64)
         df = df.set_index([self.timename,self.heightname])
         isdup = df.index.duplicated(keep='last')
         return df.loc[~isdup]
