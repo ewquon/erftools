@@ -172,12 +172,25 @@ class Wrapper(object):
         """
         self.ds = None
 
-    def cleanup(self,rundir=None,realclean=True):
+    def cleanup(self,*args,rundir=None,realclean=True):
         if rundir is None:
-            rundir = self.rundir
+            if len(args) > 0:
+                args = list(args)
+                rundir = args.pop(0)
+            else:
+                rundir = self.rundir
+        else:
+            print(rundir)
         if os.path.isdir(rundir):
             if realclean:
                 shutil.rmtree(rundir)
+            elif len(args) > 0:
+                for globstr in args:
+                    for fpath in glob.glob(os.path.join(rundir,globstr)):
+                        if os.path.isdir(fpath):
+                            shutil.rmtree(fpath)
+                        else:
+                            os.remove(fpath)
             else:
                 for dpath in glob.glob(os.path.join(rundir,'plt*')):
                     if os.path.isdir(dpath):

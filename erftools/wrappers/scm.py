@@ -77,8 +77,7 @@ class SCM(ABLWrapper):
         super(ABLWrapper,self).setup(**sim_params)
 
     def post(self):
-        avg = AveragedProfiles(f'{self.rundir}/mean.dat',
-                               verbose=False)
+        avg = AveragedProfiles(f'{self.rundir}/mean.dat', verbose=False)
         self.ds = avg.ds
 
 
