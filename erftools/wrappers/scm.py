@@ -62,9 +62,18 @@ class SCM(ABLWrapper):
                                     v_profile,
                                     th_profile)
 
-    def setup(self,**sim_params):
-        if not sim_params:
-            sim_params = self.sim_params
+    def setup(self,**kwargs):
+        # collect all optional sim params from kwargs and pass them all together
+        # TODO: Hand off everything to ABLWrapper, once we can better handle
+        #       input defaults and dtypes...
+        sim_params = {key:val for key,val in self.sim_params.items()}
+        for key,val in kwargs.items():
+            if key in sim_params.keys():
+                s = f'Setting {key}={val:g}'
+                if key in sim_params.keys():
+                    s += f' (prev: {sim_params[key]:g})'
+                print(s)
+            sim_params[key] = val
         super(ABLWrapper,self).setup(**sim_params)
 
     def post(self):
@@ -165,15 +174,7 @@ class GeostrophicWindEstimator(SCM):
         """Call ABLWrapper.setup()"""
         # make sure we update the input files with the correct geo wind
         self.sim_params['erf.abl_geo_wind'] = f'{self.abl_geo_wind[0]} {self.abl_geo_wind[1]}'
-        # collect all optional sim params from kwargs and pass them all together
-        # TODO: Hand off everything to ABLWrapper, once we can better handle
-        #       input defaults and dtypes...
-        sim_params = {key:val for key,val in self.sim_params.items()}
-        for key,val in kwargs.items():
-            if key in sim_params.keys():
-                print('Overriding',key,'=',sim_params[key],'with',val)
-            sim_params[key] = val
-        super().setup(**sim_params)
+        super().setup(**kwargs)
 
     def opt(self,Tsim=None,dt=None,maxiter=10,tol=1e-4,**run_kwargs):
         """Repeatedly run simulations, adjusting erf.abl_geo_wind, until
