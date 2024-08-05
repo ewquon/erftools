@@ -143,9 +143,9 @@ class Wrapper(object):
             self.inputs.pop('erf.restart',None)
         else:
             self.inputs['erf.restart'] = restart
-        self.check_inputs()
         # setup run directory
         os.makedirs(rundir, exist_ok=True)
+        self.check_inputs()
         self.create_input_files()
         # call solver
         ncpu = min(ncpu, self.ncpus_avail)
