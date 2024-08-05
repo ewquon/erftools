@@ -131,6 +131,10 @@ class AveragedProfiles(object):
         if topval > 0:
             # profiles are not on staggered grid
             return
+        elif ~np.isfinite(topval):
+            # nan???
+            print('**NaN found**')
+            return
         assert topval == 0
         if self.verbose: print('**Staggered output detected**')
         zstag = self.ds.coords['z'].values
