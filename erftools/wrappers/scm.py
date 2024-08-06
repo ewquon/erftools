@@ -19,10 +19,9 @@ class SCM(ABLWrapper):
                  builddir=None,
                  **kwargs):
         n_cell = [2,2,nz] # minimum blocking factor
-        dz = np.round(ztop/nz)
         self.Tsim = Tsim
         self.dt = dt
-        prob_extent = dz * np.array(n_cell)
+        prob_extent = [n_cell[0]*3000., n_cell[1]*3000., ztop]
         super().__init__(n_cell,prob_extent,builddir=builddir,**kwargs)
 
         self.ds = None # solution profiles
@@ -197,7 +196,7 @@ class GeostrophicWindEstimator(SCM):
         self.cleanup(realclean=False)
 
         print('[ STEP',nstep,']')
-        self.init(self.init_z_profile, self.init_th_profile)
+        self.init_soln(self.init_z_profile, self.init_th_profile)
         self.setup()
         result = self.run(Tsim, dt=dt, check_int=check_int, **run_kwargs)
         assert result.returncode == 0, f'Check {self.rundir}/log.err'
@@ -228,7 +227,7 @@ class GeostrophicWindEstimator(SCM):
                 print('  extrapolated abl_geo_wind to',self.abl_geo_wind)
 
             print(f'[ STEP {nstep} ] output written to {self.rundir}/log.out')
-            self.init(self.init_z_profile, self.init_th_profile)
+            self.init_soln(self.init_z_profile, self.init_th_profile)
             self.setup()
             result = self.run(Tsim, dt=dt, check_int=check_int, **run_kwargs)
             assert result.returncode == 0
@@ -252,7 +251,7 @@ class GeostrophicWindEstimator(SCM):
         print(self.abl_geo_wind)
 
         # get sim ready if we want to run again with final setup
-        self.init(self.init_z_profile, self.init_th_profile)
+        self.init_soln(self.init_z_profile, self.init_th_profile)
         self.setup()
 
         return U0_hist, V0_hist, abl_geo_wind_hist

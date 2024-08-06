@@ -52,8 +52,8 @@ class Wrapper(object):
             print('Note: MPI environment not found')
         self.mpirun = mpirun
 
-    def init(self,z_profile,u_profile,v_profile,th_profile,qv_profile=None,
-             p_surf=1e5,th_surf=None,qv_surf=None):
+    def init_soln(self,z_profile,u_profile,v_profile,th_profile,qv_profile=None,
+                  p_surf=1e5,th_surf=None,qv_surf=None):
         assert len(z_profile) == len(u_profile) == len(v_profile) == len(th_profile)
         if qv_profile is None:
             qv_profile = np.zeros_like(z_profile)
@@ -132,7 +132,7 @@ class Wrapper(object):
             plot_int=-1, check_int=-1,
             postproc=True,
             rundir='.rundir', ncpu=1):
-        assert self.initialized, 'Need to call init()'
+        assert self.initialized, 'Need to call init_soln()'
         assert self.setup_complete, 'Need to call setup()'
         self.rundir = rundir
         self.inputs['stop_time'] = stop_time

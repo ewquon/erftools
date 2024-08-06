@@ -150,10 +150,10 @@ amr.refinement_indicators = {refinement_indicators}
 
             if zlo_type.upper() == 'MOST':
                 assert inputs['erf.most.z0'] is not None
-                assert inputs['erf.most.surf_temp'] is not None
-                f.write(f"""erf.most.z0 = {inputs.pop('erf.most.z0')}  # TODO: use roughness map
-erf.most.surf_temp = {inputs.pop('erf.most.surf_temp')}  # TODO: use surface temperature map
-""")
+                f.write(f"erf.most.z0 = {inputs.pop('erf.most.z0')}  # TODO: use roughness map\n")
+                if inputs['erf.most.surf_temp'] is not None:
+                    f.write(f"erf.most.surf_temp = {inputs.pop('erf.most.surf_temp')}"
+                            "  # TODO: use surface temperature map\n")
 
             if ideal:
                 f.write("""
