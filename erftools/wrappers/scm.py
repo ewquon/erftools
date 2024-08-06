@@ -43,37 +43,33 @@ class SCM(ABLWrapper):
         self.sim_params['erf.data_log'] = 'surf.dat mean.dat'
         self.sim_params['erf.profile_int'] = 60
 
-    def init(self,
-             z_profile,  # [m]
-             th_profile, # potential temperature [K]
-             u_profile=None,
-             v_profile=None,
-            ):
-        """Initialize input_sounding profile with constant velocity
-        profile equal to the geostrophic wind
+    def init_soln(self,
+                  z_profile,  # [m]
+                  th_profile, # potential temperature [K]
+                  qv_profile=None, # water vapor mixing ratio [kg/kg]
+                  u_profile=None,
+                  v_profile=None,
+                 ):
+        """Initialize input_sounding profile. Must specify temperature profile.
+        The default wind profile is constant velocity equal to the geostrophic
+        wind. Air is dry by default.
         """
         if u_profile is None:
             u_profile = self.abl_geo_wind[0] * np.ones_like(z_profile)
         if v_profile is None:
             v_profile = self.abl_geo_wind[1] * np.ones_like(z_profile)
-        super(ABLWrapper,self).init(z_profile,
-                                    u_profile,
-                                    v_profile,
-                                    th_profile)
+        super(SCM,self).init_soln(z_profile,
+                                  u_profile,
+                                  v_profile,
+                                  th_profile,
+                                  qv_profile)
 
-    def setup(self,**kwargs):
-        # collect all optional sim params from kwargs and pass them all together
-        # TODO: Hand off everything to ABLWrapper, once we can better handle
-        #       input defaults and dtypes...
-        sim_params = {key:val for key,val in self.sim_params.items()}
-        for key,val in kwargs.items():
-            if key in sim_params.keys():
-                s = f'Setting {key}={val:g}'
-                if key in sim_params.keys():
-                    s += f' (prev: {sim_params[key]:g})'
-                print(s)
-            sim_params[key] = val
-        super(ABLWrapper,self).setup(**sim_params)
+    def setup(self, MOST_z0=0.1, MOST_surf_temp=None, MOST_surf_temp_hist=None,
+              **kwargs):
+        super(SCM,self).setup(MOST_z0=MOST_z0,
+                              MOST_surf_temp=MOST_surf_temp,
+                              MOST_surf_temp_hist=MOST_surf_temp_hist,
+                              **kwargs)
 
     def post(self):
         avg = AveragedProfiles(f'{self.rundir}/mean.dat', verbose=False)
@@ -113,6 +109,15 @@ class GeostrophicWindEstimator(SCM):
             self.abl_geo_wind = np.array(abl_geo_wind)
 
         super().__init__(nz, ztop, abl_geo_wind=self.abl_geo_wind, **kwargs)
+
+    def setup(self, MOST_z0=0.1, MOST_surf_temp=None, MOST_surf_temp_hist=None,
+              **kwargs):
+        # we update the input params with the correct geo wind
+        self.sim_params['erf.abl_geo_wind'] = f'{self.abl_geo_wind[0]} {self.abl_geo_wind[1]}'
+        super().setup(MOST_z0=MOST_z0,
+                      MOST_surf_temp=MOST_surf_temp,
+                      MOST_surf_temp_hist=MOST_surf_temp_hist,
+                      **kwargs)
 
     def estimate_asymptotic_wind_at_height(self, zref, verbose=True,
                                            plot=False):
@@ -167,12 +172,6 @@ class GeostrophicWindEstimator(SCM):
                 ax.grid(alpha=0.2)
 
         return U0,V0
-
-    def setup(self,**kwargs):
-        """Call ABLWrapper.setup()"""
-        # make sure we update the input files with the correct geo wind
-        self.sim_params['erf.abl_geo_wind'] = f'{self.abl_geo_wind[0]} {self.abl_geo_wind[1]}'
-        super().setup(**kwargs)
 
     def opt(self,Tsim=None,dt=None,maxiter=10,tol=1e-4,**run_kwargs):
         """Repeatedly run simulations, adjusting erf.abl_geo_wind, until

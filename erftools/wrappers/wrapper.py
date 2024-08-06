@@ -79,37 +79,30 @@ class Wrapper(object):
               prob_extent=[0.0,0.0,0.0],
               periodic=[True,True,False],
               max_level=0, # level index, not the number of levels
-              zlo_type="MOST", MOST_z0=0.1, MOST_surf_temp=None,
+              zlo_type="MOST",
               les_type="None",
               pbl_type="None",
               molec_diff_type="None",
               **kwargs):
         """
-        This is a template
+        Create input file, this needs to be called prior to run()
         """
         assert np.all([n>0 for n in n_cell]), 'Need to specify number of cells'
         assert np.all([L>0 for L in prob_extent]), 'Need to specify problem extent'
-        if MOST_surf_temp is None:
-            MOST_surf_temp = self.input_sounding.th_surf
         sim_params = {
             'amr.n_cell': n_cell,
             'geometry.prob_extent': prob_extent,
             'geometry.is_periodic': periodic,
             'amr.max_level': max_level,
             'zlo.type': zlo_type,
-            'erf.most.z0': MOST_z0,
-            'erf.most.surf_temp': MOST_surf_temp,
             'erf.les_type': les_type,
             'erf.pbl_type': pbl_type,
             'erf.molec_diff_type': molec_diff_type,
         }
         for key,val in kwargs.items():
             sim_params[key] = val
-        self.inputs = ERFInputFile(sim_params, verbose=False)
 
-        self.inputs['zhi.theta_grad'] = \
-                (self.input_sounding.th[-1] - self.input_sounding.th[-2]) \
-              / (self.input_sounding.z[ -1] - self.input_sounding.z[ -2])
+        self.inputs = ERFInputFile(sim_params, verbose=False)
 
         self.setup_complete = True
 
@@ -154,11 +147,13 @@ class Wrapper(object):
         else:
             cmd = []
         cmd += [self.solver, 'inputs']
+        print('Running...',end='')
         with open(os.path.join(rundir,'log.out'),'w') as outfile, \
              open(os.path.join(rundir,'log.err'),'w') as errfile:
             result = subprocess.run(cmd, cwd=rundir,
                                     stdout=outfile,
                                     stderr=errfile)
+        print(' done.')
         if result.returncode != 0:
             print('Return code:',result.returncode)
         elif postproc:
@@ -208,9 +203,33 @@ class ABLWrapper(Wrapper):
     def __init__(self,n_cell,prob_extent,builddir=None,**kwargs):
         super().__init__(builddir=builddir,**kwargs)
         self.solver = os.path.join(self.builddir,self.solver)
+        print('ABL solver:',self.solver)
+        # setup() is called with these params:
         self.sim_params = {
             'n_cell': n_cell,
             'prob_extent': prob_extent,
+            'zlo_type': 'MOST',
         }
         for key,val in kwargs.items():
             self.sim_params[key] = val
+
+    def setup(self, MOST_z0=0.1, MOST_surf_temp=None, MOST_surf_temp_hist=None,
+              **kwargs):
+        # instantiate ERFInputFile
+        super().setup(**self.sim_params, **kwargs)
+
+        # surface BC
+        self.inputs['erf.most.z0'] = MOST_z0
+        if (MOST_surf_temp is None) and (MOST_surf_temp_hist is None):
+            # default to using surface temperature from sounding
+            MOST_surf_temp = self.input_sounding.th_surf
+        if MOST_surf_temp is not None:
+            assert MOST_surf_temp_hist is None
+            self.inputs['erf.most.surf_temp'] = MOST_surf_temp
+        elif MOST_surf_temp_hist is not None:
+            self.inputs['erf.most_surf_temp_hist'] = MOST_surf_temp_hist
+
+        # top BC
+        self.inputs['zhi.theta_grad'] = \
+                (self.input_sounding.th[-1] - self.input_sounding.th[-2]) \
+              / (self.input_sounding.z[ -1] - self.input_sounding.z[ -2])
