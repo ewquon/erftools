@@ -154,6 +154,8 @@ amr.refinement_indicators = {refinement_indicators}
                 if inputs['erf.most.surf_temp'] is not None:
                     f.write(f"erf.most.surf_temp = {inputs.pop('erf.most.surf_temp')}"
                             "  # TODO: use surface temperature map\n")
+                else:
+                    inputs.pop('erf.most.surf_temp')
 
             if ideal:
                 f.write("""
