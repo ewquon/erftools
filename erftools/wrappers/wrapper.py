@@ -227,7 +227,7 @@ class ABLWrapper(Wrapper):
             assert MOST_surf_temp_hist is None
             self.inputs['erf.most.surf_temp'] = MOST_surf_temp
         elif MOST_surf_temp_hist is not None:
-            self.inputs['erf.most_surf_temp_hist'] = MOST_surf_temp_hist
+            self.inputs['erf.most.surf_temp_hist'] = MOST_surf_temp_hist
 
         # top BC
         self.inputs['zhi.theta_grad'] = \
