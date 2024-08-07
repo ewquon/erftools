@@ -81,6 +81,7 @@ class AveragedProfiles(object):
             else:
                 assert isinstance(args[0], str)
                 fpathlist = sorted(glob.glob(args[0]))
+                assert len(fpathlist) > 0, 'No files found!'
                 assert len(fpathlist)<=3, \
                     f'Expected to find 3 files, found {len(fpathlist)} {fpathlist}'
         else:
