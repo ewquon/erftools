@@ -45,11 +45,11 @@ class InputSounding(object):
             assert len(z_profile) \
                     == len(th_profile) == len(qv_profile) \
                     == len(u_profile) == len(v_profile)
-            self.z = z_profile
-            self.th = th_profile
-            self.qv = qv_profile
-            self.u = u_profile
-            self.v = v_profile
+            self.z = np.array(z_profile)
+            self.th = np.array(th_profile)
+            self.qv = np.array(qv_profile)
+            self.u = np.array(u_profile)
+            self.v = np.array(v_profile)
             self.p_surf = p_surf
             self.th_surf = th_surf
             self.qv_surf = qv_surf
