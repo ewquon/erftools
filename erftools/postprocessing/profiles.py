@@ -132,6 +132,7 @@ class AveragedProfiles(object):
         else:
             print('No SFS data available')
 
+        # create xarray dataset
         self.ds = pd.concat(alldata, axis=1).to_xarray()
 
     def _process_staggered(self):

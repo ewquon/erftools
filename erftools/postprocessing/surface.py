@@ -47,16 +47,19 @@ class SurfaceHistory(object):
             assert isinstance(resample, str)
             self.df = self.df.resample(resample).mean()
 
-    def plot(self,*args):
+    def plot(self,*args,**plot_kwargs):
         """Quick plotting function"""
         varns = self.surfvars[1:] if (len(args) == 0) else args
         if isinstance(varns,str):
             varns = [varns]
+        tidx = self.df.index
+        if isinstance(self.df.index, pd.TimedeltaIndex):
+            tidx = tidx.total_seconds()
         fig,axs = plt.subplots(nrows=len(varns),figsize=(5,2.5*len(varns)))
         if len(varns) == 1:
             axs = [axs]
         for varn,ax in zip(varns,axs):
-            ax.plot(self.df.index, self.df[varn])
+            ax.plot(tidx, self.df[varn], **plot_kwargs)
             ax.set_ylabel(varn)
             ax.grid()
         axs[-1].set_xlabel('simulation time [s]')
@@ -65,5 +68,6 @@ class SurfaceHistory(object):
         return fig, axs
 
     def ustar(self,Tavg=3600.0):
+        """Get final time-averaged friction velocity"""
         return self.df.loc[self.df.index[-1]-Tavg:,'ustar'].mean()
 
