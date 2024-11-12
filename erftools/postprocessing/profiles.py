@@ -207,7 +207,13 @@ class AveragedProfiles(object):
                 f'SFS stresses do not sum to zero: {np.abs(trace).max()}'
         self.ds['uu_tot'] = self.ds["u'u'"] + self.ds['τ11'] + 2./3.*self.ds['e']
         self.ds['vv_tot'] = self.ds["v'v'"] + self.ds['τ22'] + 2./3.*self.ds['e']
-        self.ds['ww_tot'] = self.ds["w'w'"] + self.ds['τ33'] + 2./3.*self.ds['e']
+        try:
+            # if output is staggered, w'w' are on staggered but τ33 and e are
+            # unstaggered
+            ww = self.ds["w'w'_destag"]
+        except KeyError:
+            ww = self.ds["w'w'"]
+        self.ds['ww_tot'] = ww + self.ds['τ33'] + 2./3.*self.ds['e']
         self.ds['uv_tot'] = self.ds["u'v'"] + self.ds['τ12']
         self.ds['uw_tot'] = self.ds["u'w'"] + self.ds['τ13']
         self.ds['vw_tot'] = self.ds["v'w'"] + self.ds['τ23']
