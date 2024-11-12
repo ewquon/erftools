@@ -166,6 +166,18 @@ class AveragedProfiles(object):
         # combine into single dataset
         self.ds = xr.merge([cc,cc_destag,stag])
 
+    @property
+    def t(self):
+        return self.ds.coords['t']
+
+    @property
+    def z(self):
+        return self.ds.coords['z']
+
+    @property
+    def zstag(self):
+        return self.ds.coords['zstag']
+
     def __getitem__(self,key):
         return self.ds[key]
 
