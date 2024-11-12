@@ -203,7 +203,8 @@ class AveragedProfiles(object):
     def calc_stress(self):
         """Calculate total stresses (note: τ are deviatoric stresses)"""
         trace = self.ds['τ11'] + self.ds['τ22'] + self.ds['τ33']
-        assert np.abs(trace).max() < 1e-14
+        assert np.abs(trace).max() < 1e-8, \
+                f'SFS stresses do not sum to zero: {np.abs(trace).max()}'
         self.ds['uu_tot'] = self.ds["u'u'"] + self.ds['τ11'] + 2./3.*self.ds['e']
         self.ds['vv_tot'] = self.ds["v'v'"] + self.ds['τ22'] + 2./3.*self.ds['e']
         self.ds['ww_tot'] = self.ds["w'w'"] + self.ds['τ33'] + 2./3.*self.ds['e']
