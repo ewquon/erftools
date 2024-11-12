@@ -13,7 +13,8 @@ class SurfaceHistory(object):
     heightname = 'z' # 'height'
     surfvars = ['t','ustar','tstar','L']
 
-    def __init__(self, histfile, t0=0.0, dt=None):
+    def __init__(self, histfile, t0=0.0, dt=None, timedelta=False,
+                 resample=None):
         """Load diagnostic profile data from 3 datafiles
 
         Parameters
@@ -26,16 +27,25 @@ class SurfaceHistory(object):
         dt : float, optional
             Overwrite the time dimension coordinate with
             t0 + np.arange(Ntimes)*dt
+        timedelta : bool, optional
+            If true, convert time index to a TimedeltaIndex
+        resample : str, optional
+            Calculate rolling mean with given interval; implies
+            timedelta=True
         """
         self.df = pd.read_csv(histfile, sep='\s+', names=self.surfvars)
-        self.df = self.df.drop_duplicates().set_index('t')
+        self.df = self.df.drop_duplicates()
         if dt is not None:
-            dt0 = surf['time'].iloc[0]
+            dt0 = self.df['t'].iloc[0]
             if not dt==dt0:
                 print('Warning: inconsistent specified dt and first step',dt,dt0)
-            self.df = self.df.reset_index()
-            self.df['t'] = t0 + np.arange(1,len(self.df)+1)*dt
-            self.df = self.df.set_index('t')
+            self.df['t'] = t0 + (np.arange(len(self.df))+1)*dt
+        if timedelta or (resample is not None):
+            self.df['t'] = pd.to_timedelta(self.df['t'],unit='s')
+        self.df = self.df.set_index('t')
+        if resample:
+            assert isinstance(resample, str)
+            self.df = self.df.resample(resample).mean()
 
     def plot(self,*args):
         """Quick plotting function"""

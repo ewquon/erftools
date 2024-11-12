@@ -51,7 +51,8 @@ class AveragedProfiles(object):
                      "τ13", "τ23",
                      "τθw", "τqvw", "τqcw"]
 
-    def __init__(self, *args, t0=0.0, sampling_interval_s=None, zexact=None):
+    def __init__(self, *args, t0=0.0, sampling_interval_s=None, zexact=None,
+                 timedelta=False,resample=None):
         """Load diagnostic profile data from 3 datafiles
 
         Parameters
@@ -69,6 +70,11 @@ class AveragedProfiles(object):
             List of cell-centered heights in the computational
             domain, used to overwrite the height dimension coordinate
             and address issues with insufficient precision
+        timedelta : bool, optional
+            If true, convert times to a TimedeltaIndex
+        resample : str, optional
+            Calculate rolling mean with given interval; implies
+            timedelta=True
         """
         assert (len(args) == 1) or (len(args) == 3)
         if len(args) == 1:
@@ -88,6 +94,12 @@ class AveragedProfiles(object):
             texact = t0 \
                    + (np.arange(self.ds.dims[self.timename])+1) * sampling_interval_s
             self.ds = self.ds.assign_coords({self.timename: texact})
+        if timedelta or (resample is not None):
+            td = pd.to_timedelta(self.ds.coords[self.timename],unit='s')
+            self.ds = self.ds.assign_coords({self.timename: td})
+            if resample:
+                assert isinstance(resample, str)
+                self.ds = self.ds.resample({self.timename: resample}).mean()
         if zexact is not None:
             self.ds = self.ds.assign_coords({self.heightname: zexact})
         self._process_staggered()
