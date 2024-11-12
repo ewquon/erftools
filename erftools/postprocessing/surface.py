@@ -41,6 +41,7 @@ class SurfaceHistory(object):
                 print('Warning: inconsistent specified dt and first step',dt,dt0)
             self.df['t'] = t0 + (np.arange(len(self.df))+1)*dt
         if timedelta or (resample is not None):
+            self.Tmax = self.df['t'].iloc[-1]
             self.df['t'] = pd.to_timedelta(self.df['t'],unit='s')
         self.df = self.df.set_index('t')
         if resample:
@@ -69,5 +70,9 @@ class SurfaceHistory(object):
 
     def ustar(self,Tavg=3600.0):
         """Get final time-averaged friction velocity"""
-        return self.df.loc[self.df.index[-1]-Tavg:,'ustar'].mean()
+        if isinstance(self.df.index, pd.TimedeltaIndex):
+            tstart = pd.to_timedelta(self.Tmax - Tavg, unit='s')
+        else:
+            tstart = self.df.index[-1] - Tavg
+        return self.df.loc[tstart:,'ustar'].mean()
 
