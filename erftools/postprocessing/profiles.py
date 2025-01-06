@@ -78,10 +78,10 @@ class AveragedProfiles(object):
         """
         assert (len(args) == 1) or (len(args) == 3)
         if len(args) == 1:
-            if isinstance(args[0], list):
+            if isinstance(args[0], (list,tuple)):
                 fpathlist = args[0]
                 assert len(fpathlist)<=3, \
-                    'Expected list of 3 separate profile datafiles'
+                    'Expected list of 1-3 separate profile datafiles'
             else:
                 assert isinstance(args[0], str)
                 fpathlist = sorted(glob.glob(args[0]))
@@ -106,6 +106,8 @@ class AveragedProfiles(object):
 
     def _read_text_data(self, fpath, columns):
         df = pd.read_csv(fpath, sep='\s+', header=None, names=columns)
+        if np.any(df.duplicated(self.timename)):
+            print('Note: One or more restarts found, loading the latest')
         df = df.set_index([self.timename,self.heightname])
         isdup = df.index.duplicated(keep='last')
         return df.loc[~isdup]
@@ -132,6 +134,12 @@ class AveragedProfiles(object):
         else:
             print('No SFS data available')
 
+        # trim dataframes (to handle data loading when simulation is still
+        # running and the profile datafiles have different lengths)
+        tmax = alldata[0].index.levels[0][-1]
+        for i,df in enumerate(alldata):
+            alldata[i] = df.loc[(slice(0,tmax),slice(None)),:]
+
         # create xarray dataset
         self.ds = pd.concat(alldata, axis=1).to_xarray()
 
@@ -140,7 +148,7 @@ class AveragedProfiles(object):
         if topval > 0:
             # profiles are not on staggered grid
             return
-        assert topval == 0
+        assert topval == 0, f'Found θ[k=-1] = {topval}?!'
         print('**Staggered output detected**')
         zstag = self.ds.coords['z'].values
         zcc = 0.5 * (zstag[1:] + zstag[:-1])
@@ -200,11 +208,15 @@ class AveragedProfiles(object):
         for varn in varlist:
             self.ds[f'd{varn}/dz'] = self.ds[varn].diff(self.heightname) / dz
 
-    def calc_stress(self):
-        """Calculate total stresses (note: τ are deviatoric stresses)"""
+    def calc_stress(self,check=True):
+        """Calculate total stresses and fluxes (note: τ are deviatoric stresses)
+
+        If check==True, assert that the SFS stress tensor is traceless
+        """
         trace = self.ds['τ11'] + self.ds['τ22'] + self.ds['τ33']
-        assert np.abs(trace).max() < 1e-8, \
-                f'SFS stresses do not sum to zero: {np.abs(trace).max()}'
+        if check:
+            assert np.abs(trace).max() < 1e-8, \
+                    f'SFS stresses do not sum to zero: {np.abs(trace).max()}'
         self.ds['uu_tot'] = self.ds["u'u'"] + self.ds['τ11'] + 2./3.*self.ds['e']
         self.ds['vv_tot'] = self.ds["v'v'"] + self.ds['τ22'] + 2./3.*self.ds['e']
         try:
@@ -217,5 +229,6 @@ class AveragedProfiles(object):
         self.ds['uv_tot'] = self.ds["u'v'"] + self.ds['τ12']
         self.ds['uw_tot'] = self.ds["u'w'"] + self.ds['τ13']
         self.ds['vw_tot'] = self.ds["v'w'"] + self.ds['τ23']
-        self.ds['ustar'] = (self.ds['uw_tot']**2 + self.ds['vw_tot']**2)**0.25
-        self.ds['hfx'] = self.ds["θ'w'"] + self.ds['τθw']
+        self.ds['ustar_tot'] = (  self.ds['uw_tot']**2
+                                + self.ds['vw_tot']**2)**0.25
+        self.ds['hfx_tot'] = self.ds["θ'w'"] + self.ds['τθw']
