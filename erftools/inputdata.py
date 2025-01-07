@@ -177,6 +177,9 @@ class ERFParms:
     rayleigh_damp_T: bool = False
     rayleigh_dampcoef: float = 0.2
 
+    # BCs
+    use_explicit_most: bool = False
+
     # Initialization
     init_type: str = 'None'
     input_sounding_file: str = 'input_souding'
@@ -259,12 +262,20 @@ class ERFInputs(object):
     def __init__(self,inpfile=None,**ppdata):
         if inpfile:
             ppdata = self.parse_input(inpfile)
-            self.max_step = int(ppdata.get('max_step',-1))
-            self.start_time = float(ppdata.get('start_time',0.))
-            self.stop_time = float(ppdata.get('stop_time',1e34))
+
+        # top level inputs
+        self.max_step = int(ppdata.get('max_step',-1))
+        self.start_time = float(ppdata.get('start_time',0.))
+        self.stop_time = float(ppdata.get('stop_time',1e34))
+
+        # read other inputs
         self.amr = AMRParms(**parmparse('amr',ppdata))
         self.geometry = GeometryParms(**parmparse('geometry',ppdata))
         self.erf = ERFParms(**parmparse('erf',ppdata))
+
+        # after reading geometry...
+        self.read_bcs(ppdata)
+
         self.validate()
 
     def parse_input(self,fpath):
@@ -291,6 +302,25 @@ class ERFInputs(object):
                 else:
                     pp[key] = vals
         return pp
+
+    def read_bcs(self,ppdata):
+        if not self.geometry.is_periodic[0]:
+            assert 'xlo.type' in ppdata.keys()
+            assert 'xhi.type' in ppdata.keys()
+            self.xlo = parmparse('xlo',ppdata)
+            self.xhi = parmparse('xhi',ppdata)
+        if not self.geometry.is_periodic[1]:
+            assert 'ylo.type' in ppdata.keys()
+            assert 'yhi.type' in ppdata.keys()
+            self.ylo = parmparse('ylo',ppdata)
+            self.yhi = parmparse('yhi',ppdata)
+        if not self.geometry.is_periodic[2]:
+            assert 'zlo.type' in ppdata.keys()
+            assert 'zhi.type' in ppdata.keys()
+            self.zlo = parmparse('zlo',ppdata)
+            self.zhi = parmparse('zhi',ppdata)
+            if self.zlo['type'] == 'MOST':
+                self.most = parmparse('erf.most',ppdata)
 
     def validate(self):
         # additional validation that depends on different parmparse types
