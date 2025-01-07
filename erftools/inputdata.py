@@ -15,18 +15,26 @@ class AMRParms:
     """amr.* parameters"""
     n_cell: Tuple[int, int, int] = (0,0,0)
     max_level: int = 0
-    ref_ratio: Union[int,list] = 2
-    ref_ratio_vect: Tuple[int, int, int] = (2,2,2)
+    ref_ratio: Union[int,List[int]] = 2
+    ref_ratio_vect: List[int] = field(default_factory=list)
     v: int = 0  # verbosity
 
     def __post_init__(self):
         assert all([ival>0 for ival in self.n_cell]), \
                 'Need to specify amr.n_cell'
         assert self.max_level >= 0
-        assert self.ref_ratio in [2,3,4]
-        assert len(self.ref_ratio_vect) % 3 == 0
+        if isinstance(self.ref_ratio, list):
+            assert len(self.ref_ratio) == self.max_level, \
+                    'Need to specify a constant amr.ref_ratio' \
+                    ' or one value per level'
+            assert all(ratio in [2,3,4] for ratio in self.ref_ratio), \
+                    'Invalid refinement ratio(s)'
+        else:
+            assert self.ref_ratio in [2,3,4], 'Invalid amr.ref_ratio'
+        assert len(self.ref_ratio_vect) % 3 == 0, \
+                'Need to specify ref ratios for each direction'
         assert all([ival in [2,3,4] for ival in self.ref_ratio_vect]), \
-                'Invalid directional refinement ratio'
+                'Invalid directional refinement ratio(s)'
 
     
 @dataclass
@@ -77,6 +85,9 @@ class ERFParms:
     anelastic: bool = False  # solv anelastic eqns instead of compressible
     use_fft: bool = False  # use FFT rather than multigrid to solve Poisson eqns
     mg_v: int = 0  # multigrid solver verbosiy when solving Poisson
+
+    # Refinement
+    refinement_indicators: List[str] = field(default_factory=list)
 
     # Grid Stretching
     use_terrain: bool = False
@@ -152,7 +163,8 @@ class ERFParms:
     Ck: float = 0.1
     Ce: float = 0.93
     Ce_wall: float = -1.
-    sigma_k: float = 1.0
+    sigma_k: float = 0.5
+    theta_ref: float = 300.
 
     # - numerical diffusion
     num_diff_coeff: float = 0.
@@ -161,30 +173,35 @@ class ERFParms:
     pbl_type: str = 'None'
 
     # Forcing Terms
-    abl_driver_type: str = 'None'
-    abl_geo_wind: Tuple[float,float,float] = (0.,0.,0.)
-    abl_pressure_grad: Tuple[float,float,float] = (0.,0.,0.)
-
     use_gravity: bool = False
     use_coriolis: bool = False
     rotational_time_period: float = 86400.
     latitude: float = 90.
     coriolis_3d: bool= True
 
+    abl_driver_type: str = 'None'
+    abl_pressure_grad: Tuple[float,float,float] = (0.,0.,0.)
+    abl_geo_wind: Tuple[float,float,float] = (0.,0.,0.)
+    abl_geo_wind_table: str = ''
+
+    nudging_from_input_sounding: bool = False
+    input_sounding_file: Union[str,List[str]] = field(default_factory=list)
+    input_sounding_time: List[float] = field(default_factory=list)
+
     rayleigh_damp_U: bool = False
     rayleigh_damp_V: bool = False
     rayleigh_damp_W: bool = False
     rayleigh_damp_T: bool = False
     rayleigh_dampcoef: float = 0.2
+    rayleigh_zdamp: float = 500.
 
     # BCs
     use_explicit_most: bool = False
 
     # Initialization
     init_type: str = 'None'
-    input_sounding_file: str = 'input_souding'
     init_sounding_ideal: bool = False
-    nc_init_file: str = ''
+    nc_init_file_0: Union[str,List[str]] = ''
     nc_bdy_file: str = ''
     project_initial_velocity: bool = False
     use_real_bcs: bool = False
@@ -212,6 +229,10 @@ class ERFParms:
         if self.fixed_mri_dt_ratio > 0:
             assert self.fixed_mri_dt_ratio % 2 == 0, \
                     'erf.fixed_mri_dt_ratio should be even'
+        if (self.fixed_dt is not np.nan) and (self.fixed_fast_dt is not np.nan):
+            self.fixed_mri_dt_ratio = int(self.fixed_dt / self.fixed_fast_dt)
+            assert self.fixed_mri_dt_ratio % 2 == 0, \
+                    'erf.fixed_dt/erf.fixed_fast_dt should be even'
         assert len(self.data_log) <= 4, 'Unexpected number of data_log files'
         for vartype in ['dycore','dryscal','moistscal']:
             for advdir in ['horiz','vert']:
@@ -235,9 +256,25 @@ class ERFParms:
             assert self.Cs > 0, 'Need to specify valid Smagorinsky Cs'
         assert self.pbl_type in ['None','MYNN25','YSU'], \
                 'Unexpected erf.pbl_type'
+        assert self.abl_driver_type in \
+                ['None','PressureGradient','GeostrophicWind'], \
+                'Unexpected erf.abl_driver_type'
+        if self.nudging_from_input_sounding \
+                and (len(self.input_sounding_file) > 1):
+            assert len(self.input_sounding_file) == len(self.input_sounding_time), \
+                    'Need to specify corresponding erf.input_sounding_time'
+        elif isinstance(self.input_sounding_file, list) \
+                and (len(self.input_sounding_file) > 0):
+            self.input_sounding_file = self.input_sounding_file[0]
         assert self.init_type.lower() in \
                 ['none','ideal','real','input_sounding','metgrid','uniform'], \
                 'Invalid erf.init_type'
+        if self.init_type.lower() == 'real':
+            assert isinstance(self.nc_init_file_0, str), \
+                    'should only have one nc_init_file_0'
+        elif self.init_type.lower() == 'metgrid' \
+                and isinstance(self.nc_init_file_0, str):
+            self.nc_init_file_0 = [self.nc_init_file_0]
         assert self.terrain_type.lower() in ['static','moving'], \
                 'Invalid erf.terrain_type'
         assert (self.terrain_smoothing >= 0) and (self.terrain_smoothing <= 2),\

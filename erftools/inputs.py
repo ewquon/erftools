@@ -2,6 +2,8 @@ import sys
 import contextlib
 import numpy as np
 
+from .inputdata import AMRParms, GeometryParms, ERFParms
+
 
 def parmparse(prefix, ppdata):
     return {key[len(prefix)+1:]: val
@@ -10,7 +12,7 @@ def parmparse(prefix, ppdata):
 
 # https://stackoverflow.com/questions/17602878/how-to-handle-both-with-open-and-sys-stdout-nicely
 @contextlib.contextmanager
-def smart_open(fpath=None):
+def open_file_or_stdout(fpath=None):
     if (fpath is not None):
         f = open(fpath, 'w')
     else:
@@ -21,6 +23,18 @@ def smart_open(fpath=None):
         if f is not sys.stdout:
             f.close()
 
+def bool_to_str(bval):
+    return str(bval).lower()
+
+def list_to_str(mylist,dtype=None):
+    if dtype is None:
+        return ' '.join([f'{val:g}' for val in mylist])
+    else:
+        return ' '.join([f'{dtype(val):g}' for val in mylist])
+
+def strs_to_str(mylist):
+    return ' '.join([s.strip('"').strip("'") for s in mylist])
+
 
 class ERFInputs(object):
     """Input data container with validation and output"""
@@ -28,19 +42,20 @@ class ERFInputs(object):
     def __init__(self,inpfile=None,**ppdata):
         if inpfile:
             ppdata = self.parse_input(inpfile)
+        self.inpdict = ppdata
 
         # top level inputs
         self.max_step = int(ppdata.get('max_step',-1))
         self.start_time = float(ppdata.get('start_time',0.))
         self.stop_time = float(ppdata.get('stop_time',1e34))
 
-        # read other inputs
+        # read amr, geometry, and erf inputs
         self.amr = AMRParms(**parmparse('amr',ppdata))
         self.geometry = GeometryParms(**parmparse('geometry',ppdata))
         self.erf = ERFParms(**parmparse('erf',ppdata))
 
-        # after reading geometry...
         self.read_bcs(ppdata)
+        self.read_refinement(ppdata)
 
         # read problem-specific inputs
         self.prob = parmparse('prob',ppdata)
@@ -50,8 +65,11 @@ class ERFInputs(object):
     def parse_input(self,fpath):
         pp = {}
         with open(fpath,'r') as f:
+            prevline = ''
             for line in f:
-                line = line.lstrip()
+                line = line.strip()
+
+                # strip comments
                 try:
                     trailingcomment = line.index('#')
                 except ValueError:
@@ -60,6 +78,16 @@ class ERFInputs(object):
                     line = line[:trailingcomment].rstrip()
                 if line == '':
                     continue
+
+                # allow multiline
+                if line.endswith('\\'):
+                    prevline += ' ' + line
+                    continue
+                elif prevline != '':
+                    line = prevline + ' ' + line
+                    prevline = ''
+
+                # finally parse
                 split = line.split('=')
                 key = split[0].rstrip()
                 val = split[1].lstrip()
@@ -91,9 +119,339 @@ class ERFInputs(object):
             if self.zlo['type'] == 'MOST':
                 self.most = parmparse('erf.most',ppdata)
 
+    def read_refinement(self,ppdata):
+        self.refine = {}
+        for box in self.erf.refinement_indicators:
+            self.refine[box] = parmparse(f'erf.{box}',ppdata)
+
     def validate(self):
         # additional validation that depends on different parmparse types
         if self.erf.use_terrain:
             if self.erf.terrain_z_levels:
                 nz = self.amr.n_cell[2]
                 assert len(self.erf.terrain_z_levels) == nz+1
+
+    def write(self,fpath=None):
+        with open_file_or_stdout(fpath) as f:
+            f.write('# ------------------------------- INPUTS TO ERF -------------------------------\n')
+            f.write('# written by erftools.inputs (https://github.com/erf-model/erftools)\n')
+            f.write(f"""
+max_step    = {self.max_step}
+start_time  = {self.start_time}
+stop_time   = {self.stop_time}
+""")
+            if self.erf.restart:
+                f.write(f"""
+erf.restart = {self.erf.restart}
+""")
+
+            if self.erf.anelastic:
+                f.write(f"""
+erf.anelastic = {bool_to_str(self.erf.anelastic)}
+erf.use_fft   = {bool_to_str(self.erf.use_fft)}
+erf.mg_v      = {bool_to_str(self.erf.mg_v)}
+""")
+
+            ########################################
+            f.write('\n# PROBLEM SIZE & GEOMETRY')
+            if self.geometry.prob_lo == (0,0,0):
+                f.write(f"""
+geometry.prob_extent = {list_to_str(self.geometry.prob_extent)}
+amr.n_cell           = {list_to_str(self.amr.n_cell)}
+
+geometry.is_periodic = {list_to_str(self.geometry.is_periodic)}
+""")
+            else:
+                f.write(f"""
+geometry.prob_lo = {list_to_str(self.geometry.prob_lo)}
+geometry.prob_hi = {list_to_str(self.geometry.prob_hi)}
+amr.n_cell       = {list_to_str(self.amr.n_cell)}
+
+geometry.is_periodic = {list_to_str(self.geometry.is_periodic)}
+""")
+            if hasattr(self,'xlo'):
+                f.write('\n')
+                write_bc(f,'xlo',self.xlo)
+                write_bc(f,'xhi',self.xhi)
+            if hasattr(self,'ylo'):
+                f.write('\n')
+                write_bc(f,'ylo',self.ylo)
+                write_bc(f,'yhi',self.yhi)
+            if hasattr(self,'zlo'):
+                f.write('\n')
+                write_bc(f,'zlo',self.zlo)
+                write_bc(f,'zhi',self.zhi)
+
+            ########################################
+            f.write('\n# TIME STEP CONTROL\n')
+            if self.erf.fixed_dt > 0:
+                f.write(f'erf.fixed_dt        = {self.erf.fixed_dt}\n')
+            else:
+                f.write(f'erf.cfl             = {self.erf.cfl}\n')
+            if self.erf.no_substepping == 1:
+                f.write('erf.no_substepping  = 1\n')
+            else:
+                if self.erf.fixed_fast_dt > 0:
+                    f.write(f'erf.fixed_fast_dt   = {self.erf.fixed_fast_dt}\n')
+                elif self.erf.fixed_mri_dt_ratio > 0:
+                    f.write('erf.fixed_mri_dt_ratio = '
+                            f'{self.erf.fixed_mri_dt_ratio}\n')
+                else:
+                    f.write('erf.substepping_cfl = '
+                            f'{self.erf.substepping_cfl}\n')
+
+            ########################################
+            f.write(f"""\n# DIAGNOSTICS & VERBOSITY
+amr.v            = {self.amr.v}  # verbosity in Amr.cpp
+erf.v            = {self.erf.v}  # verbosity in ERF.cpp
+erf.sum_interval = {self.erf.sum_interval}  # timesteps between computing mass
+""")
+
+            ########################################
+            f.write('\n# REFINEMENT / REGRIDDING\n')
+            f.write(f'amr.max_level = {self.amr.max_level}\n')
+            if len(self.erf.refinement_indicators) > 0:
+                if len(self.amr.ref_ratio_vect) > 0:
+                    f.write('amr.ref_ratio_vect = '
+                            f'{list_to_str(self.amr.ref_ratio_vect)}\n')
+                elif isinstance(self.amr.ref_ratio,list):
+                    f.write('amr.ref_ratio = '
+                            f'{list_to_str(self.amr.ref_ratio)}\n')
+                else:
+                    f.write(f'amr.ref_ratio = {self.amr.ref_ratio}\n')
+                f.write('\nerf.refinement_indicators = '
+                        f'{strs_to_str(self.erf.refinement_indicators)}\n')
+            for box in self.erf.refinement_indicators:
+                boxdict = self.refine[box]
+                f.write('\n')
+                if 'max_level' in boxdict.keys():
+                    f.write(f"erf.{box}.max_level = {boxdict['max_level']}\n")
+                f.write(f'erf.{box}.in_box_lo = '
+                        f"{list_to_str(boxdict['in_box_lo'],float)}\n")
+                f.write(f'erf.{box}.in_box_hi = '
+                        f"{list_to_str(boxdict['in_box_hi'],float)}\n")
+
+            ########################################
+            if self.erf.grid_stretching_ratio > 1 or self.erf.use_terrain:
+                f.write('\n# GRID STRETCHING / TERRAIN')
+            if self.erf.grid_stretching_ratio > 1:
+                f.write(f"""
+erf.grid_stretching_ratio = {self.erf.grid_stretching_ratio}
+erf.initial_dz            = {self.erf.initial_dz}
+""")
+            if self.erf.use_terrain:
+                f.write(f"""
+erf.use_terrain       = true
+erf.terrain_smoothing = {self.erf.terrain_smoothing}
+""")
+                if self.erf.terrain_type != 'Static':
+                    f.write('erf.terrain_type      = '
+                            f'{self.erf.terrain_type}\n')
+                if len(self.erf.terrain_file_name) > 0:
+                    f.write('erf.terrain_file_name = '
+                            f'{self.erf.terrain_file_name}\n')
+
+            ########################################
+            f.write('\n# CHECKPOINT FILES\n')
+            f.write(f'erf.check_file = {self.erf.check_file}\n')
+            if self.erf.check_per > 0:
+                f.write(f'erf.check_per   = {self.erf.check_per}\n')
+            else:
+                f.write(f'erf.check_int   = {self.erf.check_int}\n')
+
+            ########################################
+            f.write('\n# PLOTFILES\n')
+            if self.erf.plotfile_type != 'amrex':
+                f.write(f'erf.plotfile_type = {self.erf.plotfile_type}\n')
+            if (self.erf.plot_int_1 > 0) or (self.erf.plot_per_1 > 0):
+                f.write(f'erf.plot_file_1 = {self.erf.plot_file_1}\n')
+                if self.erf.plot_per_1 > 0:
+                    f.write(f'erf.plot_per_1  = {self.erf.plot_per_1}\n')
+                else:
+                    f.write(f'erf.plot_int_1  = {self.erf.plot_int_1}\n')
+                f.write('erf.plot_vars_1 = '
+                        f"{strs_to_str(self.erf.plot_vars_1)}\n")
+            if (self.erf.plot_int_2 > 0) or (self.erf.plot_per_2 > 0):
+                f.write(f'erf.plot_file_2 = {self.erf.plot_file_2}\n')
+                if self.erf.plot_per_2 > 0:
+                    f.write(f'erf.plot_per_2  = {self.erf.plot_per_2}\n')
+                else:
+                    f.write(f'erf.plot_int_2  = {self.erf.plot_int_2}\n')
+                f.write('erf.plot_vars_2 = '
+                        f"{strs_to_str(self.erf.plot_vars_2)}\n")
+
+            ########################################
+            if len(self.erf.data_log) > 0:
+                f.write('\n# DATA COLLECTION\n')
+                f.write(f"erf.data_log        = {strs_to_str(self.erf.data_log)}\n")
+                f.write(f'erf.profile_int     = {self.erf.profile_int}\n')
+                f.write(f'erf.destag_profiles = {bool_to_str(self.erf.destag_profiles)}\n')
+
+            ########################################
+            f.write('\n# ADVECTION SCHEMES\n')
+            for vartype in ['dycore','dryscal','moistscal']:
+                for advdir in ['horiz','vert']:
+                    advinp = f'{vartype}_{advdir}_adv_type'
+                    advscheme = getattr(self.erf, advinp)
+                    f.write(f'erf.{advinp} = {advscheme}\n')
+                    if advscheme.startswith('Blended'):
+                        upwinp = f'{vartype}_{advdir}_upw_frac'
+                        upwinding = getattr(self.erf, upwinp)
+                        f.write(f'erf.{upwinp} = {upwinding}\n')
+            if self.erf.use_efficient_advection:
+                f.write('erf.use_efficient_advection = true\n')
+            if self.erf.use_mono_advection:
+                f.write('erf.use_mono_advection = true\n')
+
+            ########################################
+            f.write('\n# DIFFUSIVE PHYSICS')
+            if self.erf.molec_diff_type.startswith('Constant'):
+                f.write(f"""
+erf.molec_diff_type   = {self.erf.molec_diff_type}
+erf.dynamic_viscosity = {self.erf.dynamic_viscosity}
+erf.alpha_T           = {self.erf.alpha_T}
+erf.alpha_C           = {self.erf.alpha_C}
+""")
+            have_les = False
+            if self.erf.les_type == 'Smagorinsky':
+                have_les = True
+                f.write("""
+erf.les_type  = Smagorinsky
+erf.Cs        = {self.erf.Cs}
+""")
+            elif self.erf.les_type == 'Deardorff':
+                have_les = True
+                f.write(f"""
+erf.les_type  = Deardorff
+erf.Ck        = {self.erf.Ck}
+erf.Ce        = {self.erf.Ce}
+erf.Ce_wall   = {self.erf.Ce_wall}
+erf.sigma_k   = {self.erf.sigma_k}
+erf.theta_ref = {self.erf.theta_ref}
+""")
+            if have_les:
+                f.write(f'erf.Pr_t      = {self.erf.Pr_t}\n')
+                f.write(f'erf.Sc_t      = {self.erf.Sc_t}\n')
+
+            if self.erf.pbl_type == 'MYNN25':
+                f.write('\nerf.pbl_type  = MYNN25\n')
+                for key,val in self.inpdict.items():
+                    if key.startswith('erf.pbl_mynn') or ('QKE' in key):
+                        f.write(f'{key} = {float(val):g}\n')
+            elif self.erf.pbl_type == 'YSU':
+                f.write('\nerf.pbl_type  = YSU\n')
+                for key,val in self.inpdict.items():
+                    if key.startswith('erf.pbl_ysu'):
+                        f.write(f'{key} = {float(val):g}\n')
+
+            ########################################
+            if self.erf.moisture_model != 'none':
+                f.write(f"""\n# MOISTURE
+erf.moisture_model = {self.erf.moisture_model}
+erf.do_cloud       = {bool_to_str(self.erf.do_cloud)}
+erf.do_precip      = {bool_to_str(self.erf.do_precip)}
+""")
+            ########################################
+            f.write(f"""\n# FORCING TERMS
+erf.use_gravity = {bool_to_str(self.erf.use_gravity)}
+erf.use_coriolis = {bool_to_str(self.erf.use_coriolis)}
+""")
+            if self.erf.use_coriolis:
+                f.write(f'erf.coriolis_3d = {bool_to_str(self.erf.coriolis_3d)}\n')
+                if self.erf.latitude != 90.:
+                    f.write(f'erf.latitude = {self.erf.latitude}\n')
+                if self.erf.rotational_time_period != 86400.:
+                    f.write(f'erf.rotational_time_period = {self.erf.rotational_time_period}\n')
+
+            if (self.erf.abl_driver_type == 'GeostrophicWind') \
+                    and (len(self.erf.abl_geo_wind_table) > 0):
+                f.write(f"""
+erf.abl_driver_type    = GeostrophicWind
+erf.abl_geo_wind_table = {self.erf.abl_geo_wind_table}
+""")
+            elif (self.erf.abl_driver_type == 'GeostrophicWind') \
+                    and (self.erf.abl_geo_wind != (0,0,0)):
+                f.write(f"""
+erf.abl_driver_type = GeostrophicWind
+erf.abl_geo_wind    = {list_to_str(self.erf.abl_geo_wind)}
+""")
+                if len(self.erf.abl_geo_wind_table) > 0:
+                    f.write(f'erf.abl_geo_wind_table = {self.erf.latitude}\n')
+            elif (self.erf.abl_driver_type == 'PressureGradient') \
+                    and (self.erf.abl_pressure_grad != (0,0,0)):
+                f.write(f"""
+erf.abl_driver_type   = PressureGradient
+erf.abl_pressure_grad = {list_to_str(self.erf.abl_pressure_grad)}
+""")
+
+            have_rayleigh = (  self.erf.rayleigh_damp_U \
+                            or self.erf.rayleigh_damp_V \
+                            or self.erf.rayleigh_damp_W \
+                            or self.erf.rayleigh_damp_T)
+            if have_rayleigh:
+                f.write('\n')
+            if self.erf.rayleigh_damp_U:
+                f.write(f'erf.rayleigh_damp_U   = {bool_to_str(self.erf.rayleigh_damp_U)}\n')
+            if self.erf.rayleigh_damp_V:
+                f.write(f'erf.rayleigh_damp_V   = {bool_to_str(self.erf.rayleigh_damp_V)}\n')
+            if self.erf.rayleigh_damp_W:
+                f.write(f'erf.rayleigh_damp_W   = {bool_to_str(self.erf.rayleigh_damp_W)}\n')
+            if self.erf.rayleigh_damp_T:
+                f.write(f'erf.rayleigh_damp_T   = {bool_to_str(self.erf.rayleigh_damp_T)}\n')
+            if have_rayleigh:
+                f.write(f'erf.rayleigh_zdamp    = {self.erf.rayleigh_zdamp}\n')
+                f.write(f'erf.rayleigh_dampcoef = {self.erf.rayleigh_dampcoef}\n')
+
+            if self.erf.nudging_from_input_sounding:
+                f.write(f"""
+erf.nudging_from_input_sounding = true
+erf.input_sounding_file = {strs_to_str(self.erf.input_sounding_file)}
+erf.input_sounding_time = {list_to_str(self.erf.input_sounding_time)}
+""")
+            elif isinstance(self.erf.input_sounding_file, str):
+                f.write(f'\nerf.input_sounding_file = {self.erf.input_sounding_file}\n')
+
+            ########################################
+            f.write('\n# INITIALIZATION')
+            if self.erf.init_type.lower() == 'input_sounding':
+                f.write(f"""
+erf.init_type           = input_sounding
+erf.init_sounding_ideal = {bool_to_str(self.erf.init_sounding_ideal)}
+""")
+            elif self.erf.init_type.lower() == 'real':
+                f.write(f"""
+erf.init_type      = real
+erf.nc_init_file_0 = {self.erf.nc_init_file_0}
+erf.nc_bdy_file    = {self.erf.nc_bdy_file}
+erf.real_width     = {self.erf.real_width}
+erf.real_set_width = {self.erf.real_set_width}
+""")
+            elif self.erf.init_type.lower() == 'metgrid':
+                f.write(f"""
+erf.init_type      = metgrid
+erf.nc_init_file_0 = {strs_to_str(self.erf.nc_init_file_0)}
+""")
+                for key,val in self.inpdict.items():
+                    if key.startswith('erf.metgrid'):
+                        try:
+                            float(val)
+                        except ValueError:
+                            f.write(f'{key} = {bool_to_str(val)}\n')
+                        else:
+                            f.write(f'{key} = {float(val):g}\n')
+            else:
+                f.write(f'\nerf.init_type = {self.erf.init_type}\n')
+
+
+def write_bc(f, bcname, bcdict):
+    f.write(f"{bcname}.type = {bcdict['type']}\n")
+    for key,val in bcdict.items():
+        if key=='type':
+            continue
+        if isinstance(val, str):
+            f.write(f"{bcname}.{key} = {val}\n")
+        elif isinstance(val, float):
+            f.write(f"{bcname}.{key} = {float(val):g}\n")
+        else:
+            assert isinstance(val, list)
+            f.write(f"{bcname}.{key} = {list_to_str(val,float)}\n")
