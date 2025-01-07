@@ -7,7 +7,7 @@ import cartopy.crs as ccrs
 from ..wrf.namelist import (TimeControl, Domains, Physics, Dynamics,
                            BoundaryControl)
 from ..wrf.landuse import LandUseTable
-from ..inputs import ERFInputFile
+from ..inputs_deprecated import ERFInputFile
 
 class WRFInputDeck(object):
     """Class to parse inputs from WRF and convert to inputs for ERF
