@@ -276,6 +276,9 @@ class ERFInputs(object):
         # after reading geometry...
         self.read_bcs(ppdata)
 
+        # read problem-specific inputs
+        self.prob = parmparse('prob',ppdata)
+
         self.validate()
 
     def parse_input(self,fpath):
