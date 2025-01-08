@@ -127,9 +127,10 @@ class WRFInputDeck(object):
                 self.bdy_control.periodic_y,
                 0]
 
-        # TODO: verify that refined regions will take finer time steps
+        logging.debug('Assuming parent_time_step_ratio == parent_grid_ratio')
+        assert self.domains.parent_time_step_ratio[0] == 1
         dt = np.array(self.domains.parent_time_step_ratio) * self.domains.time_step
-        self.erf_input['erf.fixed_dt'] = dt[0]
+        inp['erf.fixed_dt'] = dt[0]
 
         # refinements
         self.erf_input['amr.max_level'] = self.domains.max_dom - 1 # zero-based indexing
