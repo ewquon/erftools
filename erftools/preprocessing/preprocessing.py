@@ -82,7 +82,7 @@ class WRFInputDeck(object):
         """
         inp = self.input_dict
 
-        logging.debug('Assuming all domains have the same start/end datetime as level 0')
+        logging.info('Assuming all domains have the same start/end datetime as level 0')
         startdate = self.time_control.start_datetimes[0]
         enddate = self.time_control.end_datetimes[0]
         tsim = (enddate - startdate).total_seconds()
@@ -132,7 +132,7 @@ class WRFInputDeck(object):
         # refinements
         inp['amr.max_level'] = self.domains.max_dom - 1 # zero-based indexing
         if self.domains.max_dom > 1:
-            logging.debug('Assuming parent_time_step_ratio == parent_grid_ratio')
+            logging.info('Assuming parent_time_step_ratio == parent_grid_ratio')
 
             refine_names = ' '.join([f'nest{idom:d}' for idom in range(1,self.domains.max_dom)])
             inp['amr.refinement_indicators'] = refine_names
@@ -174,36 +174,60 @@ class WRFInputDeck(object):
             logging.warning(f'Surface layer scheme {sfclayscheme} not implemented in ERF')
             inp['zlo.type'] = sfclayscheme
 
-        # TODO: specify PBL scheme per level
-        self.erf_input['erf.pbl_type'] = self.physics.bl_pbl_physics[0]
-        if self.physics.bl_pbl_physics[0] != 'none':
-            assert (not any([diff_opt.startswith('3D') for diff_opt in self.dynamics.km_opt])), \
-                    'Incompatible PBL scheme and diffusion options specified'
+        inp['erf.pbl_type'] = self.physics.bl_pbl_physics
+        for idom in range(self.domains.max_dom):
+            if self.physics.bl_pbl_physics[idom] != 'None':
+                km_opt = self.dynamics.km_opt[idom]
+                if km_opt in ['Deardorff','Smagorinsky']:
+                    logging.warning(f'erf.pbl_type[{idom}]={self.physics.bl_pbl_physics[idom]}'
+                                    f' selected with 3D diffusion'
+                                    f' (km_opt={km_opt})')
+
+        if any([km_opt == 'constant' for km_opt in self.dynamics.km_opt]):
+            if any([kh > 0 for kh in self.dynamics.khdif]):
+                kdif = self.dynamics.khdif[0]
+                if any([kv!=kh for kv,kh in zip(self.dynamics.khdif,
+                                                self.dynamics.kvdif)]):
+                    logging.info(f'Specifying khdif = kvdif = {kdif}')
+                if len(set(self.dynamics.khdif)) > 1:
+                    # more than one diffusion constant specified
+                    logging.info(f'Specifying constant molecular diffusion on'
+                                 f'all levels = {kdif}')
+                inp['erf.molec_diff_type'] = 'ConstantAlpha'
+                inp['erf.dynamic_viscosity'] = kdif
+                inp['erf.alpha_T'] = kdif
+                inp['erf.alpha_C'] = kdif
+            else:
+                logging.info('Requested km_opt=1 but nonzero diffusion'
+                             ' constant has not be specified')
 
         if any([opt != 'constant' for opt in self.dynamics.km_opt]):
-            self.erf_input['erf.les_type'] = self.dynamics.km_opt[0]
-            self.erf_input['erf.molec_diff_type'] = 'Constant' # default
-            self.erf_input['erf.rho0_trans'] = 1.0
-            self.erf_input['erf.dynamicViscosity'] = 0.0
-            self.erf_input['erf.alpha_T'] = 0.0
-            self.erf_input['erf.alpha_C'] = 0.0
-        else:
-            self.erf_input['erf.les_type'] = 'None' # default
-            if any([kh != kv for kh,kv in zip(self.dynamics.khdif, self.dynamics.kvdif)]):
-                print('NOTE: horizontal and vertical diffusion coefficients assumed equal')
-            self.erf_input['erf.molec_diff_type'] = 'ConstantAlpha'
-            self.erf_input['erf.rho0_trans'] = 1.0
-            self.erf_input['erf.dynamicViscosity'] = self.dynamics.khdif[0]
-            self.erf_input['erf.alpha_T'] = self.dynamics.khdif[0]
-            self.erf_input['erf.alpha_C'] = self.dynamics.khdif[0]
+            # in ERF, Smagorinsky == 2D Smagorinsky
+            les_types = [turb if 'Smagorinsky' not in turb else 'Smagorinsky'
+                         for turb in self.dynamics.km_opt]
+            inp['erf.les_type'] = self.dynamics.km_opt
+
+        if any([opt != 'constant' for opt in self.dynamics.km_opt]):
+            # in ERF, Smagorinsky == 2D Smagorinsky
+            les_types = [turb if 'Smagorinsky' not in turb else 'Smagorinsky'
+                         for turb in self.dynamics.km_opt]
+            inp['erf.les_type'] = les_types
+
         if any([opt != 0 for opt in self.dynamics.diff_6th_opt]):
-            print('NOTE: 6th-order horizontal hyperdiffusion not implemented in ERF')
+            if any([opt==1 for opt in self.dynamics.diff_6th_opt]):
+                logging.warning('Simple 6th-order hyper diffusion is not recommended')
+            num_diff_coeff = self.dynamics.diff_6th_factor[0]
+            logging.warning(f'Applying numerical diffusion on all'
+                            f' levels, with erf.num_diff_coeff'
+                            f'={num_diff_coeff} -- this can have'
+                            f' unexpected effects in ERF')
+            inp['erf.num_diff_coeff'] = num_diff_coeff
         
         # TODO: turn on Rayleigh damping, set tau
         if self.dynamics.damp_opt != 'none':
             print(f'NOTE: Upper level damping specified ({self.dynamics.damp_opt}) but not implemented in ERF')
 
-        return inp
+        self.input_dict = inp
         
     def process_initial_conditions(self,init_input='wrfinput_d01',landuse_table_path=None):
         # Note: This calculates the heights for the outer WRF domain only

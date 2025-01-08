@@ -156,12 +156,11 @@ class Domains(WRFNamelist):
 
 pbl_mapping = {
     0:  'None',
-    1:  'YSU',
-    2:  'MYJ',
-    3:  'GFS',
-    4:  'QNSE',
-    5:  'MYNN2.5',
-    6:  'MYNN3',
+    1:  'YSU', # YSU scheme
+    2:  'MYJ', # Mellor-Yamada-Janjic TKE scheme
+    3:  'GFS', # Hybrid EDMF GFS scheme
+    4:  'QNSE', # Eddy-diffusivity Mass Flux, Quasi-Normal Scale Elimination PBL
+    5:  'MYNN', # MYNN 2.5/2.6/3.0 level TKE scheme
     7:  'ACM2',
     8:  'BouLac',
     9:  'UW',
@@ -207,11 +206,16 @@ class Physics(WRFNamelist):
 
     def parse_all(self):
         pbl_idx_list = self.getarrayvar('bl_pbl_physics')
+        pbl_mynn_closure_list = self.getarrayvar(
+                'bl_mynn_closure', default=len(pbl_idx_list)*[2.5])
         sfclay_idx_list = self.getarrayvar('sf_sfclay_physics')
         for pbl_idx,sfclay_idx in zip(pbl_idx_list, sfclay_idx_list):
             if sfclay_idx not in valid_sfclay[pbl_idx]:
                 print(f'WARNING: unexpected pairing of bl_pbl_physics={pbl_idx} with sf_sfclay_idx={sfclay_idx}')
         self.bl_pbl_physics = [pbl_mapping.get(idx,'UNKNOWN') for idx in pbl_idx_list]
+        for i in range(len(self.bl_pbl_physics)):
+            if self.bl_pbl_physics == 'MYNN':
+                self.bl_pbl_physics += pbl_mynn_closure_list[i]
         self.sf_sfclay_physics = [sfclay_mapping.get(idx,'UNKNOWN') for idx in sfclay_idx_list]
         self.num_land_cat = self.getvar('num_land_cat', optional=True)
 
@@ -222,10 +226,11 @@ diff_opt_mapping = {
 }
 km_opt_mapping = {
     1: 'constant',
-    2: 'Deardorff', # 3D TKE
-    3: 'Smagorinsky', # 3D deformation
-    4: '2D deformation', # horizontal diffusion diagnosed from horizontal
-                         #   deformation, vertical diffusion from PBL scheme
+    2: 'Deardorff', # 1.5 order TKE closure (3D)
+    3: 'Smagorinsky', # Smagorinsky first-order closure (3D)
+    4: '2D Smagorinsky', # horizontal Smagorinsky closure (diagnosed from just
+                         #   horizontal deformation); vertical diffusion from
+                         #   PBL scheme
 }
 damp_opt_mapping = {
     0: 'none',
@@ -257,8 +262,9 @@ class Dynamics(WRFNamelist):
                          for dom in range(len(diff_opt_list))]
         self.km_opt = [km_opt_mapping.get(km_opt_list[dom], 'UNKNOWN')
                        for dom in range(len(diff_opt_list))]
-        self.khdif = self.getvar('khdif', optional=True)
-        self.kvdif = self.getvar('kvdif', optional=True)
+        zeros = len(self.km_opt) * [0]
+        self.khdif = self.getarrayvar('khdif', default=zeros)
+        self.kvdif = self.getarrayvar('kvdif', default=zeros)
         self.diff_6th_opt = self.getarrayvar(
                 'diff_6th_opt', default=0)
         self.diff_6th_factor = self.getarrayvar(
