@@ -101,16 +101,17 @@ class ERFInputs(object):
         return pp
 
     def read_bcs(self,ppdata):
-        if not self.geometry.is_periodic[0]:
-            assert 'xlo.type' in ppdata.keys()
-            assert 'xhi.type' in ppdata.keys()
-            self.xlo = parmparse('xlo',ppdata)
-            self.xhi = parmparse('xhi',ppdata)
-        if not self.geometry.is_periodic[1]:
-            assert 'ylo.type' in ppdata.keys()
-            assert 'yhi.type' in ppdata.keys()
-            self.ylo = parmparse('ylo',ppdata)
-            self.yhi = parmparse('yhi',ppdata)
+        if not self.erf.use_real_bcs:
+            if not self.geometry.is_periodic[0]:
+                assert 'xlo.type' in ppdata.keys()
+                assert 'xhi.type' in ppdata.keys()
+                self.xlo = parmparse('xlo',ppdata)
+                self.xhi = parmparse('xhi',ppdata)
+            if not self.geometry.is_periodic[1]:
+                assert 'ylo.type' in ppdata.keys()
+                assert 'yhi.type' in ppdata.keys()
+                self.ylo = parmparse('ylo',ppdata)
+                self.yhi = parmparse('yhi',ppdata)
         if not self.geometry.is_periodic[2]:
             assert 'zlo.type' in ppdata.keys()
             assert 'zhi.type' in ppdata.keys()

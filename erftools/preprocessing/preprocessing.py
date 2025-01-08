@@ -10,7 +10,7 @@ from ..wrf.namelist import (TimeControl, Domains, Physics, Dynamics,
                            BoundaryControl)
 from ..wrf.landuse import LandUseTable
 from .real import RealInit
-from ..inputs_deprecated import ERFInputFile
+from ..inputs import ERFInputs
 
 class WRFInputDeck(object):
     """Class to parse inputs from WRF and convert to inputs for ERF
@@ -53,6 +53,7 @@ class WRFInputDeck(object):
             'zhi.type': 'SlipWall',
             'erf.use_terrain': True,
             'erf.init_type': 'real',
+            'erf.use_real_bcs': True,
             'erf.nc_init_file_0': 'wrfinp_d01',
             'erf.nc_bdy_file': 'wrfbdy_d01',
             'erf.dycore_horiz_adv_type': 'Upwind_5th',
@@ -109,6 +110,7 @@ class WRFInputDeck(object):
             ptop = self.domains.p_top_requested
             real = RealInit(zsurf0, eta_stag=eta_levels, ptop=ptop)
             z_levels = real.phb.squeeze().values / 9.81
+            self.base_heights = z_levels
             ztop = z_levels[-1]
             inp['erf.terrain_z_levels'] = z_levels
             logging.info('Estimated domain ztop from domains.p_top_requested'
@@ -116,8 +118,9 @@ class WRFInputDeck(object):
         else:
             # this is only used by WRF for idealized cases
             ztop = self.domains.ztop
-        inp['geometry.prob_extent'] = [n_cell * self.domains.dx[0],
-                                       n_cell * self.domains.dy[0],
+        logging.info('Domain SW corner is (0,0)')
+        inp['geometry.prob_extent'] = [n_cell[0] * self.domains.dx[0],
+                                       n_cell[1] * self.domains.dy[0],
                                        ztop]
         inp['amr.n_cell'] = n_cell
         inp['geometry.is_periodic'] = [
@@ -130,11 +133,12 @@ class WRFInputDeck(object):
         inp['erf.fixed_dt'] = dt[0]
 
         # refinements
-        inp['amr.max_level'] = self.domains.max_dom - 1 # zero-based indexing
-        if self.domains.max_dom > 1:
+        max_dom = self.domains.max_dom
+        inp['amr.max_level'] = max_dom - 1 # zero-based indexing
+        if max_dom > 1:
             logging.info('Assuming parent_time_step_ratio == parent_grid_ratio')
 
-            refine_names = ' '.join([f'nest{idom:d}' for idom in range(1,self.domains.max_dom)])
+            refine_names = ' '.join([f'nest{idom:d}' for idom in range(1,max_dom)])
             inp['amr.refinement_indicators'] = refine_names
 
             dx = self.domains.dx
@@ -142,7 +146,7 @@ class WRFInputDeck(object):
             imax = self.domains.e_we
             jmax = self.domains.e_sn
             ref_ratio_vect = []
-            for idom in range(1,self.domains.max_dom):
+            for idom in range(1,max_dom):
                 grid_ratio = self.domains.parent_grid_ratio[idom]
                 ref_ratio_vect += [grid_ratio, grid_ratio, 1]
 
@@ -175,7 +179,7 @@ class WRFInputDeck(object):
             inp['zlo.type'] = sfclayscheme
 
         inp['erf.pbl_type'] = self.physics.bl_pbl_physics
-        for idom in range(self.domains.max_dom):
+        for idom in range(max_dom):
             if self.physics.bl_pbl_physics[idom] != 'None':
                 km_opt = self.dynamics.km_opt[idom]
                 if km_opt in ['Deardorff','Smagorinsky']:
@@ -257,8 +261,8 @@ class WRFInputDeck(object):
         gh = ph + phb # geopotential, dims=(Time: 1, bottom_top_stag, south_north, west_east)
         gh = gh/9.81
         gh = gh.isel(Time=0).mean(['south_north','west_east']).values
-        self.geopotential_heights = (gh[1:] + gh[:-1]) / 2 # destaggered
-        self.input_dict['erf.terrain_z_levels'] = self.geopotential_heights
+        self.heights = (gh[1:] + gh[:-1]) / 2 # destaggered
+        self.input_dict['erf.terrain_z_levels'] = self.heights
 
         # Get Coriolis parameters
         self.input_dict['erf.latitude'] = wrfinp.attrs['CEN_LAT']
@@ -296,6 +300,10 @@ class WRFInputDeck(object):
         # temporarily use a scalar value
         z0mean = float(z0.mean())
         self.input_dict['erf.most.z0'] = z0mean
+
+    def write_inputfile(self,fpath):
+        inp = ERFInputs(**self.input_dict)
+        inp.write(fpath)
         
 
 class LambertConformalGrid(object):
