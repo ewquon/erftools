@@ -93,23 +93,31 @@ class WRFInputDeck(object):
                      f" ({inp['stop_time']} seconds since epoch)")
         assert tsim > 0, 'Start and end datetimes are equal'
 
-        # note: starting index assumed == 1
-        # note: ending index --> number of _staggered_ pts
-        # TODO: add vertical stretching
-        n_cell = np.array([self.domains.e_we[0], self.domains.e_sn[0], self.domains.e_vert[0]]) - 1
-        self.erf_input['geometry.prob_extent'] = n_cell * np.array([self.domains.dx[0], self.domains.dy[0], np.nan])
-        self.erf_input['geometry.is_periodic'] = [
+        idom = 0
+        if self.domains.max_dom > 1:
+            logging.warning('Only processing level 0 for now')
+        logging.warning('WRF eta_levels ignored -- no vertical stretching')
+        # note: starting index starts with 1, _not_ 0
+        # note: ending index is the number of _staggered_ pts
+        n_cell = [self.domains.e_we[idom] - self.domains.s_we[idom],
+                  self.domains.e_sn[idom] - self.domains.s_sn[idom],
+                  self.domains.e_vert[idom] - self.domains.s_vert[idom]]
+        if self.domains.ztop is None:
+            # hypsometric equation
+            ztop = 287.0 * 300.0 / 9.81 * np.log(1e5/self.domains.p_top_requested)
+            logging.info('Estimated domain ztop from domains.p_top_requested'
+                         f'={self.domains.p_top_requested:g} : {ztop}')
+        else:
+            # this is only used by WRF for idealized cases
+            ztop = self.domains.ztop
+        inp['geometry.prob_extent'] = [n_cell * self.domains.dx[0],
+                                       n_cell * self.domains.dy[0],
+                                       ztop]
+        inp['amr.n_cell'] = n_cell
+        inp['geometry.is_periodic'] = [
                 self.bdy_control.periodic_x,
                 self.bdy_control.periodic_y,
-                False]
-        if self.domains.ztop is None:
-            ztop = 287.0 * 300.0 / 9.81 * np.log(1e5/self.domains.p_top_requested)
-            print('NOTE: Estimated domain ztop from domains.p_top_requested',
-                  f'= {self.domains.p_top_requested:g}')
-        else:
-            ztop = self.domains.ztop
-        self.erf_input['geometry.prob_extent'][2] = ztop
-        self.erf_input['amr.n_cell'] = n_cell
+                0]
 
         # TODO: verify that refined regions will take finer time steps
         dt = np.array(self.domains.parent_time_step_ratio) * self.domains.time_step

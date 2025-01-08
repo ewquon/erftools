@@ -127,10 +127,13 @@ class Domains(WRFNamelist):
         self.max_dom = self.getvar('max_dom')
         if self.parent_time_step_ratio is None:
             assert self.max_dom == 1
-        # - assume s_we == s_sn == s_vert == [1, 1, ...]
-        self.e_we = self.getarrayvar('e_we')[:self.max_dom] # west--east, unstaggered
-        self.e_sn = self.getarrayvar('e_sn')[:self.max_dom] # south--north, unstaggered
-        self.e_vert = self.getarrayvar('e_vert')[:self.max_dom] # bottom--top, STAGGERED
+        ones = self.max_dom*[1]
+        self.s_we = self.getarrayvar('s_we',default=ones)[:self.max_dom]
+        self.s_sn = self.getarrayvar('s_sn',default=ones)[:self.max_dom]
+        self.s_vert = self.getarrayvar('s_vert',default=ones)[:self.max_dom]
+        self.e_we = self.getarrayvar('e_we')[:self.max_dom]
+        self.e_sn = self.getarrayvar('e_sn')[:self.max_dom]
+        self.e_vert = self.getarrayvar('e_vert')[:self.max_dom]
         self.dx = self.getarrayvar('dx')[:self.max_dom]
         self.dy = self.getarrayvar('dy')[:self.max_dom]
         self.ztop = self.getvar('ztop', optional=True)
