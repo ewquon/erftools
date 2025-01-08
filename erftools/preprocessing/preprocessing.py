@@ -246,28 +246,24 @@ class WRFInputDeck(object):
         self.input_dict = inp
         
     def process_initial_conditions(self,init_input='wrfinput_d01',landuse_table_path=None):
-        # Note: This calculates the heights for the outer WRF domain only
         wrfinp = xr.open_dataset(init_input)
+
+        logging.info('Overwriting base-state geopotential heights with heights'
+                     ' from {init_input}')
         ph = wrfinp['PH'] # perturbation geopotential
         phb = wrfinp['PHB'] # base-state geopotential
         hgt = wrfinp['HGT'] # terrain height
         self.terrain = hgt
-        geo = ph + phb # geopotential, dims=(Time: 1, bottom_top_stag, south_north, west_east)
-        geo = geo/9.81 - hgt
-        geo = geo.isel(Time=0).mean(['south_north','west_east']).values
-        self.heights = (geo[1:] + geo[:-1]) / 2 # destaggered
-        self.erf_input['erf.z_levels'] = self.heights
+        gh = ph + phb # geopotential, dims=(Time: 1, bottom_top_stag, south_north, west_east)
+        gh = gh/9.81
+        gh = gh.isel(Time=0).mean(['south_north','west_east']).values
+        self.geopotential_heights = (gh[1:] + gh[:-1]) / 2 # destaggered
+        self.input_dict['erf.terrain_z_levels'] = self.geopotential_heights
 
         # Get Coriolis parameters
-        self.erf_input['erf.latitude'] = wrfinp.attrs['CEN_LAT']
+        self.input_dict['erf.latitude'] = wrfinp.attrs['CEN_LAT']
         period = 4*np.pi / wrfinp['F'] * np.sin(np.radians(wrfinp.coords['XLAT'])) # F: "Coriolis sine latitude term"
-        self.erf_input['erf.rotational_time_period'] = float(period.mean())
-
-        # Get surface temperature map
-        Tsurf = wrfinp['TSK'].isel(Time=0) # "surface skin temperature"
-        # TODO: need to convert to surface field for ERF
-        # temporarily use a scalar value
-        self.erf_input['erf.most.surf_temp'] = float(Tsurf.mean())
+        self.input_dict['erf.rotational_time_period'] = float(period.mean())
 
         # Get roughness map from land use information
         if landuse_table_path is None:
@@ -299,7 +295,7 @@ class WRFInputDeck(object):
         # TODO: need to convert to surface field for ERF
         # temporarily use a scalar value
         z0mean = float(z0.mean())
-        self.erf_input['erf.most.z0'] = z0mean
+        self.input_dict['erf.most.z0'] = z0mean
         
 
 class LambertConformalGrid(object):
