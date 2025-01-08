@@ -50,6 +50,7 @@ class WRFInputDeck(object):
             'erf.use_coriolis': True,
             'erf.Cs': 0.25,
             'erf.Ck': 0.15,
+            'zhi.type': 'SlipWall',
             'erf.use_terrain': True,
             'erf.init_type': 'real',
             'erf.nc_init_file_0': 'wrfinp_d01',
@@ -162,16 +163,16 @@ class WRFInputDeck(object):
             inp['amr.ref_ratio_vect'] = ref_ratio_vect
 
         restart_period = self.time_control.restart_interval * 60.0 # [s]
-        self.erf_input['amr.check_int'] = int(restart_period / dt[0])
+        inp['amr.check_int'] = int(restart_period / dt[0])
 
         sfclayscheme = self.physics.sf_sfclay_physics[0]
-        if sfclayscheme == 'none':
-            self.erf_input['zlo.type'] = 'SlipWall'
+        if sfclayscheme == 'None':
+            inp['zlo.type'] = 'SlipWall'
         elif sfclayscheme == 'MOST':
-            self.erf_input['zlo.type'] = 'MOST'
+            inp['zlo.type'] = 'MOST'
         else:
-            print(f'NOTE: Surface layer scheme {sfclayscheme} not implemented in ERF')
-            self.erf_input['zlo.type'] = sfclayscheme
+            logging.warning(f'Surface layer scheme {sfclayscheme} not implemented in ERF')
+            inp['zlo.type'] = sfclayscheme
 
         # TODO: specify PBL scheme per level
         self.erf_input['erf.pbl_type'] = self.physics.bl_pbl_physics[0]
