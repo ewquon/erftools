@@ -1,7 +1,9 @@
+import logging
 import numpy as np
 import pandas as pd
 import xarray as xr
 import f90nml
+import calendar
 import cartopy.crs as ccrs
 
 from ..wrf.namelist import (TimeControl, Domains, Physics, Dynamics,
@@ -16,7 +18,11 @@ class WRFInputDeck(object):
     * wrfinput_d01[, wrfinput_d02, ...]
     """
 
-    def __init__(self,nmlpath):
+    def __init__(self,nmlpath,verbosity=logging.DEBUG):
+        # setup logger -- note this only has an effect the first time it
+        # is called
+        logging.basicConfig(level=verbosity,
+                            format='%(levelname)s: %(message)s')
         # scrape WRF namelists
         with open(nmlpath,'r') as f:
             self.nml = f90nml.read(f)
@@ -26,7 +32,7 @@ class WRFInputDeck(object):
         self.dynamics = Dynamics(self.nml['dynamics'])
         self.bdy_control = BoundaryControl(self.nml['bdy_control'])
         # calculate ERF equivalents
-        self.erf_input = ERFInputFile()
+        self.set_defaults()
         self.generate_inputs()
 
     def __str__(self):
@@ -35,6 +41,31 @@ class WRFInputDeck(object):
         s+= str(self.physics) + '\n'
         s+= str(self.dynamics) + '\n'
         return s
+
+    def set_defaults(self):
+        # WRF defaults
+        self.input_dict = {
+            'erf.use_gravity': True,
+            'erf.use_coriolis': True,
+            'erf.Cs': 0.25,
+            'erf.Ck': 0.15,
+            'erf.use_terrain': True,
+            'erf.init_type': 'real',
+            'erf.nc_init_file_0': 'wrfinp_d01',
+            'erf.nc_bdy_file': 'wrfbdy_d01',
+            'erf.dycore_horiz_adv_type': 'Upwind_5th',
+            'erf.dycore_vert_adv_type': 'Upwind_3rd',
+            'erf.dryscal_horiz_adv_type': 'Upwind_5th',
+            'erf.dryscal_vert_adv_type': 'Upwind_3rd',
+            'erf.moistscal_horiz_adv_type': 'WENO5',
+            'erf.moistscal_vert_adv_type': 'WENO5',
+            'amr.v': 1, # verbosity in Amr.cpp
+            'erf.v': 1, # verbosity in ERF.cpp
+            'erf.sum_interval': 1, # timesteps between computing mass
+            'erf.plot_vars_1': ['density','x_velocity','y_velocity','z_velocity',
+                                'pressure','theta','KE',
+                                'Kmh','Kmv','Khh','Khv','qv','qc'],
+        }
 
     def generate_inputs(self):
         """Scrape inputs for ERF from a WRF namelist.input file
@@ -47,8 +78,20 @@ class WRFInputDeck(object):
         To get these values, call `process_initial_conditions()` to extract
         them from `wrfinput_d01` (output from real.exe).
         """
-        tdelta = self.time_control.end_datetime - self.time_control.start_datetime
-        self.erf_input['stop_time'] = tdelta.total_seconds()
+        inp = self.input_dict
+
+        logging.debug('Assuming all domains have the same start/end datetime as level 0')
+        startdate = self.time_control.start_datetimes[0]
+        enddate = self.time_control.end_datetimes[0]
+        tsim = (enddate - startdate).total_seconds()
+        inp['start_time'] = calendar.timegm(startdate.timetuple())
+        inp['stop_time'] = calendar.timegm(enddate.timetuple())
+        logging.info(f'Total simulation time: {tsim}')
+        logging.info(f"Start from {startdate.strftime('%Y-%m-%d %H:%M:%S')}"
+                     f" ({inp['start_time']} seconds since epoch)")
+        logging.info(f"Stop at {enddate.strftime('%Y-%m-%d %H:%M:%S')}"
+                     f" ({inp['stop_time']} seconds since epoch)")
+        assert tsim > 0, 'Start and end datetimes are equal'
 
         # note: starting index assumed == 1
         # note: ending index --> number of _staggered_ pts
@@ -139,7 +182,7 @@ class WRFInputDeck(object):
         if self.dynamics.damp_opt != 'none':
             print(f'NOTE: Upper level damping specified ({self.dynamics.damp_opt}) but not implemented in ERF')
 
-        return self.erf_input
+        return inp
         
     def process_initial_conditions(self,init_input='wrfinput_d01',landuse_table_path=None):
         # Note: This calculates the heights for the outer WRF domain only

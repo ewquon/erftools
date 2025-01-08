@@ -51,19 +51,56 @@ class TimeControl(WRFNamelist):
   sim range: {self.start_datetime} to {self.end_datetime}"""
 
     def parse_datetime_range(self):
-        # assume all domains have the same start/end datetime for now; TODO: allow for variable start times per domain
-        idom = 0
-        start_year  = self.getarrayvar('start_year')[idom]
-        start_month = self.getarrayvar('start_month')[idom]
-        start_day   = self.getarrayvar('start_day')[idom]
-        start_hour  = self.getarrayvar('start_hour')[idom]
-        end_year    = self.getarrayvar('end_year')[idom]
-        end_month   = self.getarrayvar('end_month')[idom]
-        end_day     = self.getarrayvar('end_day')[idom]
-        end_hour    = self.getarrayvar('end_hour')[idom]
-        self.start_datetime = datetime(start_year, start_month, start_day, start_hour)
-        self.end_datetime = datetime(end_year, end_month, end_day, end_hour)
+        start_year   = self.getarrayvar('start_year')
+        start_month  = self.getarrayvar('start_month')
+        start_day    = self.getarrayvar('start_day')
+        start_hour   = self.getarrayvar('start_hour')
+        start_minute = self.getarrayvar('start_minute')
+        start_second = self.getarrayvar('start_second')
+        end_year     = self.getarrayvar('end_year')
+        end_month    = self.getarrayvar('end_month')
+        end_day      = self.getarrayvar('end_day')
+        end_hour     = self.getarrayvar('end_hour')
+        end_minute   = self.getarrayvar('end_minute')
+        end_second   = self.getarrayvar('end_second')
+        self.start_datetimes = []
+        self.end_datetimes = []
+        for idom in range(len(start_year)):
+            try:
+                start_date = datetime(start_year[idom],
+                                      start_month[idom],
+                                      start_day[idom],
+                                      start_hour[idom],
+                                      start_minute[idom],
+                                      start_second[idom])
+            except ValueError:
+                print(f'Problem parsing start date on level {idom}')
+                break
+            try:
+                end_date = datetime(end_year[idom],
+                                    end_month[idom],
+                                    end_day[idom],
+                                    end_hour[idom],
+                                    end_minute[idom],
+                                    end_second[idom])
+            except ValueError:
+                print(f'Problem parsing end date on level {idom}')
+                break
+            self.start_datetimes.append(start_date)
+            self.end_datetimes.append(end_date)
         
+        run_days = self.getvar('run_days')
+        run_hours = self.getvar('run_hours')
+        run_minutes = self.getvar('run_minutes')
+        run_seconds = self.getvar('run_seconds')
+        spec_run_time = run_days    * 86400 \
+                      + run_hours   * 3600 \
+                      + run_minutes * 60 \
+                      + run_seconds
+        if spec_run_time > 0:
+            simtime = self.start_datetimes[0] - self.end_datetimes[0]
+            assert spec_run_time == simtime.total_seconds(), \
+                    'Inconsistent run time'
     
 class Domains(WRFNamelist):
     """&domains namelist"""
