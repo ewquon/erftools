@@ -151,6 +151,7 @@ class Domains(WRFNamelist):
         for dom in range(1,self.max_dom):
             assert (self.dx[dom-1]/self.dx[dom] == self.parent_grid_ratio[dom])
             assert (self.dy[dom-1]/self.dy[dom] == self.parent_grid_ratio[dom])
+        self.eta_levels = self.getarrayvar('eta_levels')
 
 
 pbl_mapping = {

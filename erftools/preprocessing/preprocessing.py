@@ -9,6 +9,7 @@ import cartopy.crs as ccrs
 from ..wrf.namelist import (TimeControl, Domains, Physics, Dynamics,
                            BoundaryControl)
 from ..wrf.landuse import LandUseTable
+from .real import RealInit
 from ..inputs_deprecated import ERFInputFile
 
 class WRFInputDeck(object):
@@ -96,17 +97,24 @@ class WRFInputDeck(object):
         idom = 0
         if self.domains.max_dom > 1:
             logging.warning('Only processing level 0 for now')
-        logging.warning('WRF eta_levels ignored -- no vertical stretching')
         # note: starting index starts with 1, _not_ 0
         # note: ending index is the number of _staggered_ pts
         n_cell = [self.domains.e_we[idom] - self.domains.s_we[idom],
                   self.domains.e_sn[idom] - self.domains.s_sn[idom],
                   self.domains.e_vert[idom] - self.domains.s_vert[idom]]
         if self.domains.ztop is None:
-            # hypsometric equation
-            ztop = 287.0 * 300.0 / 9.81 * np.log(1e5/self.domains.p_top_requested)
+            # get domain heights from base state geopotential
+            # note: RealInit uses xarray to manage dims, kind of annoying here
+            zsurf0 = xr.DataArray([[0]],dims=('west_east','south_north'))
+            eta_levels = xr.DataArray(self.domains.eta_levels,
+                                      dims='bottom_top_stag')
+            ptop = self.domains.p_top_requested
+            real = RealInit(zsurf0, eta_stag=eta_levels, ptop=ptop)
+            z_levels = real.phb.squeeze().values / 9.81
+            ztop = z_levels[-1]
+            inp['erf.terrain_z_levels'] = z_levels
             logging.info('Estimated domain ztop from domains.p_top_requested'
-                         f'={self.domains.p_top_requested:g} : {ztop}')
+                         f'={ptop:g} : {ztop}')
         else:
             # this is only used by WRF for idealized cases
             ztop = self.domains.ztop
