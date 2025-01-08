@@ -313,45 +313,53 @@ erf.dynamic_viscosity = {self.erf.dynamic_viscosity}
 erf.alpha_T           = {self.erf.alpha_T}
 erf.alpha_C           = {self.erf.alpha_C}
 """)
-            have_les = False
-            if self.erf.les_type == 'Smagorinsky':
-                have_les = True
-                f.write("""
-erf.les_type  = Smagorinsky
-erf.Cs        = {self.erf.Cs}
-""")
-            elif self.erf.les_type == 'Deardorff':
-                have_les = True
-                f.write(f"""
-erf.les_type  = Deardorff
-erf.Ck        = {self.erf.Ck}
-erf.Ce        = {self.erf.Ce}
-erf.Ce_wall   = {self.erf.Ce_wall}
-erf.sigma_k   = {self.erf.sigma_k}
-erf.theta_ref = {self.erf.theta_ref}
-""")
-            if have_les:
+            lestypes = self.erf.les_type \
+                    if isinstance(self.erf.les_type,list) \
+                    else [self.erf.les_type]
+            have_smag = ('Smagorinsky' in lestypes)
+            have_dear = ('Deardorff' in lestypes)
+            if have_smag or have_dear:
+                f.write(f'\nerf.les_type  = {strs_to_str(lestypes)}\n')
+            if have_smag:
+                f.write(f'erf.Cs        = {self.erf.Cs}\n')
+            if have_dear:
+                f.write(f'erf.Ck        = {self.erf.Ck}\n')
+                f.write(f'erf.Ce        = {self.erf.Ce}\n')
+                f.write(f'erf.Ce_wall   = {self.erf.Ce_wall}\n')
+                f.write(f'erf.sigma_k   = {self.erf.sigma_k}\n')
+                f.write(f'erf.theta_ref = {self.erf.theta_ref}\n')
+            if have_smag or have_dear:
                 f.write(f'erf.Pr_t      = {self.erf.Pr_t}\n')
                 f.write(f'erf.Sc_t      = {self.erf.Sc_t}\n')
 
-            if self.erf.pbl_type == 'MYNN25':
-                f.write('\nerf.pbl_type  = MYNN25\n')
+            pbltypes = self.erf.pbl_type \
+                    if isinstance(self.erf.pbl_type,list) \
+                    else [self.erf.pbl_type]
+            if any([pblscheme != 'None' for pblscheme in pbltypes]):
+                f.write(f'\nerf.pbl_type = {strs_to_str(pbltypes)}\n')
+            if 'MYNN25' in pbltypes:
                 for key,val in self.inpdict.items():
                     if key.startswith('erf.pbl_mynn') or ('QKE' in key):
                         f.write(f'{key} = {float(val):g}\n')
-            elif self.erf.pbl_type == 'YSU':
-                f.write('\nerf.pbl_type  = YSU\n')
+            if 'YSU' in pbltypes:
                 for key,val in self.inpdict.items():
                     if key.startswith('erf.pbl_ysu'):
                         f.write(f'{key} = {float(val):g}\n')
 
             ########################################
-            if self.erf.moisture_model != 'none':
+            if self.erf.moisture_model != 'None':
                 f.write(f"""\n# MOISTURE
 erf.moisture_model = {self.erf.moisture_model}
 erf.do_cloud       = {bool_to_str(self.erf.do_cloud)}
 erf.do_precip      = {bool_to_str(self.erf.do_precip)}
 """)
+
+            ########################################
+            if self.erf.radiation_model != 'None':
+                f.write(f"""\n# RADIATION
+erf.radiation_model = {self.erf.radiation_model}
+""")
+
             ########################################
             f.write(f"""\n# FORCING TERMS
 erf.use_gravity = {bool_to_str(self.erf.use_gravity)}
@@ -422,6 +430,7 @@ erf.init_sounding_ideal = {bool_to_str(self.erf.init_sounding_ideal)}
             elif self.erf.init_type.lower() == 'real':
                 f.write(f"""
 erf.init_type      = real
+erf.use_real_bcs   = {self.erf.use_real_bcs}
 erf.nc_init_file_0 = {self.erf.nc_init_file_0}
 erf.nc_bdy_file    = {self.erf.nc_bdy_file}
 erf.real_width     = {self.erf.real_width}

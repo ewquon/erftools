@@ -214,9 +214,12 @@ class ERFParms:
     terrain_file_name: str = ''
 
     # Moisture
-    moisture_model: str = 'none'
+    moisture_model: str = 'None'
     do_cloud: bool = True
     do_precip: bool = True
+
+    # Radiation
+    radiation_model: str = 'None'
 
     def __post_init__(self):
         if self.anelastic:

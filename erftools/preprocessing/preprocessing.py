@@ -239,6 +239,7 @@ class WRFInputDeck(object):
             if len(set(self.physics.ra_physics)) > 1:
                 logging.warning(f'Applying the {rad_model} radiation scheme on'
                                 ' all levels')
+            inp['erf.radiation_model'] = rad_model
 
         if any([opt != 'None' for opt in self.physics.cu_physics]):
             logging.warning('ERF currently does not have any cumulus parameterizations')
