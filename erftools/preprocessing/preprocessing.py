@@ -201,18 +201,6 @@ class WRFInputDeck(object):
                 logging.info('Requested km_opt=1 but nonzero diffusion'
                              ' constant has not be specified')
 
-        if any([opt != 'constant' for opt in self.dynamics.km_opt]):
-            # in ERF, Smagorinsky == 2D Smagorinsky
-            les_types = [turb if 'Smagorinsky' not in turb else 'Smagorinsky'
-                         for turb in self.dynamics.km_opt]
-            inp['erf.les_type'] = self.dynamics.km_opt
-
-        if any([opt != 'constant' for opt in self.dynamics.km_opt]):
-            # in ERF, Smagorinsky == 2D Smagorinsky
-            les_types = [turb if 'Smagorinsky' not in turb else 'Smagorinsky'
-                         for turb in self.dynamics.km_opt]
-            inp['erf.les_type'] = les_types
-
         if any([opt != 0 for opt in self.dynamics.diff_6th_opt]):
             if any([opt==1 for opt in self.dynamics.diff_6th_opt]):
                 logging.warning('Simple 6th-order hyper diffusion is not recommended')
@@ -223,6 +211,18 @@ class WRFInputDeck(object):
                             f' unexpected effects in ERF')
             inp['erf.num_diff_coeff'] = num_diff_coeff
         
+        if any([opt != 'constant' for opt in self.dynamics.km_opt]):
+            # in ERF, Smagorinsky == 2D Smagorinsky
+            les_types = [turb if 'Smagorinsky' not in turb else 'Smagorinsky'
+                         for turb in self.dynamics.km_opt]
+            les_types = les_types[:max_dom]
+            inp['erf.les_type'] = les_types
+
+        if any([opt != 'constant' for opt in self.dynamics.km_opt]):
+            # in ERF, Smagorinsky == 2D Smagorinsky
+            pbl_types = self.physics.bl_pbl_physics[:max_dom]
+            inp['erf.pbl_type'] = pbl_types
+
         if any([opt != 'None' for opt in self.physics.mp_physics]):
             moisture_model = self.physics.mp_physics[0]
             if len(set(self.physics.mp_physics)) > 1:

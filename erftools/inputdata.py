@@ -152,7 +152,7 @@ class ERFParms:
     alpha_T: float = 0.
     alpha_C: float = 0.
 
-    les_type: str = 'None'
+    les_type: Union[str,List[str]] = 'None'
     Pr_t: float = 1.0
     Sc_t: float = 1.0
 
@@ -170,7 +170,7 @@ class ERFParms:
     num_diff_coeff: float = 0.
 
     # PBL Scheme
-    pbl_type: str = 'None'
+    pbl_type: Union[str,List[str]] = 'None'
 
     # Forcing Terms
     use_gravity: bool = False
@@ -250,12 +250,16 @@ class ERFParms:
                     assert (upwinding >= 0) and (upwinding <= 1)
         assert self.molec_diff_type in ['None','Constant','ConstantAlpha'], \
                 'Unexpected erf.molec_diff_type'
-        assert self.les_type in ['None','Smagorinsky','Deardorff'], \
-                'Unexpected erf.les_type'
-        if self.les_type == 'Smagorinsky':
-            assert self.Cs > 0, 'Need to specify valid Smagorinsky Cs'
-        assert self.pbl_type in ['None','MYNN25','YSU'], \
-                'Unexpected erf.pbl_type'
+        les_types = self.les_type if isinstance(self.les_type,list) else [self.les_type]
+        for turbmodel in les_types:
+            assert turbmodel in ['None','Smagorinsky','Deardorff'], \
+                    f'Unexpected erf.les_type {turbmodel}'
+            if turbmodel == 'Smagorinsky':
+                assert self.Cs > 0, 'Need to specify valid Smagorinsky Cs'
+        pbl_types = self.pbl_type if isinstance(self.pbl_type,list) else [self.pbl_type]
+        for pblscheme in pbl_types:
+            assert pblscheme in ['None','MYNN25','YSU'], \
+                    f'Unexpected erf.pbl_type {pblscheme}'
         assert self.abl_driver_type in \
                 ['None','PressureGradient','GeostrophicWind'], \
                 'Unexpected erf.abl_driver_type'

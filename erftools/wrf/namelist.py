@@ -229,8 +229,9 @@ class Physics(WRFNamelist):
                 print(f'WARNING: unexpected pairing of bl_pbl_physics={pbl_idx} with sf_sfclay_idx={sfclay_idx}')
         self.bl_pbl_physics = [pbl_mapping.get(idx,'UNKNOWN') for idx in pbl_idx_list]
         for i in range(len(self.bl_pbl_physics)):
-            if self.bl_pbl_physics == 'MYNN':
-                self.bl_pbl_physics += pbl_mynn_closure_list[i]
+            if self.bl_pbl_physics[i] == 'MYNN':
+                lvlstr = str(pbl_mynn_closure_list[i]).replace('.','')
+                self.bl_pbl_physics[i] += lvlstr
         self.sf_sfclay_physics = [sfclay_mapping.get(idx,'UNKNOWN') for idx in sfclay_idx_list]
         self.num_land_cat = self.getvar('num_land_cat', optional=True)
 
