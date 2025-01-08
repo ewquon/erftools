@@ -94,14 +94,11 @@ class WRFInputDeck(object):
                      f" ({inp['stop_time']} seconds since epoch)")
         assert tsim > 0, 'Start and end datetimes are equal'
 
-        idom = 0
-        if self.domains.max_dom > 1:
-            logging.warning('Only processing level 0 for now')
         # note: starting index starts with 1, _not_ 0
         # note: ending index is the number of _staggered_ pts
-        n_cell = [self.domains.e_we[idom] - self.domains.s_we[idom],
-                  self.domains.e_sn[idom] - self.domains.s_sn[idom],
-                  self.domains.e_vert[idom] - self.domains.s_vert[idom]]
+        n_cell = [self.domains.e_we[0] - self.domains.s_we[0],
+                  self.domains.e_sn[0] - self.domains.s_sn[0],
+                  self.domains.e_vert[0] - self.domains.s_vert[0]]
         if self.domains.ztop is None:
             # get domain heights from base state geopotential
             # note: RealInit uses xarray to manage dims, kind of annoying here
@@ -127,23 +124,27 @@ class WRFInputDeck(object):
                 self.bdy_control.periodic_y,
                 0]
 
-        logging.debug('Assuming parent_time_step_ratio == parent_grid_ratio')
         assert self.domains.parent_time_step_ratio[0] == 1
         dt = np.array(self.domains.parent_time_step_ratio) * self.domains.time_step
         inp['erf.fixed_dt'] = dt[0]
 
         # refinements
-        self.erf_input['amr.max_level'] = self.domains.max_dom - 1 # zero-based indexing
-        grid_ratio = self.domains.parent_grid_ratio[-1] # TODO: assume all nests have same ratio
-        self.erf_input['amr.ref_ratio_vect'] = [grid_ratio, grid_ratio, 1]
+        inp['amr.max_level'] = self.domains.max_dom - 1 # zero-based indexing
         if self.domains.max_dom > 1:
-            refine_names = ' '.join([f'box{idom:d}' for idom in range(1,self.domains.max_dom)])
-            self.erf_input['amr.refinement_indicators'] = refine_names
+            logging.debug('Assuming parent_time_step_ratio == parent_grid_ratio')
+
+            refine_names = ' '.join([f'nest{idom:d}' for idom in range(1,self.domains.max_dom)])
+            inp['amr.refinement_indicators'] = refine_names
+
+            dx = self.domains.dx
+            dy = self.domains.dy
+            imax = self.domains.e_we
+            jmax = self.domains.e_sn
+            ref_ratio_vect = []
             for idom in range(1,self.domains.max_dom):
-                dx = self.domains.dx
-                dy = self.domains.dy
-                imax = self.domains.e_we
-                jmax = self.domains.e_sn
+                grid_ratio = self.domains.parent_grid_ratio[idom]
+                ref_ratio_vect += [grid_ratio, grid_ratio, 1]
+
                 parent_ds  = np.array([  dx[idom-1],   dy[idom-1]], dtype=float)
                 child_ds   = np.array([  dx[idom  ],   dy[idom  ]], dtype=float)
                 parent_ext = np.array([imax[idom-1], jmax[idom-1]]) * parent_ds
@@ -155,8 +156,10 @@ class WRFInputDeck(object):
                 in_box_hi = in_box_lo + child_ext
                 assert (in_box_hi[0] <= parent_ext[0])
                 assert (in_box_hi[1] <= parent_ext[1])
-                self.erf_input[f'amr.box{idom:d}.in_box_lo'] = in_box_lo
-                self.erf_input[f'amr.box{idom:d}.in_box_hi'] = in_box_hi
+                inp[f'amr.nest{idom:d}.in_box_lo'] = in_box_lo
+                inp[f'amr.nest{idom:d}.in_box_hi'] = in_box_hi
+
+            inp['amr.ref_ratio_vect'] = ref_ratio_vect
 
         restart_period = self.time_control.restart_interval * 60.0 # [s]
         self.erf_input['amr.check_int'] = int(restart_period / dt[0])
