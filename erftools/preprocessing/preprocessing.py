@@ -223,6 +223,22 @@ class WRFInputDeck(object):
                             f' unexpected effects in ERF')
             inp['erf.num_diff_coeff'] = num_diff_coeff
         
+        if any([opt != 'None' for opt in self.physics.mp_physics]):
+            moisture_model = self.physics.mp_physics[0]
+            if len(set(self.physics.mp_physics)) > 1:
+                logging.warning(f'Applying the {moisture_model} microphysics'
+                                ' model on all levels')
+            inp['erf.moisture_model'] = moisture_model
+
+        if any([opt != 'None' for opt in self.physics.ra_physics]):
+            rad_model = self.physics.ra_physics[0]
+            if len(set(self.physics.ra_physics)) > 1:
+                logging.warning(f'Applying the {rad_model} radiation scheme on'
+                                ' all levels')
+
+        if any([opt != 'None' for opt in self.physics.cu_physics]):
+            logging.warning('ERF currently does not have any cumulus parameterizations')
+
         # TODO: turn on Rayleigh damping, set tau
         if self.dynamics.damp_opt != 'none':
             print(f'NOTE: Upper level damping specified ({self.dynamics.damp_opt}) but not implemented in ERF')

@@ -190,6 +190,21 @@ valid_sfclay = {
     91: [1,91],
 }
 
+mp_physics_mapping = {
+    0: 'None',
+    1: 'Kessler',
+    2: 'SAM', # comparable to Lin et al. scheme
+    6: 'SAM', # WRF Single-Moment, 6-class scheme
+}
+
+ra_physics_mapping = {
+    0: 'None',
+    4: 'RRTMGP',
+}
+
+cu_physics_mapping = {
+    0: 'None',
+}
 
 class Physics(WRFNamelist):
     """&physics namelist"""
@@ -218,6 +233,18 @@ class Physics(WRFNamelist):
                 self.bl_pbl_physics += pbl_mynn_closure_list[i]
         self.sf_sfclay_physics = [sfclay_mapping.get(idx,'UNKNOWN') for idx in sfclay_idx_list]
         self.num_land_cat = self.getvar('num_land_cat', optional=True)
+
+        mp_idx_list = self.getarrayvar('mp_physics')
+        self.mp_physics = [mp_physics_mapping.get(idx,'UNKNOWN') for idx in mp_idx_list]
+
+        ra_lw_idx_list = self.getarrayvar('ra_lw_physics')
+        ra_sw_idx_list = self.getarrayvar('ra_sw_physics')
+        assert all([lw==sw for lw,sw in zip(ra_lw_idx_list,ra_sw_idx_list)]), \
+                'Different longwave/shortwave radiation schemes not handled'
+        self.ra_physics = [ra_physics_mapping.get(idx,'UNKNOWN') for idx in ra_lw_idx_list]
+
+        cu_idx_list = self.getarrayvar('cu_physics')
+        self.cu_physics = [cu_physics_mapping.get(idx,'UNKNOWN') for idx in cu_idx_list]
 
 
 diff_opt_mapping = {
