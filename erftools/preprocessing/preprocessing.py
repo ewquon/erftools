@@ -5,6 +5,7 @@ import xarray as xr
 import f90nml
 import calendar
 import cartopy.crs as ccrs
+from scipy.interpolate import RegularGridInterpolator
 
 from ..wrf.namelist import (TimeControl, Domains, Physics, Dynamics,
                            BoundaryControl)
@@ -261,60 +262,113 @@ class WRFInputDeck(object):
         
     def process_initial_conditions(self,init_input='wrfinput_d01',
                                    calc_geopotential_heights=False,
-                                   landuse_table_path=None):
+                                   landuse_table_path=None,
+                                   write_hgt=None,
+                                   write_z0=None):
         wrfinp = xr.open_dataset(init_input)
 
         # Get Coriolis parameters
         period = 4*np.pi / wrfinp['F'] * np.sin(np.radians(wrfinp.coords['XLAT'])) # F: "Coriolis sine latitude term"
         mean_lat = np.mean(wrfinp.coords['XLAT'].values)
-        logging.info(f"Projection CEN_LAT={wrfinp.attrs['CEN_LAT']},"
-                     f" mean XLAT={mean_lat}")
+        logging.info(f"Using mean XLAT={mean_lat}"
+                     f" (projection CEN_LAT={wrfinp.attrs['CEN_LAT']})")
+        mean_period = np.mean(period.values)
+        logging.info(f"Earth rotational period from Coriolis param :"
+                     f" {mean_period/3600} h")
         self.input_dict['erf.latitude'] = mean_lat
-        self.input_dict['erf.rotational_time_period'] = np.mean(period.values)
+        self.input_dict['erf.rotational_time_period'] = mean_period
 
         if calc_geopotential_heights:
             logging.info(f'Overwriting base-state geopotential heights with heights'
                          f' from {init_input}')
             ph = wrfinp['PH'] # perturbation geopotential
             phb = wrfinp['PHB'] # base-state geopotential
-            hgt = wrfinp['HGT'] # terrain height
-            self.terrain = hgt
             gh = ph + phb # geopotential, dims=(Time: 1, bottom_top_stag, south_north, west_east)
             gh = gh/9.81
             self.heights = gh.isel(Time=0).mean(['south_north','west_east']).values
             self.input_dict['erf.terrain_z_levels'] = self.heights
 
+        # Grid data needed if hgt or z0 are written
+        dx = self.domains.dx[0]
+        dy = self.domains.dy[0]
+        nx = wrfinp.sizes['west_east']
+        ny = wrfinp.sizes['south_north']
+        west_east   = np.arange(0.5,nx) * dx
+        south_north = np.arange(0.5,ny) * dy
+        west_east_stag   = np.arange(nx+1) * dx
+        south_north_stag = np.arange(ny+1) * dy
+        xg,yg = np.meshgrid(west_east_stag, south_north_stag, indexing='ij')
+
+        # Write out terrain elevation map
+        if write_hgt is not None:
+            hgt = wrfinp['HGT'].isel(Time=0) # terrain height
+            self.terrain = hgt # save orig terrain data
+            # interpolate to nodes
+            hgt = hgt.transpose('west_east','south_north')
+            interpfun = RegularGridInterpolator(
+                    (west_east,south_north), hgt.values,
+                    bounds_error=False,
+                    fill_value=None)
+            hgt_nodes = interpfun((xg,yg))
+            xyz = np.stack((xg.ravel(order='F'),
+                            yg.ravel(order='F'),
+                            hgt_nodes.ravel(order='F')),axis=-1)
+            print('Writing out',write_hgt)
+            np.savetxt(write_hgt, xyz, fmt='%.8g')
+            self.input_dict['erf.terrain_file_name'] = write_hgt
+
         # Get roughness map from land use information
         if landuse_table_path is None:
-            print('Need to specify `landuse_table_path` from your WRF installation'\
-                  'land-use indices to z0')
-            return
-        LUtype =  wrfinp.attrs['MMINLU']
-        alltables = LandUseTable(landuse_table_path)
-        tab = alltables[LUtype]
-        if isinstance(tab.index, pd.MultiIndex):
-            assert tab.index.levels[1].name == 'season'
-            startdate = self.time_control.start_datetime
-            dayofyear = startdate.timetuple().tm_yday
-            is_summer = (dayofyear >= LandUseTable.summer_start_day) & (dayofyear < LandUseTable.winter_start_day)
-            #print(startdate,'--> day',dayofyear,'is summer?',is_summer)
-            if is_summer:
-                tab = tab.xs('summer',level='season')
+            print('Need to specify `landuse_table_path` from your WRF installation'
+                  'land-use indices to estimate z0')
+            if write_z0:
+                print('Surface roughness map not was not written')
+        else:
+            LUtype =  wrfinp.attrs['MMINLU']
+            alltables = LandUseTable(landuse_table_path, verbose=False)
+            tab = alltables[LUtype]
+            if isinstance(tab.index, pd.MultiIndex):
+                assert tab.index.levels[1].name == 'season'
+                startdate = self.time_control.start_datetimes[0]
+                dayofyear = startdate.timetuple().tm_yday
+                is_summer = (dayofyear >= LandUseTable.summer_start_day) \
+                          & (dayofyear < LandUseTable.winter_start_day)
+                #print(startdate,'--> day',dayofyear,'is summer?',is_summer)
+                if is_summer:
+                    tab = tab.xs('summer',level='season')
+                else:
+                    tab = tab.xs('winter',level='season')
+            z0dict = tab['roughness_length'].to_dict()
+            def mapfun(idx):
+                return z0dict[idx]
+            LU = wrfinp['LU_INDEX'].isel(Time=0).astype(int)
+            z0 = xr.apply_ufunc(np.vectorize(mapfun), LU)
+            self.z0 = z0
+
+            # Write out surface roughness map
+            if write_z0:
+                # interpolate to nodes
+                z0 = z0.transpose('west_east','south_north')
+                interpfun = RegularGridInterpolator(
+                        (west_east,south_north), z0.values,
+                        bounds_error=False,
+                        fill_value=None)
+                z0_nodes = interpfun((xg,yg))
+                xyz0 = np.stack((xg.ravel(order='F'),
+                                 yg.ravel(order='F'),
+                                 z0_nodes.ravel(order='F')),axis=-1)
+                print('Writing out',write_z0)
+                np.savetxt(write_z0, xyz0, fmt='%.8g')
+                self.input_dict['erf.most.roughness_file_name'] = write_z0
             else:
-                tab = tab.xs('winter',level='season')
-        z0dict = tab['roughness_length'].to_dict()
-        def mapfun(idx):
-            return z0dict[idx]
-        LU = wrfinp['LU_INDEX'].isel(Time=0).astype(int)
-        z0 = xr.apply_ufunc(np.vectorize(mapfun), LU)
-        print('Distribution of roughness heights')
-        print('z0\tcount')
-        for roughval in np.unique(z0):
-            print(f'{roughval:g}\t{np.count_nonzero(z0==roughval)}')
-        # TODO: need to convert to surface field for ERF
-        # temporarily use a scalar value
-        z0mean = float(z0.mean())
-        self.input_dict['erf.most.z0'] = z0mean
+                logging.info('Roughness map not written,'
+                             ' using mean roughness for MOST')
+                print('Distribution of roughness heights')
+                print('z0\tcount')
+                for roughval in np.unique(z0):
+                    print(f'{roughval:g}\t{np.count_nonzero(z0==roughval)}')
+                z0mean = float(z0.mean())
+                self.input_dict['erf.most.z0'] = z0mean
 
     def write_inputfile(self,fpath):
         inp = ERFInputs(**self.input_dict)
