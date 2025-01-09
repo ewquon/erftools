@@ -259,25 +259,30 @@ class WRFInputDeck(object):
 
         self.input_dict = inp
         
-    def process_initial_conditions(self,init_input='wrfinput_d01',landuse_table_path=None):
+    def process_initial_conditions(self,init_input='wrfinput_d01',
+                                   calc_geopotential_heights=False,
+                                   landuse_table_path=None):
         wrfinp = xr.open_dataset(init_input)
 
-        logging.info('Overwriting base-state geopotential heights with heights'
-                     ' from {init_input}')
-        ph = wrfinp['PH'] # perturbation geopotential
-        phb = wrfinp['PHB'] # base-state geopotential
-        hgt = wrfinp['HGT'] # terrain height
-        self.terrain = hgt
-        gh = ph + phb # geopotential, dims=(Time: 1, bottom_top_stag, south_north, west_east)
-        gh = gh/9.81
-        gh = gh.isel(Time=0).mean(['south_north','west_east']).values
-        self.heights = (gh[1:] + gh[:-1]) / 2 # destaggered
-        self.input_dict['erf.terrain_z_levels'] = self.heights
-
         # Get Coriolis parameters
-        self.input_dict['erf.latitude'] = wrfinp.attrs['CEN_LAT']
         period = 4*np.pi / wrfinp['F'] * np.sin(np.radians(wrfinp.coords['XLAT'])) # F: "Coriolis sine latitude term"
-        self.input_dict['erf.rotational_time_period'] = float(period.mean())
+        mean_lat = np.mean(wrfinp.coords['XLAT'].values)
+        logging.info(f"Projection CEN_LAT={wrfinp.attrs['CEN_LAT']},"
+                     f" mean XLAT={mean_lat}")
+        self.input_dict['erf.latitude'] = mean_lat
+        self.input_dict['erf.rotational_time_period'] = np.mean(period.values)
+
+        if calc_geopotential_heights:
+            logging.info(f'Overwriting base-state geopotential heights with heights'
+                         f' from {init_input}')
+            ph = wrfinp['PH'] # perturbation geopotential
+            phb = wrfinp['PHB'] # base-state geopotential
+            hgt = wrfinp['HGT'] # terrain height
+            self.terrain = hgt
+            gh = ph + phb # geopotential, dims=(Time: 1, bottom_top_stag, south_north, west_east)
+            gh = gh/9.81
+            self.heights = gh.isel(Time=0).mean(['south_north','west_east']).values
+            self.input_dict['erf.terrain_z_levels'] = self.heights
 
         # Get roughness map from land use information
         if landuse_table_path is None:
