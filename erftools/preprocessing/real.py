@@ -77,7 +77,7 @@ class RealInit(object):
                 self.eta = eta.astype(dtype)
             self.eta_stag = np.zeros(len(self.eta)+1, dtype=dtype)
             self.eta_stag[0] = 1.0
-            self.eta_stag[1:-1] = self.eta[1:] + self.eta[:-1]
+            self.eta_stag[1:-1] = 0.5*(self.eta[1:] + self.eta[:-1])
             self.eta_stag = self.eta_stag.rename(bottom_top='bottom_top_stag')
         self.rdnw = 1./self.eta_stag.diff('bottom_top_stag').rename(bottom_top_stag='bottom_top')
 

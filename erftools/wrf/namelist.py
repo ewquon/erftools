@@ -159,7 +159,14 @@ class Domains(WRFNamelist):
         for dom in range(1,self.max_dom):
             assert (self.dx[dom-1]/self.dx[dom] == self.parent_grid_ratio[dom])
             assert (self.dy[dom-1]/self.dy[dom] == self.parent_grid_ratio[dom])
-        self.eta_levels = self.getarrayvar('eta_levels')
+        self.eta_levels = self.getarrayvar('eta_levels',optional=True)
+        self.etac = self.getvar('etac',default=0.2)
+        self.auto_levels_opt = self.getvar('auto_levels_opt',default=2)
+        # for auto_levels_opt==2
+        self.dzbot = self.getvar('dzbot',default=50.)
+        self.dzstretch_s = self.getvar('dzstretch_s',default=1.3)
+        self.dzstretch_u = self.getvar('dzstretch_s',default=1.1)
+        self.max_dz = self.getvar('max_dz',default=1000.)
 
 
 pbl_mapping = {
@@ -202,6 +209,7 @@ mp_physics_mapping = {
     1: 'Kessler',
     2: 'SAM', # comparable to Lin et al. scheme
     6: 'SAM', # WRF Single-Moment, 6-class scheme
+    28: 'SAM', # aerosol-aware Thompson scheme
 }
 ra_physics_mapping = {
     0: 'None',
@@ -231,7 +239,7 @@ class Physics(WRFNamelist):
         sfclay_idx_list = self.getarrayvar('sf_sfclay_physics')
         for pbl_idx,sfclay_idx in zip(pbl_idx_list, sfclay_idx_list):
             if sfclay_idx not in valid_sfclay[pbl_idx]:
-                print(f'WARNING: unexpected pairing of bl_pbl_physics={pbl_idx} with sf_sfclay_idx={sfclay_idx}')
+                print(f'WARNING: Unexpected pairing of bl_pbl_physics={pbl_idx} with sf_sfclay_idx={sfclay_idx}')
         self.bl_pbl_physics = [pbl_mapping.get(idx,'UNKNOWN') for idx in pbl_idx_list]
         for i in range(len(self.bl_pbl_physics)):
             if self.bl_pbl_physics[i] == 'MYNN':

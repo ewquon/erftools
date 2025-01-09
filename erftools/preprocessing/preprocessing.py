@@ -11,6 +11,7 @@ from ..wrf.namelist import (TimeControl, Domains, Physics, Dynamics,
                            BoundaryControl)
 from ..wrf.landuse import LandUseTable
 from .real import RealInit
+from ..constants import CONST_GRAV, R_d, p_0
 from ..inputs import ERFInputs
 
 class WRFInputDeck(object):
@@ -113,11 +114,19 @@ class WRFInputDeck(object):
             # get domain heights from base state geopotential
             # note: RealInit uses xarray to manage dims, kind of annoying here
             zsurf0 = xr.DataArray([[0]],dims=('west_east','south_north'))
-            eta_levels = xr.DataArray(self.domains.eta_levels,
-                                      dims='bottom_top_stag')
             ptop = self.domains.p_top_requested
-            real = RealInit(zsurf0, eta_stag=eta_levels, ptop=ptop)
-            z_levels = real.phb.squeeze().values / 9.81
+            if self.domains.eta_levels is not None:
+                eta_levels = xr.DataArray(self.domains.eta_levels,
+                                          dims='bottom_top_stag')
+                real = RealInit(zsurf0, eta_stag=eta_levels, ptop=ptop)
+                z_levels = real.phb.squeeze().values / CONST_GRAV
+            else:
+                z_levels,_,_ = get_zlevels_auto(n_cell[2],
+                                                self.domains.dzbot,
+                                                self.domains.max_dz,
+                                                self.domains.dzstretch_s,
+                                                self.domains.dzstretch_u,
+                                                ptop=ptop)
             self.base_heights = z_levels
             ztop = z_levels[-1]
             inp['erf.terrain_z_levels'] = z_levels
@@ -294,7 +303,7 @@ class WRFInputDeck(object):
             ph = wrfinp['PH'] # perturbation geopotential
             phb = wrfinp['PHB'] # base-state geopotential
             gh = ph + phb # geopotential, dims=(Time: 1, bottom_top_stag, south_north, west_east)
-            gh = gh/9.81
+            gh = gh / CONST_GRAV
             self.heights = gh.isel(Time=0).mean(['south_north','west_east']).values
             self.input_dict['erf.terrain_z_levels'] = self.heights
 
@@ -509,3 +518,64 @@ class LambertConformalGrid(object):
             colat  = np.radians(90.0 - lat)
             return np.sin(colat2)/np.sin(colat) \
                     * (np.tan(colat/2.0)/np.tan(colat2/2.0))**n
+
+
+def get_zlevels_auto(nlev,dzbot,dzmax,dzstretch_s,dzstretch_u,
+                     ptop=5000.,T0=290.,verbose=False):
+    """Following the description in the WRF User's Guide, vertical
+    grid levels can be determined based on surface and maximum grid
+    spacings (dz0, dzmax) and the surface and upper stretching factors
+    (s0, s). Assuming an isothermal atmosphere.
+
+    See `levels` subroutine in dyn_em/module_initialize_real.F
+    """
+    zup = np.zeros(nlev+1) # Note: this is the staggered grid height, with
+    pup = np.zeros(nlev+1) #   0-based indices here corresponding to the
+    eta = np.zeros(nlev+1) #   1-based indices in the WRF code
+    zscale = R_d * T0 / CONST_GRAV
+    ztop = zscale * np.log(p_0 / ptop)
+    dz = dzbot
+    zup[1] = dzbot
+    pup[0] = p_0
+    pup[1] = p_0 * np.exp(-zup[0]/zscale)
+    eta[0] = 1.0
+    eta[1] = (pup[1] - ptop) / (p_0 - ptop)
+    if verbose:
+        print(0,None,zup[0],eta[0])
+        print(1,dz,zup[1],eta[1])
+    for i in range(1,nlev):
+        a = dzstretch_u + (dzstretch_s - dzstretch_u) \
+                        * max((0.5*dzmax - dz)/(0.5*dzmax), 0)
+        dz = a * dz
+        dztest = (ztop - zup[i]) / (nlev-i)
+        if dztest < dz:
+            # switch to constant dz
+            if verbose:
+                print('--- now, constant dz ---')
+            break
+        zup[i+1] = zup[i] + dz
+        pup[i+1] = p_0 * np.exp(-zup[i+1]/zscale)
+        eta[i+1] = (pup[i+1] - ptop) / (p_0 - ptop)
+        if verbose:
+            print(i+1,dz,zup[i+1],eta[i+1],'a=',a)
+        assert i < nlev, 'Not enough eta levels to reach p_top, need to:'\
+                         ' (1) add more eta levels,'\
+                         ' (2) increase p_top to reduce domain height,'\
+                         ' (3) increase min dz, or'\
+                         ' (4) increase the stretching factor(s)'
+    dz = (ztop - zup[i]) / (nlev - i)
+    assert dz <= 1.5*dzmax, 'Upper levels may be too thick, need to:'\
+                            ' (1) add more eta levels,'\
+                            ' (2) increase p_top to reduce domain height,'\
+                            ' (3) increase min dz'\
+                            ' (4) increase the stretching factor(s), or'\
+                            ' (5) increase max dz'
+    ilast = i
+    for i in range(ilast,nlev):
+        zup[i+1] = zup[i] + dz
+        pup[i+1] = p_0 * np.exp(-zup[i+1]/zscale)
+        eta[i+1] = (pup[i+1] - ptop) / (p_0 - ptop)
+        if verbose:
+            print(i+1,dz,zup[i+1],eta[i+1])
+    assert np.allclose(ztop,zup[-1])
+    return zup,pup,eta
