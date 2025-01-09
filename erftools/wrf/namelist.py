@@ -290,9 +290,11 @@ class Dynamics(WRFNamelist):
                          for dom in range(len(diff_opt_list))]
         self.km_opt = [km_opt_mapping.get(km_opt_list[dom], 'UNKNOWN')
                        for dom in range(len(diff_opt_list))]
-        zeros = len(self.km_opt) * [0]
-        self.khdif = self.getarrayvar('khdif', default=zeros)
-        self.kvdif = self.getarrayvar('kvdif', default=zeros)
+        nval = len(self.km_opt)
+        self.c_s = self.getarrayvar('c_s', default=nval*[0.25])
+        self.c_k = self.getarrayvar('c_k', default=nval*[0.15])
+        self.khdif = self.getarrayvar('khdif', default=nval*[0])
+        self.kvdif = self.getarrayvar('kvdif', default=nval*[0])
         self.diff_6th_opt = self.getarrayvar(
                 'diff_6th_opt', default=0)
         self.diff_6th_factor = self.getarrayvar(

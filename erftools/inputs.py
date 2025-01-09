@@ -321,9 +321,11 @@ erf.alpha_C           = {self.erf.alpha_C}
             if have_smag or have_dear:
                 f.write(f'\nerf.les_type  = {strs_to_str(lestypes)}\n')
             if have_smag:
-                f.write(f'erf.Cs        = {self.erf.Cs}\n')
+                Cs_list = self.erf.Cs if isinstance(self.erf.Cs,list) else [self.erf.Cs]
+                f.write(f'erf.Cs        = {list_to_str(Cs_list)}\n')
             if have_dear:
-                f.write(f'erf.Ck        = {self.erf.Ck}\n')
+                Ck_list = self.erf.Ck if isinstance(self.erf.Ck,list) else [self.erf.Ck]
+                f.write(f'erf.Ck        = {list_to_str(Ck_list)}\n')
                 f.write(f'erf.Ce        = {self.erf.Ce}\n')
                 f.write(f'erf.Ce_wall   = {self.erf.Ce_wall}\n')
                 f.write(f'erf.sigma_k   = {self.erf.sigma_k}\n')

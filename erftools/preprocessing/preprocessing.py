@@ -48,8 +48,6 @@ class WRFInputDeck(object):
         self.input_dict = {
             'erf.use_gravity': True,
             'erf.use_coriolis': True,
-            'erf.Cs': 0.25,
-            'erf.Ck': 0.15,
             'zhi.type': 'SlipWall',
             'erf.use_terrain': True,
             'erf.init_type': 'real',
@@ -221,6 +219,10 @@ class WRFInputDeck(object):
                          for turb in self.dynamics.km_opt]
             les_types = les_types[:max_dom]
             inp['erf.les_type'] = les_types
+            smag_Cs = self.dynamics.c_s
+            dear_Ck = self.dynamics.c_k
+            inp['erf.Cs'] = smag_Cs[:max_dom]
+            inp['erf.Ck'] = dear_Ck[:max_dom]
 
         if any([opt != 'constant' for opt in self.dynamics.km_opt]):
             # in ERF, Smagorinsky == 2D Smagorinsky

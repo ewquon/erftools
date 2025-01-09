@@ -157,10 +157,10 @@ class ERFParms:
     Sc_t: float = 1.0
 
     # - Smagorinsky SGS model
-    Cs: float = 0.
+    Cs: Union[float,List[float]] = 0.
 
     # - Deardorff SGS model
-    Ck: float = 0.1
+    Ck: Union[float,List[float]] = 0.1
     Ce: float = 0.93
     Ce_wall: float = -1.
     sigma_k: float = 0.5
@@ -257,8 +257,9 @@ class ERFParms:
         for turbmodel in les_types:
             assert turbmodel in ['None','Smagorinsky','Deardorff'], \
                     f'Unexpected erf.les_type {turbmodel}'
-            if turbmodel == 'Smagorinsky':
-                assert self.Cs > 0, 'Need to specify valid Smagorinsky Cs'
+        if any([turbmodel == 'Smagorinsky' for turbmodel in les_types]):
+            smag_Cs = self.Cs if isinstance(self.Cs,list) else len(les_types)*[self.Cs]
+            assert all([Cs > 0 for Cs in smag_Cs]), 'Need to specify valid Smagorinsky Cs'
         pbl_types = self.pbl_type if isinstance(self.pbl_type,list) else [self.pbl_type]
         for pblscheme in pbl_types:
             assert pblscheme in ['None','MYNN25','YSU'], \
