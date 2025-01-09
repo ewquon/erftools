@@ -28,9 +28,9 @@ def bool_to_str(bval):
 
 def list_to_str(mylist,dtype=None):
     if dtype is None:
-        return ' '.join([f'{val:g}' for val in mylist])
+        return ' '.join([f'{val:.8g}' for val in mylist])
     else:
-        return ' '.join([f'{dtype(val):g}' for val in mylist])
+        return ' '.join([f'{dtype(val):.8g}' for val in mylist])
 
 def strs_to_str(mylist):
     return ' '.join([s.strip('"').strip("'") for s in mylist])
@@ -48,6 +48,8 @@ class ERFInputs(object):
         self.max_step = int(ppdata.get('max_step',-1))
         self.start_time = float(ppdata.get('start_time',0.))
         self.stop_time = float(ppdata.get('stop_time',1e34))
+        self.start_date = ppdata.get('start_date',None)
+        self.stop_date = ppdata.get('stop_date',None)
 
         # read amr, geometry, and erf inputs
         self.amr = AMRParms(**parmparse('amr',ppdata))
@@ -136,7 +138,14 @@ class ERFInputs(object):
         with open_file_or_stdout(fpath) as f:
             f.write('# ------------------------------- INPUTS TO ERF -------------------------------\n')
             f.write('# written by erftools.inputs (https://github.com/erf-model/erftools)\n')
-            f.write(f"""
+            if self.start_date and self.stop_date:
+                f.write(f"""
+max_step    = {self.max_step}
+start_time  = {self.start_time}  # {self.start_date}
+stop_time   = {self.stop_time}  # {self.stop_date}
+""")
+            else:
+                f.write(f"""
 max_step    = {self.max_step}
 start_time  = {self.start_time}
 stop_time   = {self.stop_time}
@@ -181,6 +190,9 @@ geometry.is_periodic = {list_to_str(self.geometry.is_periodic)}
             if hasattr(self,'zlo'):
                 f.write('\n')
                 write_bc(f,'zlo',self.zlo)
+                if self.zlo['type'] == 'MOST':
+                    for key,val in self.most.items():
+                        f.write(f'zlo.most.{key} = {val}\n')
                 write_bc(f,'zhi',self.zhi)
 
             ########################################
@@ -256,9 +268,9 @@ erf.terrain_smoothing = {self.erf.terrain_smoothing}
             f.write('\n# CHECKPOINT FILES\n')
             f.write(f'erf.check_file = {self.erf.check_file}\n')
             if self.erf.check_per > 0:
-                f.write(f'erf.check_per   = {self.erf.check_per}\n')
+                f.write(f'erf.check_per  = {self.erf.check_per}\n')
             else:
-                f.write(f'erf.check_int   = {self.erf.check_int}\n')
+                f.write(f'erf.check_int  = {self.erf.check_int}\n')
 
             ########################################
             f.write('\n# PLOTFILES\n')
@@ -432,7 +444,7 @@ erf.init_sounding_ideal = {bool_to_str(self.erf.init_sounding_ideal)}
             elif self.erf.init_type.lower() == 'real':
                 f.write(f"""
 erf.init_type      = real
-erf.use_real_bcs   = {self.erf.use_real_bcs}
+erf.use_real_bcs   = {bool_to_str(self.erf.use_real_bcs)}
 erf.nc_init_file_0 = {self.erf.nc_init_file_0}
 erf.nc_bdy_file    = {self.erf.nc_bdy_file}
 erf.real_width     = {self.erf.real_width}

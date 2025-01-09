@@ -3,6 +3,7 @@ Processing for each namelist within a WRF namelist.input file
 """
 from datetime import datetime
 
+
 class WRFNamelist(object):
     def __init__(self,nmldict):
         self.nml = nmldict
@@ -37,6 +38,7 @@ class WRFNamelist(object):
             assert isinstance(val, (int, float, bool)), \
                     f'{varname} value {i} is invalid'
         return arr
+
 
 class TimeControl(WRFNamelist):
     """&time_control namelist"""
@@ -101,7 +103,10 @@ class TimeControl(WRFNamelist):
             simtime = self.start_datetimes[0] - self.end_datetimes[0]
             assert spec_run_time == simtime.total_seconds(), \
                     'Inconsistent run time'
-    
+
+        self.history_interval = self.getarrayvar('history_interval') # [min]
+
+
 class Domains(WRFNamelist):
     """&domains namelist"""
 
@@ -189,19 +194,16 @@ valid_sfclay = {
     12: [1,91],
     91: [1,91],
 }
-
 mp_physics_mapping = {
     0: 'None',
     1: 'Kessler',
     2: 'SAM', # comparable to Lin et al. scheme
     6: 'SAM', # WRF Single-Moment, 6-class scheme
 }
-
 ra_physics_mapping = {
     0: 'None',
     4: 'RRTMGP',
 }
-
 cu_physics_mapping = {
     0: 'None',
 }
@@ -306,6 +308,7 @@ class Dynamics(WRFNamelist):
         self.zdamp = self.getvar('zdamp')
         self.dampcoef = self.getvar('dampcoef')
 
+
 class BoundaryControl(WRFNamelist):
     """&bdy_control namelist"""
 
@@ -316,4 +319,3 @@ class BoundaryControl(WRFNamelist):
     def parse(self):
         self.periodic_x = bool(self.getvar('periodic_x', default=False))
         self.periodic_y = bool(self.getvar('periodic_y', default=False))
-

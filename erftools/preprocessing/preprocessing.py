@@ -50,6 +50,7 @@ class WRFInputDeck(object):
             'erf.use_coriolis': True,
             'zhi.type': 'SlipWall',
             'erf.use_terrain': True,
+            'erf.terrain_smoothing': 1,
             'erf.init_type': 'real',
             'erf.use_real_bcs': True,
             'erf.nc_init_file_0': 'wrfinp_d01',
@@ -63,6 +64,7 @@ class WRFInputDeck(object):
             'amr.v': 1, # verbosity in Amr.cpp
             'erf.v': 1, # verbosity in ERF.cpp
             'erf.sum_interval': 1, # timesteps between computing mass
+            'erf.plot_file_1': 'plt',
             'erf.plot_vars_1': ['density','x_velocity','y_velocity','z_velocity',
                                 'pressure','theta','KE',
                                 'Kmh','Kmv','Khh','Khv','qv','qc'],
@@ -85,6 +87,8 @@ class WRFInputDeck(object):
         startdate = self.time_control.start_datetimes[0]
         enddate = self.time_control.end_datetimes[0]
         tsim = (enddate - startdate).total_seconds()
+        inp['start_date'] = startdate
+        inp['stop_date'] = enddate
         inp['start_time'] = calendar.timegm(startdate.timetuple())
         inp['stop_time'] = calendar.timegm(enddate.timetuple())
         logging.info(f'Total simulation time: {tsim}')
@@ -164,8 +168,11 @@ class WRFInputDeck(object):
 
             inp['amr.ref_ratio_vect'] = ref_ratio_vect
 
-        restart_period = self.time_control.restart_interval * 60.0 # [s]
-        inp['amr.check_int'] = int(restart_period / dt[0])
+        restart_interval = self.time_control.restart_interval * 60.0 # [s]
+        inp['erf.check_int'] = int(restart_interval / dt[0])
+
+        wrfout_interval = self.time_control.history_interval[0] * 60.0 # [s]
+        inp['erf.plot_int_1'] = int(wrfout_interval / dt[0])
 
         sfclayscheme = self.physics.sf_sfclay_physics[0]
         if sfclayscheme == 'None':
