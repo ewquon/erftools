@@ -21,10 +21,15 @@ class WRFInputDeck(object):
     """
 
     def __init__(self,nmlpath,verbosity=logging.DEBUG):
-        # setup logger -- note this only has an effect the first time it
-        # is called
-        logging.basicConfig(level=verbosity,
-                            format='%(levelname)s: %(message)s')
+        # setup logger
+        self.log = logging.getLogger(__name__)
+        self.log.setLevel(verbosity)
+        sh = logging.StreamHandler()
+        sh.setLevel(verbosity)
+        fmt = logging.Formatter('%(levelname)s: %(message)s')
+        sh.setFormatter(fmt)
+        self.log.addHandler(sh)
+
         # scrape WRF namelists
         with open(nmlpath,'r') as f:
             self.nml = f90nml.read(f)
@@ -84,7 +89,7 @@ class WRFInputDeck(object):
         """
         inp = self.input_dict
 
-        logging.info('Assuming all domains have the same start/end datetime as level 0')
+        self.log.info('Assuming all domains have the same start/end datetime as level 0')
         startdate = self.time_control.start_datetimes[0]
         enddate = self.time_control.end_datetimes[0]
         tsim = (enddate - startdate).total_seconds()
@@ -92,11 +97,11 @@ class WRFInputDeck(object):
         inp['stop_date'] = enddate
         inp['start_time'] = calendar.timegm(startdate.timetuple())
         inp['stop_time'] = calendar.timegm(enddate.timetuple())
-        logging.info(f'Total simulation time: {tsim}')
-        logging.info(f"Start from {startdate.strftime('%Y-%m-%d %H:%M:%S')}"
-                     f" ({inp['start_time']} seconds since epoch)")
-        logging.info(f"Stop at {enddate.strftime('%Y-%m-%d %H:%M:%S')}"
-                     f" ({inp['stop_time']} seconds since epoch)")
+        self.log.info(f'Total simulation time: {tsim}')
+        self.log.info(f"Start from {startdate.strftime('%Y-%m-%d %H:%M:%S')}"
+                      f" ({inp['start_time']} seconds since epoch)")
+        self.log.info(f"Stop at {enddate.strftime('%Y-%m-%d %H:%M:%S')}"
+                      f" ({inp['stop_time']} seconds since epoch)")
         assert tsim > 0, 'Start and end datetimes are equal'
 
         # note: starting index starts with 1, _not_ 0
@@ -116,12 +121,12 @@ class WRFInputDeck(object):
             self.base_heights = z_levels
             ztop = z_levels[-1]
             inp['erf.terrain_z_levels'] = z_levels
-            logging.info('Estimated domain ztop from domains.p_top_requested'
-                         f'={ptop:g} : {ztop}')
+            self.log.info('Estimated domain ztop from domains.p_top_requested'
+                          f'={ptop:g} : {ztop}')
         else:
             # this is only used by WRF for idealized cases
             ztop = self.domains.ztop
-        logging.info('Domain SW corner is (0,0)')
+        self.log.info('Domain SW corner is (0,0)')
         inp['geometry.prob_extent'] = [n_cell[0] * self.domains.dx[0],
                                        n_cell[1] * self.domains.dy[0],
                                        ztop]
@@ -139,7 +144,7 @@ class WRFInputDeck(object):
         max_dom = self.domains.max_dom
         inp['amr.max_level'] = max_dom - 1 # zero-based indexing
         if max_dom > 1:
-            logging.info('Assuming parent_time_step_ratio == parent_grid_ratio')
+            self.log.info('Assuming parent_time_step_ratio == parent_grid_ratio')
 
             refine_names = ' '.join([f'nest{idom:d}' for idom in range(1,max_dom)])
             inp['amr.refinement_indicators'] = refine_names
@@ -181,7 +186,7 @@ class WRFInputDeck(object):
         elif sfclayscheme == 'MOST':
             inp['zlo.type'] = 'MOST'
         else:
-            logging.warning(f'Surface layer scheme {sfclayscheme} not implemented in ERF')
+            self.log.warning(f'Surface layer scheme {sfclayscheme} not implemented in ERF')
             inp['zlo.type'] = sfclayscheme
 
         inp['erf.pbl_type'] = self.physics.bl_pbl_physics
@@ -189,34 +194,34 @@ class WRFInputDeck(object):
             if self.physics.bl_pbl_physics[idom] != 'None':
                 km_opt = self.dynamics.km_opt[idom]
                 if km_opt in ['Deardorff','Smagorinsky']:
-                    logging.warning(f'erf.pbl_type[{idom}]={self.physics.bl_pbl_physics[idom]}'
-                                    f' selected with 3D diffusion'
-                                    f' (km_opt={km_opt})')
+                    self.log.warning(f'erf.pbl_type[{idom}]={self.physics.bl_pbl_physics[idom]}'
+                                     f' selected with 3D diffusion'
+                                     f' (km_opt={km_opt})')
 
         if any([km_opt == 'constant' for km_opt in self.dynamics.km_opt]):
             if any([kh > 0 for kh in self.dynamics.khdif]):
                 kdif = self.dynamics.khdif[0]
                 if any([kv!=kh for kv,kh in zip(self.dynamics.khdif,
                                                 self.dynamics.kvdif)]):
-                    logging.info(f'Specifying khdif = kvdif = {kdif}')
+                    self.log.info(f'Specifying khdif = kvdif = {kdif}')
                 if len(set(self.dynamics.khdif)) > 1:
                     # more than one diffusion constant specified
-                    logging.info(f'Specifying constant molecular diffusion on'
-                                 f'all levels = {kdif}')
+                    self.log.info(f'Specifying constant molecular diffusion on'
+                                  f'all levels = {kdif}')
                 inp['erf.molec_diff_type'] = 'ConstantAlpha'
                 inp['erf.dynamic_viscosity'] = kdif
                 inp['erf.alpha_T'] = kdif
                 inp['erf.alpha_C'] = kdif
             else:
-                logging.info('Requested km_opt=1 but nonzero diffusion'
-                             ' constant has not be specified')
+                self.log.info('Requested km_opt=1 but nonzero diffusion'
+                              ' constant has not be specified')
 
         if any([opt != 0 for opt in self.dynamics.diff_6th_opt]):
             if any([opt==1 for opt in self.dynamics.diff_6th_opt]):
-                logging.warning('Simple 6th-order hyper diffusion is not recommended')
+                self.log.warning('Simple 6th-order hyper diffusion is not recommended')
             num_diff_coeff = self.dynamics.diff_6th_factor[0]
-            logging.warning(f'Applying numerical diffusion on all'
-                            f' levels, with erf.num_diff_coeff'
+            self.log.warning(f'Applying numerical diffusion on all'
+                             f' levels, with erf.num_diff_coeff'
                             f'={num_diff_coeff} -- this can have'
                             f' unexpected effects in ERF')
             inp['erf.num_diff_coeff'] = num_diff_coeff
@@ -240,19 +245,18 @@ class WRFInputDeck(object):
         if any([opt != 'None' for opt in self.physics.mp_physics]):
             moisture_model = self.physics.mp_physics[0]
             if len(set(self.physics.mp_physics)) > 1:
-                logging.warning(f'Applying the {moisture_model} microphysics'
-                                ' model on all levels')
+                self.log.warning(f'Applying the {moisture_model} microphysics'
+                                 ' model on all levels')
             inp['erf.moisture_model'] = moisture_model
 
         if any([opt != 'None' for opt in self.physics.ra_physics]):
             rad_model = self.physics.ra_physics[0]
             if len(set(self.physics.ra_physics)) > 1:
-                logging.warning(f'Applying the {rad_model} radiation scheme on'
-                                ' all levels')
+                self.log.warning(f'Applying the {rad_model} radiation scheme on all levels')
             inp['erf.radiation_model'] = rad_model
 
         if any([opt != 'None' for opt in self.physics.cu_physics]):
-            logging.warning('ERF currently does not have any cumulus parameterizations')
+            self.log.warning('ERF currently does not have any cumulus parameterizations')
 
         # TODO: turn on Rayleigh damping, set tau
         if self.dynamics.damp_opt != 'none':
@@ -270,17 +274,17 @@ class WRFInputDeck(object):
         # Get Coriolis parameters
         period = 4*np.pi / wrfinp['F'] * np.sin(np.radians(wrfinp.coords['XLAT'])) # F: "Coriolis sine latitude term"
         mean_lat = np.mean(wrfinp.coords['XLAT'].values)
-        logging.info(f"Using mean XLAT={mean_lat}"
-                     f" (projection CEN_LAT={wrfinp.attrs['CEN_LAT']})")
+        self.log.info(f"Using mean XLAT={mean_lat}"
+                      f" (projection CEN_LAT={wrfinp.attrs['CEN_LAT']})")
         mean_period = np.mean(period.values)
-        logging.info(f"Earth rotational period from Coriolis param :"
-                     f" {mean_period/3600} h")
+        self.log.info(f"Earth rotational period from Coriolis param :"
+                      f" {mean_period/3600} h")
         self.input_dict['erf.latitude'] = mean_lat
         self.input_dict['erf.rotational_time_period'] = mean_period
 
         if calc_geopotential_heights:
-            logging.info(f'Overwriting base-state geopotential heights with heights'
-                         f' from {init_input}')
+            self.log.info(f'Overwriting base-state geopotential heights with heights'
+                          f' from {init_input}')
             ph = wrfinp['PH'] # perturbation geopotential
             phb = wrfinp['PHB'] # base-state geopotential
             gh = ph + phb # geopotential, dims=(Time: 1, bottom_top_stag, south_north, west_east)
@@ -361,8 +365,8 @@ class WRFInputDeck(object):
                 np.savetxt(write_z0, xyz0, fmt='%.8g')
                 self.input_dict['erf.most.roughness_file_name'] = write_z0
             else:
-                logging.info('Roughness map not written,'
-                             ' using mean roughness for MOST')
+                self.log.info('Roughness map not written,'
+                              ' using mean roughness for MOST')
                 print('Distribution of roughness heights')
                 print('z0\tcount')
                 for roughval in np.unique(z0):
@@ -373,6 +377,7 @@ class WRFInputDeck(object):
     def write_inputfile(self,fpath):
         inp = ERFInputs(**self.input_dict)
         inp.write(fpath)
+        print('Wrote',fpath)
         
 
 class LambertConformalGrid(object):
