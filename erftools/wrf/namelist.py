@@ -32,6 +32,8 @@ class WRFNamelist(object):
                 arr = default
             else:
                 raise KeyError(varname)
+        if arr is None:
+            return None
         if not hasattr(arr,'__iter__'):
             arr = [arr]
         for i,val in enumerate(arr):
@@ -306,8 +308,9 @@ class Dynamics(WRFNamelist):
     def parse_damping(self):
         self.damp_opt = damp_opt_mapping[self.getvar('damp_opt')]
         self.w_damping = bool(self.getvar('w_damping', default=0))
-        self.zdamp = self.getvar('zdamp')
-        self.dampcoef = self.getvar('dampcoef')
+        ndamp = len(self.damp_opt)
+        self.zdamp = self.getarrayvar('zdamp', default=ndamp*[5000.])
+        self.dampcoef = self.getarrayvar('dampcoef', default=ndamp*[0.2])
 
 
 class BoundaryControl(WRFNamelist):

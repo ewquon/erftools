@@ -258,9 +258,15 @@ class WRFInputDeck(object):
         if any([opt != 'None' for opt in self.physics.cu_physics]):
             self.log.warning('ERF currently does not have any cumulus parameterizations')
 
-        # TODO: turn on Rayleigh damping, set tau
         if self.dynamics.damp_opt != 'none':
-            print(f'NOTE: Upper level damping specified ({self.dynamics.damp_opt}) but not implemented in ERF')
+            if self.dynamics.damp_opt.startswith('Rayleigh'):
+                self.log.info(f'Applying Rayleigh damping to w on all levels'
+                              f' based on level 0 inputs')
+                inp['erf.rayleigh_damp_W'] = True
+                inp['erf.rayleigh_dampcoef'] = self.dynamics.dampcoef[0]
+                inp['erf.rayleigh_zdamp'] = self.dynamics.zdamp[0]
+            else:
+                self.log.warning(f'Damping option {self.dynamics.damp_opt} not supported')
 
         self.input_dict = inp
         
