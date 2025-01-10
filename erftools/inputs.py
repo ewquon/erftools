@@ -257,6 +257,8 @@ erf.initial_dz            = {self.erf.initial_dz}
 erf.use_terrain       = true
 erf.terrain_smoothing = {self.erf.terrain_smoothing}
 """)
+                if self.erf.terrain_z_levels:
+                    f.write(f'erf.terrain_z_levels = {list_to_str(self.erf.terrain_z_levels)}\n')
                 if self.erf.terrain_type != 'Static':
                     f.write('erf.terrain_type      = '
                             f'{self.erf.terrain_type}\n')
