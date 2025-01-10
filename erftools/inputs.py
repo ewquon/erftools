@@ -191,7 +191,7 @@ geometry.is_periodic = {list_to_str(self.geometry.is_periodic)}
                 write_bc(f,'zlo',self.zlo)
                 if self.zlo['type'] == 'MOST':
                     for key,val in self.most.items():
-                        f.write(f'zlo.most.{key} = {val}\n')
+                        f.write(f'erf.most.{key} = {val}\n')
                 write_bc(f,'zhi',self.zhi)
 
             ########################################
