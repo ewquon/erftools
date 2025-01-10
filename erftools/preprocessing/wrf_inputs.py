@@ -54,6 +54,10 @@ class WRFInputDeck(object):
         self.input_dict = {
             'erf.use_gravity': True,
             'erf.use_coriolis': True,
+            'xlo.type': 'Outflow',
+            'xhi.type': 'Outflow',
+            'ylo.type': 'Outflow',
+            'yhi.type': 'Outflow',
             'zhi.type': 'SlipWall',
             'erf.use_terrain': True,
             'erf.terrain_smoothing': 1,
