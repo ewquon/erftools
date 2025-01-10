@@ -131,8 +131,10 @@ class WRFInputDeck(object):
                                                 self.domains.dzstretch_u,
                                                 ptop=ptop)
             self.base_heights = z_levels
-            ztop = z_levels[-1]
             inp['erf.terrain_z_levels'] = z_levels
+            most_zref = 0.5*(z_levels[0] + z_levels[1])
+            inp['erf.most.zref'] = most_zref  # need to specify for terrain
+            ztop = z_levels[-1]
             self.log.info('Estimated domain ztop from domains.p_top_requested'
                           f'={ptop:g} : {ztop}')
         else:
@@ -309,6 +311,8 @@ class WRFInputDeck(object):
             gh = gh / CONST_GRAV
             self.heights = gh.isel(Time=0).mean(['south_north','west_east']).values
             self.input_dict['erf.terrain_z_levels'] = self.heights
+            most_zref = 0.5*(self.heights[0] + self.heights[1])
+            inp['erf.most.zref'] = most_zref  # need to specify for terrain
 
         # Grid data needed if hgt or z0 are written
         dx = self.domains.dx[0]
