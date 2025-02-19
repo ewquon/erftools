@@ -24,12 +24,13 @@ class WRFInputDeck(object):
     def __init__(self,nmlpath,tslist=None,verbosity=logging.DEBUG):
         # setup logger
         self.log = logging.getLogger(__name__)
-        self.log.setLevel(verbosity)
-        sh = logging.StreamHandler()
-        sh.setLevel(verbosity)
-        fmt = logging.Formatter('%(levelname)s: %(message)s')
-        sh.setFormatter(fmt)
-        self.log.addHandler(sh)
+        if not self.log.hasHandlers():
+            self.log.setLevel(verbosity)
+            sh = logging.StreamHandler()
+            sh.setLevel(verbosity)
+            fmt = logging.Formatter('%(levelname)s: %(message)s')
+            sh.setFormatter(fmt)
+            self.log.addHandler(sh)
 
         # scrape WRF namelists
         with open(nmlpath,'r') as f:
