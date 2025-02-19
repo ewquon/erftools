@@ -167,8 +167,8 @@ class WRFInputDeck(object):
         if max_dom > 1:
             self.log.info('Assuming parent_time_step_ratio == parent_grid_ratio')
 
-            refine_names = ' '.join([f'nest{idom:d}' for idom in range(1,max_dom)])
-            inp['amr.refinement_indicators'] = refine_names
+            refine_names = [f'nest{idom:d}' for idom in range(1,max_dom)]
+            inp['erf.refinement_indicators'] = refine_names
 
             dx = self.domains.dx
             dy = self.domains.dy
@@ -190,8 +190,8 @@ class WRFInputDeck(object):
                 in_box_hi = in_box_lo + child_ext
                 assert (in_box_hi[0] <= parent_ext[0])
                 assert (in_box_hi[1] <= parent_ext[1])
-                inp[f'amr.nest{idom:d}.in_box_lo'] = in_box_lo
-                inp[f'amr.nest{idom:d}.in_box_hi'] = in_box_hi
+                inp[f'erf.nest{idom:d}.in_box_lo'] = in_box_lo
+                inp[f'erf.nest{idom:d}.in_box_hi'] = in_box_hi
 
             inp['amr.ref_ratio_vect'] = ref_ratio_vect
 
