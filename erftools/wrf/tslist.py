@@ -31,8 +31,10 @@ class TSList(object):
                 self.lat.append(float(defs[1]))
                 self.lon.append(float(defs[2]))
 
-    def get_ijk_strs(nz):
-        """Get input strings for ERF line sampling"""
-        lo = '   '.join([f'{i} {j} 0' for i,j in zip(self.i,self.j)])
-        hi = '   '.join([f'{i} {j} {nz-1}' for i,j in zip(self.i,self.j)])
+    def get_ijk_lists(self,nz):
+        """Get indices for ERF line sampling"""
+        lo,hi = [],[]
+        for i,j in zip(self.i,self.j):
+            lo.extend([i,j,0])
+            hi.extend([i,j,nz-1])
         return lo, hi
