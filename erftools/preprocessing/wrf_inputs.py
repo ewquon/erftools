@@ -8,6 +8,7 @@ from scipy.interpolate import RegularGridInterpolator
 
 from ..wrf.namelist import (TimeControl, Domains, Physics, Dynamics,
                            BoundaryControl)
+from ..wrf.tslist import TSList
 from ..wrf.landuse import LandUseTable
 from .real import RealInit, get_zlevels_auto
 from ..constants import CONST_GRAV
@@ -20,7 +21,7 @@ class WRFInputDeck(object):
     * wrfinput_d01[, wrfinput_d02, ...]
     """
 
-    def __init__(self,nmlpath,verbosity=logging.DEBUG):
+    def __init__(self,nmlpath,tslist=None,verbosity=logging.DEBUG):
         # setup logger
         self.log = logging.getLogger(__name__)
         self.log.setLevel(verbosity)
@@ -41,6 +42,11 @@ class WRFInputDeck(object):
         # calculate ERF equivalents
         self.set_defaults()
         self.generate_inputs()
+
+        if tslist is not None:
+            self.tslist = TSList(tslist)
+        else:
+            self.tslist = None
 
     def __str__(self):
         s = str(self.time_control) + '\n'
