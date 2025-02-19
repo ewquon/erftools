@@ -185,8 +185,7 @@ class Physics(WRFNamelist):
 
     def parse_all(self):
         pbl_idx_list = self.getarrayvar('bl_pbl_physics')
-        pbl_mynn_closure_list = self.getarrayvar(
-                'bl_mynn_closure', default=len(pbl_idx_list)*[2.5])
+        pbl_mynn_closure = self.getvar('bl_mynn_closure', default=2.6)
         sfclay_idx_list = self.getarrayvar('sf_sfclay_physics')
         for pbl_idx,sfclay_idx in zip(pbl_idx_list, sfclay_idx_list):
             if sfclay_idx not in valid_sfclay[pbl_idx]:
@@ -194,7 +193,7 @@ class Physics(WRFNamelist):
         self.bl_pbl_physics = [pbl_mapping.get(idx,'UNKNOWN') for idx in pbl_idx_list]
         for i in range(len(self.bl_pbl_physics)):
             if self.bl_pbl_physics[i] == 'MYNN':
-                lvlstr = str(pbl_mynn_closure_list[i]).replace('.','')
+                lvlstr = str(pbl_mynn_closure).replace('.','')
                 self.bl_pbl_physics[i] += lvlstr
         self.sf_sfclay_physics = [sfclay_mapping.get(idx,'UNKNOWN') for idx in sfclay_idx_list]
         self.num_land_cat = self.getvar('num_land_cat', optional=True)
