@@ -1,4 +1,5 @@
 import logging
+import os
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -348,7 +349,8 @@ class WRFInputDeck(object):
                             hgt_nodes.ravel(order='F')),axis=-1)
             print('Writing out',write_hgt)
             np.savetxt(write_hgt, xyz, fmt='%.8g')
-            self.input_dict['erf.terrain_file_name'] = write_hgt
+            self.input_dict['erf.terrain_file_name'] = \
+                    os.path.split(write_hgt)[1]
 
         # Get roughness map from land use information
         if landuse_table_path is None:
@@ -392,7 +394,8 @@ class WRFInputDeck(object):
                                  z0_nodes.ravel(order='F')),axis=-1)
                 print('Writing out',write_z0)
                 np.savetxt(write_z0, xyz0, fmt='%.8g')
-                self.input_dict['erf.most.roughness_file_name'] = write_z0
+                self.input_dict['erf.most.roughness_file_name'] = \
+                        os.path.split(write_z0)[1]
             else:
                 self.log.info('Roughness map not written,'
                               ' using mean roughness for MOST')
