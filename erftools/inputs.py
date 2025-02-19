@@ -301,6 +301,21 @@ erf.terrain_smoothing = {self.erf.terrain_smoothing}
                 f.write(f'erf.profile_int     = {self.erf.profile_int}\n')
                 f.write(f'erf.destag_profiles = {bool_to_str(self.erf.destag_profiles)}\n')
 
+            # tslist-like sampling
+            if len(self.erf.sample_line_lo) > 0:
+                nlines = len(self.erf.sample_line_lo) // 3
+                assert len(self.erf.sample_line_lo) == 3*nlines, \
+                        'Unexpected number of values sampling indices'
+                f.write(f"""
+erf.do_line_sampling = true
+erf.line_sampling_vars = x_velocity y_velocity z_velocity theta qv pressure
+erf.line_sampling_text_output = true
+erf.sampler_interval = 1
+erf.sample_line_lo   = {list_to_str(self.erf.sample_line_lo)}
+erf.sample_line_hi   = {list_to_str(self.erf.sample_line_hi)}
+erf.sample_line_dir  = {list_to_str(self.erf.sample_line_dir)}
+""")
+
             ########################################
             f.write('\n# ADVECTION SCHEMES\n')
             for vartype in ['dycore','dryscal','moistscal']:

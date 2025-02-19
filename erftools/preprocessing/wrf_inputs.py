@@ -404,6 +404,16 @@ class WRFInputDeck(object):
                 self.input_dict['erf.most.z0'] = z0mean
 
     def write_inputfile(self,fpath):
+        if self.tslist:
+            if self.tslist.have_ij:
+                nz = self.input_dict['amr.n_cell'][2]
+                lo_ijk, hi_ijk = self.tslist.get_ijk_lists(nz)
+                self.input_dict['erf.sample_line_lo'] = lo_ijk
+                self.input_dict['erf.sample_line_hi'] = hi_ijk
+            else:
+                self.log.info('A tslist was provided but lat,lon were not '
+                              'converted to i,j')
+
         inp = ERFInputs(**self.input_dict)
         inp.write(fpath)
         print('Wrote',fpath)

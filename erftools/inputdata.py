@@ -129,6 +129,15 @@ class ERFParms:
     profile_int: int = -1
     destag_profiles: bool = True
 
+    # Line Sampling
+    do_line_sampling: bool = False
+    line_sampling_vars: List[str] = field(default_factory=list)
+    line_sampling_text_output: bool = False
+    sampler_interval: int = -1
+    sample_line_lo: List[float] = field(default_factory=list)
+    sample_line_hi: List[float] = field(default_factory=list)
+    sample_line_dir: List[int] = field(default_factory=list)
+
     # Advection Schemes
     dycore_horiz_adv_type: str = 'Upwind_3rd'
     dycore_vert_adv_type: str = 'Upwind_3rd'
@@ -234,7 +243,17 @@ class ERFParms:
             self.fixed_mri_dt_ratio = int(self.fixed_dt / self.fixed_fast_dt)
             assert self.fixed_mri_dt_ratio % 2 == 0, \
                     'erf.fixed_dt/erf.fixed_fast_dt should be even'
+        if len(self.sample_line_lo) > 0:
+            nlines = len(self.sample_line_lo) // 3
+            assert len(self.sample_line_hi) == len(self.sample_line_lo)
+            assert len(self.sample_line_lo) == 3*nlines, \
+                    'Unexpected number of ijk values in sampling indices'
+            if len(self.sample_line_dir) > 0:
+                assert len(self.sample_line_dir) == nlines
+            else:
+                self.sample_line_dir = nlines*[2]
         assert len(self.data_log) <= 4, 'Unexpected number of data_log files'
+        assert len(self.sample_line_lo) == len(self.sample_line_hi)
         for vartype in ['dycore','dryscal','moistscal']:
             for advdir in ['horiz','vert']:
                 advinp = f'{vartype}_{advdir}_adv_type'
