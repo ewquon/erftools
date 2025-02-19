@@ -365,8 +365,6 @@ erf.alpha_C           = {self.erf.alpha_C}
             if self.erf.moisture_model != 'None':
                 f.write(f"""\n# MOISTURE
 erf.moisture_model = {self.erf.moisture_model}
-erf.do_cloud       = {bool_to_str(self.erf.do_cloud)}
-erf.do_precip      = {bool_to_str(self.erf.do_precip)}
 """)
 
             ########################################

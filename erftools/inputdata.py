@@ -215,8 +215,6 @@ class ERFParms:
 
     # Moisture
     moisture_model: str = 'None'
-    do_cloud: bool = True
-    do_precip: bool = True
 
     # Radiation
     radiation_model: str = 'None'
