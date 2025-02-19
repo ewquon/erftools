@@ -33,7 +33,7 @@ class AMRParms:
             assert self.ref_ratio in [2,3,4], 'Invalid amr.ref_ratio'
         assert len(self.ref_ratio_vect) % 3 == 0, \
                 'Need to specify ref ratios for each direction'
-        assert all([ival in [2,3,4] for ival in self.ref_ratio_vect]), \
+        assert all([ival in [1,2,3,4] for ival in self.ref_ratio_vect]), \
                 'Invalid directional refinement ratio(s)'
 
     
