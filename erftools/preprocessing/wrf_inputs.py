@@ -66,7 +66,7 @@ class WRFInputDeck(object):
             'ylo.type': 'Outflow',
             'yhi.type': 'Outflow',
             'zhi.type': 'SlipWall',
-            'erf.use_terrain': True,
+            'erf.terrain_type': 'StaticFittedMesh',
             'erf.terrain_smoothing': 1,
             'erf.init_type': 'real',
             'erf.use_real_bcs': True,

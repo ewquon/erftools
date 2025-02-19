@@ -90,7 +90,6 @@ class ERFParms:
     refinement_indicators: List[str] = field(default_factory=list)
 
     # Grid Stretching
-    use_terrain: bool = False
     grid_stretching_ratio: float = 1.
     initial_dz: float = np.nan
     terrain_z_levels: List[float] = field(default_factory=list)
@@ -218,7 +217,7 @@ class ERFParms:
     real_set_width: int = 0
 
     # Terrain
-    terrain_type: str = 'Static'
+    terrain_type: str = 'None'
     terrain_smoothing: int = 0
     terrain_file_name: str = ''
 
@@ -300,8 +299,11 @@ class ERFParms:
         elif self.init_type.lower() == 'metgrid' \
                 and isinstance(self.nc_init_file_0, str):
             self.nc_init_file_0 = [self.nc_init_file_0]
-        assert self.terrain_type.lower() in ['static','moving'], \
-                'Invalid erf.terrain_type'
+        if self.have_terrain():
+            assert self.terrain_type.lower() in ['none','staticfittedmesh',
+                                                 'movingfittedmesh',
+                                                 'immersedforcing', 'eb'], \
+                f'Invalid erf.terrain_type {self.terrain_type}'
         assert (self.terrain_smoothing >= 0) and (self.terrain_smoothing <= 2),\
                 'Invalid erf.terrain_smoothing option'
         assert self.moisture_model.lower() in \
@@ -310,3 +312,6 @@ class ERFParms:
                  'satadj',
                  'none'], \
                 'Unexpected erf.moisture_model'
+
+    def have_terrain(self):
+        return self.terrain_type.lower() != 'none'

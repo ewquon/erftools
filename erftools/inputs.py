@@ -128,7 +128,7 @@ class ERFInputs(object):
 
     def validate(self):
         # additional validation that depends on different parmparse types
-        if self.erf.use_terrain:
+        if self.erf.terrain_type.lower() != 'none':
             if self.erf.terrain_z_levels:
                 nz = self.amr.n_cell[2]
                 assert len(self.erf.terrain_z_levels) == nz+1
@@ -244,23 +244,20 @@ erf.sum_interval = {self.erf.sum_interval}  # timesteps between computing mass
                         f"{list_to_str(boxdict['in_box_hi'],float)}\n")
 
             ########################################
-            if self.erf.grid_stretching_ratio > 1 or self.erf.use_terrain:
+            if self.erf.grid_stretching_ratio > 1 or self.erf.have_terrain():
                 f.write('\n# GRID STRETCHING / TERRAIN')
             if self.erf.grid_stretching_ratio > 1:
                 f.write(f"""
 erf.grid_stretching_ratio = {self.erf.grid_stretching_ratio}
 erf.initial_dz            = {self.erf.initial_dz}
 """)
-            if self.erf.use_terrain:
+            if self.erf.have_terrain():
                 f.write(f"""
-erf.use_terrain       = true
+erf.terrain_type      = {self.erf.terrain_type}
 erf.terrain_smoothing = {self.erf.terrain_smoothing}
 """)
                 if self.erf.terrain_z_levels:
                     f.write(f'erf.terrain_z_levels = {list_to_str(self.erf.terrain_z_levels)}\n')
-                if self.erf.terrain_type != 'Static':
-                    f.write('erf.terrain_type      = '
-                            f'{self.erf.terrain_type}\n')
                 if len(self.erf.terrain_file_name) > 0:
                     f.write('erf.terrain_file_name = '
                             f'{self.erf.terrain_file_name}\n')
