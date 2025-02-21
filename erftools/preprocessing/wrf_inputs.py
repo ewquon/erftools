@@ -296,7 +296,8 @@ class WRFInputDeck(object):
                                    calc_geopotential_heights=False,
                                    landuse_table_path=None,
                                    write_hgt=None,
-                                   write_z0=None):
+                                   write_z0=None,
+                                   write_albedo=None):
         wrfinp = xr.open_dataset(init_input)
 
         # Get Coriolis parameters
@@ -357,9 +358,13 @@ class WRFInputDeck(object):
             print('Need to specify `landuse_table_path` from your WRF installation'
                   'land-use indices to estimate z0')
             if write_z0:
-                print('Surface roughness map not was not written')
+                print('Surface roughness map was not written')
+            if write_albedo:
+                print('Surface albedo map was not written')
         else:
             LUtype =  wrfinp.attrs['MMINLU']
+            self.log.info('Retrieving static surface properties for land use'
+                          f' category {LUtype}')
             alltables = LandUseTable(landuse_table_path, verbose=False)
             tab = alltables[LUtype]
             if isinstance(tab.index, pd.MultiIndex):
@@ -373,12 +378,20 @@ class WRFInputDeck(object):
                     tab = tab.xs('summer',level='season')
                 else:
                     tab = tab.xs('winter',level='season')
-            z0dict = tab['roughness_length'].to_dict()
-            def mapfun(idx):
-                return z0dict[idx]
+
             LU = wrfinp['LU_INDEX'].isel(Time=0).astype(int)
-            z0 = xr.apply_ufunc(np.vectorize(mapfun), LU)
+
+            z0dict = tab['roughness_length'].to_dict()
+            def z0fun(idx):
+                return z0dict[idx]
+            z0 = xr.apply_ufunc(np.vectorize(z0fun), LU)
             self.z0 = z0
+
+            aldict = tab['albedo'].to_dict()
+            def alfun(idx):
+                return aldict[idx]
+            albedo = xr.apply_ufunc(np.vectorize(alfun), LU)
+            self.albedo = albedo
 
             # Write out surface roughness map
             if write_z0:
@@ -405,6 +418,22 @@ class WRFInputDeck(object):
                     print(f'{roughval:g}\t{np.count_nonzero(z0==roughval)}')
                 z0mean = float(z0.mean())
                 self.input_dict['erf.most.z0'] = z0mean
+
+            if write_albedo:
+                # interpolate to nodes
+                albedo = albedo.transpose('west_east','south_north')
+                interpfun = RegularGridInterpolator(
+                        (west_east,south_north), albedo.values,
+                        bounds_error=False,
+                        fill_value=None)
+                al_nodes = interpfun((xg,yg))
+                xyz0 = np.stack((xg.ravel(order='F'),
+                                 yg.ravel(order='F'),
+                                 al_nodes.ravel(order='F')),axis=-1)
+                print('Writing out',write_albedo)
+                np.savetxt(write_albedo, xyz0, fmt='%.8g')
+                self.input_dict['erf.rad_albedo_file_name'] = \
+                        os.path.split(write_albedo)[1]
 
     def to_erf(self):
         if self.tslist:
