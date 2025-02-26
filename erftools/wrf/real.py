@@ -208,12 +208,19 @@ def blending_func(eta, etac=0.2):
     return ( B1 + B2*eta + B3*eta**2 + B4*eta**3 ) / B5
 
 
-def get_zlevels_auto(nlev,dzbot,dzmax,dzstretch_s,dzstretch_u,
+def get_zlevels_auto(nlev,
+                     dzbot=50.,
+                     dzmax=1000.,
+                     dzstretch_s=1.3,
+                     dzstretch_u=1.1,
                      ptop=5000.,T0=290.,verbose=False):
     """Following the description in the WRF User's Guide, vertical
     grid levels can be determined based on surface and maximum grid
     spacings (dz0, dzmax) and the surface and upper stretching factors
-    (s0, s). Assuming an isothermal atmosphere.
+    (s0, s). Assuming an isothermal atmosphere T0 that is hard-coded in
+    WRF.
+
+    Returns _staggered_ grid heights, pressure levels, and eta levels.
 
     See `levels` subroutine in dyn_em/module_initialize_real.F
     """

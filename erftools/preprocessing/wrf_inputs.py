@@ -133,10 +133,10 @@ class WRFInputDeck(object):
                 z_levels = real.phb.squeeze().values / CONST_GRAV
             else:
                 z_levels,_,_ = get_zlevels_auto(n_cell[2],
-                                                self.domains.dzbot,
-                                                self.domains.max_dz,
-                                                self.domains.dzstretch_s,
-                                                self.domains.dzstretch_u,
+                                                dzbot=self.domains.dzbot,
+                                                dzmax=self.domains.max_dz,
+                                                dzstretch_s=self.domains.dzstretch_s,
+                                                dzstretch_u=self.domains.dzstretch_u,
                                                 ptop=ptop)
             self.base_heights = z_levels
             inp['erf.terrain_z_levels'] = z_levels
