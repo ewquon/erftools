@@ -106,7 +106,8 @@ class TimeControl(WRFNamelist):
             simtime = self.end_datetimes[0] - self.start_datetimes[0]
             assert spec_run_time == simtime.total_seconds(), \
                     f'Inconsistent run times : {spec_run_time}' \
-                    f' {simtime.total_seconds()}'
+                    f' {simtime.total_seconds()}' \
+                    f' ({self.start_datetimes[0]} to {self.end_datetimes[0]})'
 
         self.history_interval = self.getarrayvar('history_interval') # [min]
 
