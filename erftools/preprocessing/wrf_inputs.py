@@ -11,7 +11,7 @@ from ..wrf.namelist import (TimeControl, Domains, Physics, Dynamics,
                            BoundaryControl)
 from ..wrf.tslist import TSList
 from ..wrf.landuse import LandUseTable
-from .real import RealInit, get_zlevels_auto
+from ..wrf.real import RealInit, get_zlevels_auto
 from ..constants import CONST_GRAV
 from ..inputs import ERFInputs
 
