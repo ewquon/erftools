@@ -291,7 +291,7 @@ class ERFParms:
                 and (len(self.input_sounding_file) > 0):
             self.input_sounding_file = self.input_sounding_file[0]
         assert self.init_type.lower() in \
-                ['none','ideal','real','input_sounding','metgrid','uniform'], \
+                ['none','wrfinput','input_sounding','metgrid','uniform'], \
                 'Invalid erf.init_type'
         if self.init_type.lower() == 'real':
             assert isinstance(self.nc_init_file_0, str), \
