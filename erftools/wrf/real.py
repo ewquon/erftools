@@ -12,7 +12,7 @@ class RealInit(object):
     """
 
     def __init__(self,
-                 zsurf,
+                 zsurf=None,
                  eta=None,eta_stag=None,p_d=None,
                  ptop=10e3,
                  T0=290.0,A=50.,Tmin=200.,Tlp_strat=-11.,p_strat=0.,
@@ -24,11 +24,14 @@ class RealInit(object):
         We can set constants to be 32-bit to enable closer comparisons
         with real.exe outputs (wrfinput, wrfbdy)
         """
-        assert isinstance(zsurf, (xr.Dataset, xr.DataArray)), \
-                'Only xarray data supported'
-        assert ('west_east' in zsurf.dims) and \
-               ('south_north' in zsurf.dims), \
-               'WRF dimensions expected'
+        if zsurf is None:
+            zsurf = xr.DataArray([[0]],dims=('west_east','south_north'),name='HGT')
+        else:
+            assert isinstance(zsurf, (xr.Dataset, xr.DataArray)), \
+                    'Only xarray data supported'
+            assert ('west_east' in zsurf.dims) and \
+                   ('south_north' in zsurf.dims), \
+                   'WRF dimensions expected'
         self.dtype = dtype
         self.z_surf = zsurf.astype(dtype) # WRF "HGT"
         self.g = dtype(CONST_GRAV)
@@ -52,18 +55,30 @@ class RealInit(object):
 
         # calculate hybrid coordinate
         if eta_stag is not None:
-            self.eta_stag = eta_stag.astype(dtype)
-            self.eta = 0.5*(self.eta_stag[1:] + self.eta_stag[:-1])
-            self.eta = self.eta.rename(bottom_top_stag='bottom_top')
+            eta_stag = eta_stag.astype(dtype)
+            if isinstance(eta_stag, xr.DataArray):
+                eta = 0.5*(  eta_stag.isel(bottom_top_stag=slice(1,None)).values
+                           + eta_stag.isel(bottom_top_stag=slice(0,  -1)).values )
+                self.eta = xr.DataArray(eta, dims='bottom_top', name='eta')
+                self.eta_stag = eta_stag
+            else:
+                self.eta = 0.5*(eta_stag[1:] + eta_stag[:-1])
+                self.eta = xr.DataArray(self.eta, dims='bottom_top', name='eta')
+                self.eta_stag = xr.DataArray(eta_stag, dims='bottom_top_stag', name='eta')
         else:
             if eta is None:
                 self.calc_eta(p_d)
             else:
                 self.eta = eta.astype(dtype)
-            self.eta_stag = np.zeros(len(self.eta)+1, dtype=dtype)
-            self.eta_stag[0] = 1.0
-            self.eta_stag[1:-1] = 0.5*(self.eta[1:] + self.eta[:-1])
-            self.eta_stag = self.eta_stag.rename(bottom_top='bottom_top_stag')
+            if isinstance(self.eta, xr.DataArray):
+                eta = self.eta.values
+            else:
+                eta = self.eta
+                self.eta = xr.DataArray(self.eta, dims='bottom_top', name='eta')
+            eta_stag = np.zeros(len(eta)+1, dtype=dtype)
+            eta_stag[0] = 1.0
+            eta_stag[1:-1] = 0.5*(eta[1:] + eta[:-1])
+            self.eta_stag = xr.DataArray(eta_stag, dims='bottom_top_stag', name='eta')
         self.rdnw = 1./self.eta_stag.diff('bottom_top_stag').rename(bottom_top_stag='bottom_top')
 
         # calculate column functions
@@ -77,8 +92,7 @@ class RealInit(object):
 
         Some base state quantities are initialized here...
         """
-        # automatic eta computed in dyn_em/module_initailize_real.F
-        assert p_d is not None, 'WRF compute_eta not implemented, need to specify target p_d'
+        assert p_d is not None, 'Need to call get_zlevels_auto to get eta levels'
         
         # calculate eta from known dry pressure
         print('Computing eta from',p_d.values)
@@ -165,14 +179,19 @@ class RealInit(object):
             strat = np.where(self.pb < self.pstrat)
             self.Td[strat] = self.Tmin \
                     + self.Tlpstrat*np.log(self.pb / self.pstrat)
+        self.Td.name = 'Tdry'
 
         # reference dry potential temperature (WRF Eqn. 5.5)
         self.thd = self.Td * (self.p_0 / self.pb)**(self.R_d/self.Cp_d)
+        self.thd.name = 'TH'
 
         # reciprocal reference density (WRF Eqn. 5.6)
         self.alb = (self.R_d*self.thd)/self.p_0 \
                  * np.power(self.pb / self.p_0, -1./Gamma, dtype=self.dtype)
+        self.alb.name = 'ALB'
+
         self.rb = 1. / self.alb
+        self.rb.name = 'RB'
 
         # base-state geopotential from hypsometric equation
         stag_dims = {'bottom_top_stag':len(self.eta_stag)}
@@ -182,7 +201,8 @@ class RealInit(object):
         pfd = get_lo_faces(self.C3f)*self.mub + get_lo_faces(self.C4f) + self.p_top
         phm =              self.C3h *self.mub +              self.C4h  + self.p_top
         dphb = self.alb*phm * np.log(pfd/pfu)
-        self.phb = xr.DataArray(np.zeros(tuple(stag_dims.values())), dims=stag_dims)
+        self.phb = xr.DataArray(np.zeros(tuple(stag_dims.values())),
+                                dims=stag_dims, name='PHB')
         self.phb.loc[dict(bottom_top_stag=slice(1,None))] = dphb.cumsum('bottom_top').values
         self.phb += self.g * self.z_surf
         #DEBUG:
