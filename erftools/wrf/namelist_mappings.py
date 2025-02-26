@@ -52,6 +52,13 @@ cu_physics_mapping = {
     0: 'None',
 }
 
+moist_adv_mapping = {
+    0: 'simple',
+    1: 'positive definite',
+    2: 'monotonic',
+    3: 'WENO5',
+}
+
 diff_opt_mapping = {
     1: 'simple',
     2: 'full',

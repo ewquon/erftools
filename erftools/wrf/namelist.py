@@ -217,6 +217,7 @@ class Dynamics(WRFNamelist):
 
     def __init__(self,nmldict):
         super().__init__(nmldict)
+        self.parse_advection()
         self.parse_diffusion()
         self.parse_damping()
 
@@ -227,6 +228,20 @@ class Dynamics(WRFNamelist):
         s+=f'  upper damping: {self.damp_opt}\n'
         s+=f'  vertical damping: {self.w_damping}\n'
         return s.rstrip()
+
+    def parse_advection(self):
+        h_mom_adv_list = self.getarrayvar('h_mom_adv_order', default=5)
+        v_mom_adv_list = self.getarrayvar('v_mom_adv_order', default=3)
+        h_sca_adv_list = self.getarrayvar('h_sca_adv_order', default=5)
+        v_sca_adv_list = self.getarrayvar('v_sca_adv_order', default=3)
+        moist_adv_list = self.getarrayvar('moist_adv_opt', default=1)
+        ndom = len(h_mom_adv_list)
+        self.h_mom_adv_order = [h_mom_adv_list[dom] for dom in range(ndom)]
+        self.v_mom_adv_order = [v_mom_adv_list[dom] for dom in range(ndom)]
+        self.h_sca_adv_order = [h_sca_adv_list[dom] for dom in range(ndom)]
+        self.v_sca_adv_order = [v_sca_adv_list[dom] for dom in range(ndom)]
+        self.moist_adv_opt = [moist_adv_mapping.get(moist_adv_list[dom], 'UNKNOWN')
+                              for dom in range(ndom)]
 
     def parse_diffusion(self):
         diff_opt_list = self.getarrayvar('diff_opt')
