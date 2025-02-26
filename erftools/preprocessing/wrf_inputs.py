@@ -69,7 +69,7 @@ class WRFInputDeck(object):
             'zhi.type': 'SlipWall',
             'erf.terrain_type': 'StaticFittedMesh',
             'erf.terrain_smoothing': 1,
-            'erf.init_type': 'real',
+            'erf.init_type': 'wrfinput',
             'erf.use_real_bcs': True,
             'erf.nc_init_file_0': 'wrfinp_d01',
             'erf.nc_bdy_file': 'wrfbdy_d01',
