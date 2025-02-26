@@ -224,19 +224,21 @@ def get_zlevels_auto(nlev,
 
     See `levels` subroutine in dyn_em/module_initialize_real.F
     """
-    zup = np.zeros(nlev+1) # Note: this is the staggered grid height, with
-    pup = np.zeros(nlev+1) #   0-based indices here corresponding to the
-    eta = np.zeros(nlev+1) #   1-based indices in the WRF code
+    zup = np.zeros(nlev+1) # Staggered grid heights (high side). In WRF, zup
+    pup = np.zeros(nlev+1) #   and pup range from 1:nlev (inclusive) whereas
+    eta = np.zeros(nlev+1) #   eta ranges from 0:nlev; here, we dimension
+                           #   zup and pup to have size nlev+1 so that the
+                           #   indices in both codes match for convenience
     zscale = R_d * T0 / CONST_GRAV
     ztop = zscale * np.log(p_0 / ptop)
     dz = dzbot
     zup[1] = dzbot
     pup[0] = p_0
-    pup[1] = p_0 * np.exp(-zup[0]/zscale)
+    pup[1] = p_0 * np.exp(-zup[1]/zscale)
     eta[0] = 1.0
     eta[1] = (pup[1] - ptop) / (p_0 - ptop)
     if verbose:
-        print(0,None,zup[0],eta[0])
+        print(0,None,zup[0],eta[0]) # zup[0] doesn't exist in WRF
         print(1,dz,zup[1],eta[1])
     for i in range(1,nlev):
         a = dzstretch_u + (dzstretch_s - dzstretch_u) \
@@ -244,7 +246,6 @@ def get_zlevels_auto(nlev,
         dz = a * dz
         dztest = (ztop - zup[i]) / (nlev-i)
         if dztest < dz:
-            # switch to constant dz
             if verbose:
                 print('--- now, constant dz ---')
             break
