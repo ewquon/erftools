@@ -12,7 +12,7 @@ from ..wrf.namelist import (TimeControl, Domains, Physics, Dynamics,
 from ..wrf.tslist import TSList
 from ..wrf.landuse import LandUseTable
 from ..wrf.real import RealInit, get_zlevels_auto
-from ..constants import CONST_GRAV
+from ..constants import CONST_GRAV, p_0
 from ..inputs import ERFInputs
 
 class WRFInputDeck(object):
@@ -123,31 +123,47 @@ class WRFInputDeck(object):
                   self.domains.e_vert[0] - self.domains.s_vert[0]]
         if self.domains.ztop is None:
             # get domain heights from base state geopotential
-            # note: RealInit uses xarray to manage dims, kind of annoying here
-            zsurf0 = xr.DataArray([[0]],dims=('west_east','south_north'))
             ptop = self.domains.p_top_requested
-            if self.domains.eta_levels is not None:
-                eta_levels = xr.DataArray(self.domains.eta_levels,
-                                          dims='bottom_top_stag')
-                real = RealInit(zsurf0, eta_stag=eta_levels, ptop=ptop)
-                z_levels = real.phb.squeeze().values / CONST_GRAV
+            if self.domains.eta_levels is None:
+                # note: the staggered z levels determined here are the
+                # geometric heights; need to convert to geopotential
+                # height to be consistent with WRF
+                _,_,eta_levels = get_zlevels_auto(
+                    n_cell[2],
+                    dzbot=self.domains.dzbot,
+                    dzmax=self.domains.max_dz,
+                    dzstretch_s=self.domains.dzstretch_s,
+                    dzstretch_u=self.domains.dzstretch_u,
+                    ptop=ptop)
             else:
-                z_levels,_,_ = get_zlevels_auto(n_cell[2],
-                                                dzbot=self.domains.dzbot,
-                                                dzmax=self.domains.max_dz,
-                                                dzstretch_s=self.domains.dzstretch_s,
-                                                dzstretch_u=self.domains.dzstretch_u,
-                                                ptop=ptop)
+                eta_levels = self.domains.eta_levels
+
+            # get geopotential height from base state
+            real = RealInit(eta_stag=eta_levels, ptop=ptop)
+            #phb = real.phb.squeeze().values
+            # better match real.exe output...
+            alb = real.alb.squeeze().values
+            phb = np.zeros_like(eta_levels)
+            psurf = p_0
+            mub = psurf - ptop
+            for k in range(len(eta_levels)-1):
+                phb[k+1] = phb[k] - (eta_levels[k+1]-eta_levels[k]) * mub * alb[k]
+
+            z_levels = phb / CONST_GRAV
             self.base_heights = z_levels
             inp['erf.terrain_z_levels'] = z_levels
+
             most_zref = 0.5*(z_levels[0] + z_levels[1])
             inp['erf.most.zref'] = most_zref  # need to specify for terrain
+
             ztop = z_levels[-1]
             self.log.info('Estimated domain ztop from domains.p_top_requested'
                           f'={ptop:g} : {ztop}')
+
         else:
             # this is only used by WRF for idealized cases
             ztop = self.domains.ztop
+
         self.log.info('Domain SW corner is (0,0)')
         inp['geometry.prob_extent'] = [n_cell[0] * self.domains.dx[0],
                                        n_cell[1] * self.domains.dy[0],
