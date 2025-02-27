@@ -236,10 +236,14 @@ class Dynamics(WRFNamelist):
         v_sca_adv_list = self.getarrayvar('v_sca_adv_order', default=3)
         moist_adv_list = self.getarrayvar('moist_adv_opt', default=1)
         ndom = len(h_mom_adv_list)
-        self.h_mom_adv_order = [h_mom_adv_list[dom] for dom in range(ndom)]
-        self.v_mom_adv_order = [v_mom_adv_list[dom] for dom in range(ndom)]
-        self.h_sca_adv_order = [h_sca_adv_list[dom] for dom in range(ndom)]
-        self.v_sca_adv_order = [v_sca_adv_list[dom] for dom in range(ndom)]
+        self.h_mom_adv_order = [adv_mapping.get(h_mom_adv_list[dom],' UNKNOWN')
+                                for dom in range(ndom)]
+        self.v_mom_adv_order = [adv_mapping.get(v_mom_adv_list[dom],' UNKNOWN')
+                                for dom in range(ndom)]
+        self.h_sca_adv_order = [adv_mapping.get(h_sca_adv_list[dom],' UNKNOWN')
+                                for dom in range(ndom)]
+        self.v_sca_adv_order = [adv_mapping.get(v_sca_adv_list[dom],' UNKNOWN')
+                                for dom in range(ndom)]
         self.moist_adv_opt = [moist_adv_mapping.get(moist_adv_list[dom], 'UNKNOWN')
                               for dom in range(ndom)]
 

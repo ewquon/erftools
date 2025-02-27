@@ -52,6 +52,14 @@ cu_physics_mapping = {
     0: 'None',
 }
 
+adv_mapping = {
+    2: 'Centered_2nd',
+    3: 'Upwind_3rd',
+    4: 'Centered_4th',
+    5: 'Upwind_5th',
+    6: 'Centered_6th',
+}
+
 moist_adv_mapping = {
     0: 'simple',
     1: 'positive definite',

@@ -227,6 +227,26 @@ class WRFInputDeck(object):
             self.log.warning(f'Surface layer scheme {sfclayscheme} not implemented in ERF')
             inp['zlo.type'] = sfclayscheme
 
+        h_mom_adv_order = self.dynamics.h_mom_adv_order
+        v_mom_adv_order = self.dynamics.v_mom_adv_order
+        h_sca_adv_order = self.dynamics.h_sca_adv_order
+        v_sca_adv_order = self.dynamics.v_sca_adv_order
+        if isinstance(h_mom_adv_order, list):
+            if len(h_mom_adv_order) > 1:
+                self.log.warning('Only using specified *_adv_order from d01')
+            h_mom_adv_order = h_mom_adv_order[0]
+            v_mom_adv_order = v_mom_adv_order[0]
+            h_sca_adv_order = h_sca_adv_order[0]
+            v_sca_adv_order = v_sca_adv_order[0]
+        inp['erf.dycore_horiz_adv_type']  = h_mom_adv_order
+        inp['erf.dycore_vert_adv_type']   = v_mom_adv_order
+        inp['erf.dryscal_horiz_adv_type'] = h_sca_adv_order
+        inp['erf.dryscal_vert_adv_type']  = v_sca_adv_order
+        if not all([adv_opt == 'WENO5' for adv_opt in self.dynamics.moist_adv_opt]):
+            self.log.warning('Need to manually specify moist erf.moistscal_*_adv_type'
+                             f' for WRF moist_adv_opt = {self.dynamics.moist_adv_opt}'
+                             ' -- defaulting to 5th-order WENO')
+
         inp['erf.pbl_type'] = self.physics.bl_pbl_physics
         for idom in range(max_dom):
             if self.physics.bl_pbl_physics[idom] != 'None':
