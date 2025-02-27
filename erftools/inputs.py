@@ -2,7 +2,7 @@ import sys
 import contextlib
 import numpy as np
 
-from .inputdata import AMRParms, GeometryParms, ERFParms
+from .parms import AMRParms, GeometryParms, ERFParms
 
 
 def parmparse(prefix, ppdata):
