@@ -454,13 +454,17 @@ erf.init_sounding_ideal = {bool_to_str(self.erf.init_sounding_ideal)}
 """)
             elif self.erf.init_type.lower() == 'wrfinput':
                 f.write(f"""
-erf.init_type      = real
+erf.init_type      = wrfinput
 erf.use_real_bcs   = {bool_to_str(self.erf.use_real_bcs)}
-erf.nc_init_file_0 = {self.erf.nc_init_file_0}
+erf.nc_init_file_0 = {self.erf.nc_init_file_0}""")
+                if self.erf.use_real_bcs:
+                    f.write(f"""
 erf.nc_bdy_file    = {self.erf.nc_bdy_file}
 erf.real_width     = {self.erf.real_width}
 erf.real_set_width = {self.erf.real_set_width}
 """)
+                else:
+                    f.write('\n')
             elif self.erf.init_type.lower() == 'metgrid':
                 f.write(f"""
 erf.init_type      = metgrid
