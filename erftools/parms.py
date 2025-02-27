@@ -213,8 +213,8 @@ class ERFParms:
     nc_bdy_file: str = ''
     project_initial_velocity: bool = False
     use_real_bcs: bool = False
-    real_width: int = 0
-    real_set_width: int = 0
+    real_width: int = 5
+    real_set_width: int = 1
 
     # Terrain
     terrain_type: str = 'None'

@@ -280,5 +280,10 @@ class BoundaryControl(WRFNamelist):
         self.parse()
 
     def parse(self):
+        self.spec_bdy_width = int(self.getvar('spec_bdy_width', default=5))
+        self.spec_zone = int(self.getvar('spec_zone', default=1))
+        self.relax_zone = int(self.getvar('relax_zone', default=4))
+        assert self.spec_bdy_width == self.spec_zone + self.relax_zone
+
         self.periodic_x = bool(self.getvar('periodic_x', default=False))
         self.periodic_y = bool(self.getvar('periodic_y', default=False))

@@ -20,6 +20,12 @@ class WRFInputDeck(object):
     WRF inputs include:
     * namelist.input
     * wrfinput_d01[, wrfinput_d02, ...]
+
+    This will instantiate WRFNamelist objects from a given namelist, with WRF
+    defaults included. From the WRFNamelists, a WRFInputDeck.input_dict will be
+    populated with ERF input parameters. When WRFInputDec.write() is called, an
+    ERFInputs object is instantiated--inside ERFInputs is where error checking
+    occurs. ERFInputs.write() is used to finally output an ERF input file.
     """
 
     def __init__(self,nmlpath,tslist=None,verbosity=logging.DEBUG):
@@ -71,7 +77,7 @@ class WRFInputDeck(object):
             'erf.terrain_smoothing': 1,
             'erf.init_type': 'wrfinput',
             'erf.use_real_bcs': True,
-            'erf.nc_init_file_0': 'wrfinp_d01',
+            'erf.nc_init_file_0': 'wrfinput_d01',
             'erf.nc_bdy_file': 'wrfbdy_d01',
             'erf.dycore_horiz_adv_type': 'Upwind_5th',
             'erf.dycore_vert_adv_type': 'Upwind_3rd',
@@ -226,6 +232,9 @@ class WRFInputDeck(object):
         else:
             self.log.warning(f'Surface layer scheme {sfclayscheme} not implemented in ERF')
             inp['zlo.type'] = sfclayscheme
+
+        inp['erf.real_width'] = self.bdy_control.spec_bdy_width
+        inp['erf.real_set_width'] = self.bdy_control.spec_zone
 
         h_mom_adv_order = self.dynamics.h_mom_adv_order
         v_mom_adv_order = self.dynamics.v_mom_adv_order

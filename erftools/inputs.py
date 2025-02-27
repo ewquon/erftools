@@ -452,7 +452,7 @@ erf.input_sounding_time = {list_to_str(self.erf.input_sounding_time)}
 erf.init_type           = input_sounding
 erf.init_sounding_ideal = {bool_to_str(self.erf.init_sounding_ideal)}
 """)
-            elif self.erf.init_type.lower() == 'real':
+            elif self.erf.init_type.lower() == 'wrfinput':
                 f.write(f"""
 erf.init_type      = real
 erf.use_real_bcs   = {bool_to_str(self.erf.use_real_bcs)}
