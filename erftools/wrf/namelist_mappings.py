@@ -38,9 +38,10 @@ valid_sfclay = {
 mp_physics_mapping = {
     0: 'None',
     1: 'Kessler',
-    2: 'SAM', # comparable to Lin et al. scheme
-    6: 'SAM', # WRF Single-Moment, 6-class scheme
-    28: 'SAM', # aerosol-aware Thompson scheme
+    2: 'SAM',       # SAM is comparable to Lin et al. scheme
+    3: 'Kessler',   # WRF Single-Moment, 3-class scheme
+    6: 'SAM',       # WRF Single-Moment, 6-class scheme
+    28: 'SAM',      # aerosol-aware Thompson scheme
 }
 
 ra_physics_mapping = {
