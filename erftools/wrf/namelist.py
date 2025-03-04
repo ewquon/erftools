@@ -48,13 +48,17 @@ class TimeControl(WRFNamelist):
 
     def __init__(self,nmldict):
         super().__init__(nmldict)
+
         self.restart_interval = self.getvar('restart_interval',default=1440) # [min]
-        try:
-            restart_interval_s = self.getvar('restart_interval_s')
-        except KeyError:
-            pass
-        else:
+        restart_interval_s = self.getvar('restart_interval_s',optional=True)
+        if restart_interval_s is not None:
             self.restart_interval = restart_interval_s / 60.
+
+        self.history_interval = self.getarrayvar('history_interval',default=[60]) # [min]
+        history_interval_s = self.getarrayvar('history_interval_s',optional=True)
+        if history_interval_s is not None:
+            self.history_interval = [interval / 60. for interval in history_interval_s]
+
         self.parse_datetime_range()
 
     def __str__(self):
@@ -119,8 +123,6 @@ class TimeControl(WRFNamelist):
                       f' to {self.end_datetimes[0]})'
                       f' -- updated end_datetimes[0]={new_end_datetime}')
                 self.end_datetimes[0] = new_end_datetime
-
-        self.history_interval = self.getarrayvar('history_interval') # [min]
 
 
 class Domains(WRFNamelist):
