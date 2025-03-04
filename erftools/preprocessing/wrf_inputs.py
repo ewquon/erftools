@@ -142,7 +142,9 @@ class WRFInputDeck(object):
                     dzstretch_u=self.domains.dzstretch_u,
                     ptop=ptop)
             else:
-                eta_levels = self.domains.eta_levels
+                eta_levels = self.domains.eta_levels[:n_cell[2]+1]
+                assert eta_levels[0] == 1
+                assert eta_levels[-1] == 0
 
             # get geopotential height from base state
             real = RealInit(eta_stag=eta_levels, ptop=ptop)
