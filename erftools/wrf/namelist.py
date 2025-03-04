@@ -48,7 +48,13 @@ class TimeControl(WRFNamelist):
 
     def __init__(self,nmldict):
         super().__init__(nmldict)
-        self.restart_interval = self.getvar('restart_interval') # [min]
+        self.restart_interval = self.getvar('restart_interval',default=1440) # [min]
+        try:
+            restart_interval_s = self.getvar('restart_interval_s')
+        except KeyError:
+            pass
+        else:
+            self.restart_interval = restart_interval_s / 60.
         self.parse_datetime_range()
 
     def __str__(self):
