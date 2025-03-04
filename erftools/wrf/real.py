@@ -55,6 +55,8 @@ class RealInit(object):
 
         # calculate hybrid coordinate
         if eta_stag is not None:
+            if isinstance(eta_stag,list):
+                eta_stag = np.array(eta_stag)
             eta_stag = eta_stag.astype(dtype)
             if isinstance(eta_stag, xr.DataArray):
                 eta = 0.5*(  eta_stag.isel(bottom_top_stag=slice(1,None)).values
@@ -69,6 +71,8 @@ class RealInit(object):
             if eta is None:
                 self.calc_eta(p_d)
             else:
+                if isinstance(eta,list):
+                    eta = np.array(eta)
                 self.eta = eta.astype(dtype)
             if isinstance(self.eta, xr.DataArray):
                 eta = self.eta.values
