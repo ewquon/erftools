@@ -139,9 +139,9 @@ class ERFInputs(object):
             f.write('# written by erftools.inputs (https://github.com/erf-model/erftools)\n')
             if self.start_date and self.stop_date:
                 f.write(f"""
-max_step    = {self.max_step}
-start_time  = {self.start_time}  # {self.start_date}
-stop_time   = {self.stop_time}  # {self.stop_date}
+max_step       = {self.max_step}
+start_datetime = {self.start_date}  # epoch time: {self.start_time} s
+stop_datetime  = {self.stop_date}  # epoch time: {self.stop_time} s
 """)
             else:
                 f.write(f"""
