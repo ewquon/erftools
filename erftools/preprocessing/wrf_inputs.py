@@ -381,10 +381,13 @@ class WRFInputDeck(object):
         south_north_stag = np.arange(ny+1) * dy
         xg,yg = np.meshgrid(west_east_stag, south_north_stag, indexing='ij')
 
+        hgt = wrfinp['HGT'].isel(Time=0) # terrain height
+        if np.all(hgt == 0):
+            self.log.info('Terrain is flat')
+        self.terrain = hgt # save orig terrain data
+
         # Write out terrain elevation map
         if write_hgt is not None:
-            hgt = wrfinp['HGT'].isel(Time=0) # terrain height
-            self.terrain = hgt # save orig terrain data
             # interpolate to nodes
             hgt = hgt.transpose('west_east','south_north')
             interpfun = RegularGridInterpolator(
@@ -400,7 +403,7 @@ class WRFInputDeck(object):
             self.input_dict['erf.terrain_file_name'] = \
                     os.path.split(write_hgt)[1]
 
-        # Get roughness map from land use information
+        # Process land use information
         if landuse_table_path is None:
             print('Need to specify `landuse_table_path` from your WRF installation'
                   'land-use indices to estimate z0')
@@ -408,79 +411,82 @@ class WRFInputDeck(object):
                 print('Surface roughness map was not written')
             if write_albedo:
                 print('Surface albedo map was not written')
-        else:
-            LUtype =  wrfinp.attrs['MMINLU']
-            self.log.info('Retrieving static surface properties for land use'
-                          f' category {LUtype}')
-            alltables = LandUseTable(landuse_table_path, verbose=False)
-            tab = alltables[LUtype]
-            if isinstance(tab.index, pd.MultiIndex):
-                assert tab.index.levels[1].name == 'season'
-                startdate = self.time_control.start_datetimes[0]
-                dayofyear = startdate.timetuple().tm_yday
-                is_summer = (dayofyear >= LandUseTable.summer_start_day) \
-                          & (dayofyear < LandUseTable.winter_start_day)
-                #print(startdate,'--> day',dayofyear,'is summer?',is_summer)
-                if is_summer:
-                    tab = tab.xs('summer',level='season')
-                else:
-                    tab = tab.xs('winter',level='season')
-
-            LU = wrfinp['LU_INDEX'].isel(Time=0).astype(int)
-
-            z0dict = tab['roughness_length'].to_dict()
-            def z0fun(idx):
-                return z0dict[idx]
-            z0 = xr.apply_ufunc(np.vectorize(z0fun), LU)
-            self.z0 = z0
-
-            aldict = tab['albedo'].to_dict()
-            def alfun(idx):
-                return aldict[idx]
-            albedo = xr.apply_ufunc(np.vectorize(alfun), LU)
-            self.albedo = albedo
-
-            # Write out surface roughness map
-            if write_z0:
-                # interpolate to nodes
-                z0 = z0.transpose('west_east','south_north')
-                interpfun = RegularGridInterpolator(
-                        (west_east,south_north), z0.values,
-                        bounds_error=False,
-                        fill_value=None)
-                z0_nodes = interpfun((xg,yg))
-                xyz0 = np.stack((xg.ravel(order='F'),
-                                 yg.ravel(order='F'),
-                                 z0_nodes.ravel(order='F')),axis=-1)
-                print('Writing out',write_z0)
-                np.savetxt(write_z0, xyz0, fmt='%.8g')
-                self.input_dict['erf.most.roughness_file_name'] = \
-                        os.path.split(write_z0)[1]
+            return
+        LUtype =  wrfinp.attrs['MMINLU']
+        self.log.info('Retrieving static surface properties for land use'
+                      f' category {LUtype}')
+        alltables = LandUseTable(landuse_table_path, verbose=False)
+        tab = alltables[LUtype]
+        if isinstance(tab.index, pd.MultiIndex):
+            assert tab.index.levels[1].name == 'season'
+            startdate = self.time_control.start_datetimes[0]
+            dayofyear = startdate.timetuple().tm_yday
+            is_summer = (dayofyear >= LandUseTable.summer_start_day) \
+                      & (dayofyear < LandUseTable.winter_start_day)
+            #print(startdate,'--> day',dayofyear,'is summer?',is_summer)
+            if is_summer:
+                tab = tab.xs('summer',level='season')
             else:
-                self.log.info('Roughness map not written,'
-                              ' using mean roughness for MOST')
-                print('Distribution of roughness heights')
-                print('z0\tcount')
-                for roughval in np.unique(z0):
-                    print(f'{roughval:g}\t{np.count_nonzero(z0==roughval)}')
-                z0mean = float(z0.mean())
-                self.input_dict['erf.most.z0'] = z0mean
+                tab = tab.xs('winter',level='season')
 
-            if write_albedo:
-                # interpolate to nodes
-                albedo = albedo.transpose('west_east','south_north')
-                interpfun = RegularGridInterpolator(
-                        (west_east,south_north), albedo.values,
-                        bounds_error=False,
-                        fill_value=None)
-                al_nodes = interpfun((xg,yg))
-                xyz0 = np.stack((xg.ravel(order='F'),
-                                 yg.ravel(order='F'),
-                                 al_nodes.ravel(order='F')),axis=-1)
-                print('Writing out',write_albedo)
-                np.savetxt(write_albedo, xyz0, fmt='%.8g')
-                self.input_dict['erf.rad_albedo_file_name'] = \
-                        os.path.split(write_albedo)[1]
+        # Get surface properties
+        LU = wrfinp['LU_INDEX'].isel(Time=0).astype(int)
+
+        z0dict = tab['roughness_length'].to_dict()
+        def z0fun(idx):
+            return z0dict[idx]
+        z0 = xr.apply_ufunc(np.vectorize(z0fun), LU)
+        self.z0 = z0
+        z0mean = z0.mean().item()
+        self.input_dict['erf.most.z0'] = z0mean
+        if np.allclose(z0,z0mean):
+            self.log.info(f'Uniform terrain roughness z0={z0mean}')
+
+        aldict = tab['albedo'].to_dict()
+        def alfun(idx):
+            return aldict[idx]
+        albedo = xr.apply_ufunc(np.vectorize(alfun), LU)
+        self.albedo = albedo
+
+        # Write out surface roughness map
+        if write_z0:
+            # interpolate to nodes
+            z0 = z0.transpose('west_east','south_north')
+            interpfun = RegularGridInterpolator(
+                    (west_east,south_north), z0.values,
+                    bounds_error=False,
+                    fill_value=None)
+            z0_nodes = interpfun((xg,yg))
+            xyz0 = np.stack((xg.ravel(order='F'),
+                             yg.ravel(order='F'),
+                             z0_nodes.ravel(order='F')),axis=-1)
+            print('Writing out',write_z0)
+            np.savetxt(write_z0, xyz0, fmt='%.8g')
+            self.input_dict['erf.most.roughness_file_name'] = \
+                    os.path.split(write_z0)[1]
+        else:
+            self.log.info('Roughness map not written,'
+                          ' using mean roughness for MOST')
+            print('Distribution of roughness heights')
+            print('z0\tcount')
+            for roughval in np.unique(z0):
+                print(f'{roughval:g}\t{np.count_nonzero(z0==roughval)}')
+
+        if write_albedo:
+            # interpolate to nodes
+            albedo = albedo.transpose('west_east','south_north')
+            interpfun = RegularGridInterpolator(
+                    (west_east,south_north), albedo.values,
+                    bounds_error=False,
+                    fill_value=None)
+            al_nodes = interpfun((xg,yg))
+            xyz0 = np.stack((xg.ravel(order='F'),
+                             yg.ravel(order='F'),
+                             al_nodes.ravel(order='F')),axis=-1)
+            print('Writing out',write_albedo)
+            np.savetxt(write_albedo, xyz0, fmt='%.8g')
+            self.input_dict['erf.rad_albedo_file_name'] = \
+                    os.path.split(write_albedo)[1]
 
     def to_erf(self):
         if self.tslist:
