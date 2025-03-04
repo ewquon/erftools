@@ -259,30 +259,30 @@ class ERFParms:
                 advscheme = getattr(self, advinp)
                 if vartype == 'dycore':
                     assert advscheme in dycore_adv_schemes, \
-                            f'Unexpected erf.{advinp}: {advscheme}'
+                            f'Unexpected erf.{advinp}={advscheme}'
                 else:
                     assert advscheme in (dycore_adv_schemes
                                          +extra_scalar_adv_schemes), \
-                            f'Unexpected erf.{advinp}: {advscheme}'
+                            f'Unexpected erf.{advinp}={advscheme}'
                 if advscheme.startswith('Blended'):
                     upwinding = getattr(self, f'{vartype}_{advdir}_upw_frac')
                     assert (upwinding >= 0) and (upwinding <= 1)
         assert self.molec_diff_type in ['None','Constant','ConstantAlpha'], \
-                'Unexpected erf.molec_diff_type'
+                f'Unexpected erf.molec_diff_type={erf.molec_diff_type}'
         les_types = self.les_type if isinstance(self.les_type,list) else [self.les_type]
         for turbmodel in les_types:
             assert turbmodel in ['None','Smagorinsky','Deardorff'], \
-                    f'Unexpected erf.les_type {turbmodel}'
+                    f'Unexpected erf.les_type={turbmodel}'
         if any([turbmodel == 'Smagorinsky' for turbmodel in les_types]):
             smag_Cs = self.Cs if isinstance(self.Cs,list) else len(les_types)*[self.Cs]
             assert all([Cs > 0 for Cs in smag_Cs]), 'Need to specify valid Smagorinsky Cs'
         pbl_types = self.pbl_type if isinstance(self.pbl_type,list) else [self.pbl_type]
         for pblscheme in pbl_types:
             assert pblscheme in ['None','MYNN25','YSU'], \
-                    f'Unexpected erf.pbl_type {pblscheme}'
+                    f'Unexpected erf.pbl_type={pblscheme}'
         assert self.abl_driver_type in \
                 ['None','PressureGradient','GeostrophicWind'], \
-                'Unexpected erf.abl_driver_type'
+                f'Unexpected erf.abl_driver_type={self.abl_driver_type}'
         if self.nudging_from_input_sounding \
                 and (len(self.input_sounding_file) > 1):
             assert len(self.input_sounding_file) == len(self.input_sounding_time), \
@@ -292,7 +292,7 @@ class ERFParms:
             self.input_sounding_file = self.input_sounding_file[0]
         assert self.init_type.lower() in \
                 ['none','wrfinput','input_sounding','metgrid','uniform'], \
-                'Invalid erf.init_type'
+                f'Invalid erf.init_type={self.init_type}'
         if self.init_type.lower() == 'real':
             assert isinstance(self.nc_init_file_0, str), \
                     'should only have one nc_init_file_0'
@@ -311,7 +311,7 @@ class ERFParms:
                  'kessler','kessler_norain',
                  'satadj',
                  'none'], \
-                'Unexpected erf.moisture_model'
+                f'Unexpected erf.moisture_model={self.moisture_model}'
 
     def have_terrain(self):
         return self.terrain_type.lower() != 'none'
