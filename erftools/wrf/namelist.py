@@ -1,7 +1,7 @@
 """
 Processing for each namelist within a WRF namelist.input file
 """
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from .namelist_mappings import *
 
@@ -110,10 +110,15 @@ class TimeControl(WRFNamelist):
                       + run_seconds
         if spec_run_time > 0:
             simtime = self.end_datetimes[0] - self.start_datetimes[0]
-            assert spec_run_time == simtime.total_seconds(), \
-                    f'Inconsistent run times : {spec_run_time}' \
-                    f' {simtime.total_seconds()}' \
-                    f' ({self.start_datetimes[0]} to {self.end_datetimes[0]})'
+            if spec_run_time != simtime.total_seconds():
+                new_end_datetime = self.start_datetimes[0] \
+                                 + timedelta(seconds=spec_run_time)
+                print(f'Specified run time {spec_run_time} s'
+                      f' differs from {simtime.total_seconds()} s' \
+                      f' (from {self.start_datetimes[0]}'
+                      f' to {self.end_datetimes[0]})'
+                      f' -- updated end_datetimes[0]={new_end_datetime}')
+                self.end_datetimes[0] = new_end_datetime
 
         self.history_interval = self.getarrayvar('history_interval') # [min]
 
