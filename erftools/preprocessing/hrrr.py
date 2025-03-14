@@ -112,11 +112,12 @@ class NativeHRRR(object):
         ds['HGT']      = surf['orog']
         ds['PSFC']     = surf['sp']
 
-        if self.verbose:
-            print(ds)
         self.ds = ds
 
     def _setup_hrrr_grid(self):
+        """The resulting grid is Cartesian with coordinates in the
+        Lambert Conformal CRS defined by x1 and y1.
+        """
         lat = self.ds.coords['latitude']
         lon = self.ds.coords['longitude']
         self.xlim = {}
@@ -259,13 +260,14 @@ class NativeHRRR(object):
             ds = self.ds.copy()
             ds = ds.drop_vars(['w','pres','t','q','gh'])
 
-        # water vapor mixing ratio, from definition of specified humidity
+        # water vapor mixing ratio, from definition of specific humidity
         qv = q / (1-q)
         ds['QVAPOR'] = qv
 
         # partial density of dry air (moisture reduces rho_d)
         rho_d = p_tot / (R_d * Tair) / (1 + R_v/R_d*qv)
         rho_m = rho_d * (1 + qv)
+        ds['RHOD'] = rho_d  # save for reference
 
         # partial pressure of dry air
         p_dry = rho_d * R_d * Tair
@@ -418,8 +420,8 @@ class NativeHRRR(object):
         return interpda.transpose(*dims[::-1]) # reverse dims to look like WRF
 
     def set_output_grid(self,grid):
-        """Calculate the output surface grid points in the HRRR
-        projection
+        """Transform the output surface grid points from the source grid
+        (a LambertConformalGrid object) to the HRRR projection
         """
         self.grid = grid
 
