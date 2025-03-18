@@ -190,7 +190,7 @@ class NativeHRRR(object):
         else:
             return ds
 
-    def _compare_arrays(self,arr1,arr2,checktype):
+    def _compare_arrays(self,arr1,arr2,checktype,desc=None):
         if isinstance(arr1, xr.DataArray):
             arr1 = arr1.values
         if isinstance(arr2, xr.DataArray):
@@ -201,7 +201,8 @@ class NativeHRRR(object):
             if not np.allclose(arr1, arr2):
                 abserr = np.abs(arr2 - arr1)
                 relerr = np.abs((arr2 - arr1) / arr1)
-                print(f'\x1b[31mWARNING: abserr={np.max(abserr):g} relerr={np.max(relerr)}\x1b[0m')
+                descstr = '' if desc is None else desc
+                print(f'\x1b[31mWARNING:\x1b[0m {descstr} abserr={np.max(abserr):g} relerr={np.max(relerr)}')
         else:
             print('Skipping check, unknown type=',checktype)
 
@@ -268,7 +269,6 @@ class NativeHRRR(object):
         # partial density of dry air (moisture reduces rho_d)
         rho_d = p_tot / (R_d * Tair) / (1 + R_v/R_d*qv)
         rho_m = rho_d * (1 + qv)
-        ds['RHOD'] = rho_d  # save for reference
 
         # partial pressure of dry air
         p_dry = rho_d * R_d * Tair
@@ -293,7 +293,7 @@ class NativeHRRR(object):
         ptop = ptop_faces.max()
         ds['P_TOP'] = ptop
 
-        # save for later
+        # save for reference
         self.p_dry = p_dry
         self.p_tot = p_tot
         self.rho_d = rho_d
@@ -301,19 +301,26 @@ class NativeHRRR(object):
         self.gh = gh
 
         if check:
+            # from definition of moist potential temperature
             self._compare_arrays(getPgivenRTh(rho_d*th_m),
                                  getPgivenRTh(rho_d*th_d,qv=qv),
-                                 check)
-            self._compare_arrays(getPgivenRTh(rho_d*th_m), p_tot, check)
+                                 check,'moist EOS')
 
+            # from EOS, partial pressures
+            self._compare_arrays(getPgivenRTh(rho_d*th_m), p_tot,
+                                 check, 'EOS p_tot')
+
+            # from derivation of dry air density
             p_vap = rho_d*qv * R_v * Tair # vapor pressure
-            self._compare_arrays(p_tot, p_dry + p_vap, check)
+            self._compare_arrays(p_tot, p_dry + p_vap,
+                                 check, 'total pressure')
 
+            # from sum of partial densities
             eps = R_d / R_v
             self._compare_arrays(
                 rho_m,
-                p_tot/(R_d*Tair) * (1. - p_vap/p_tot*(1-eps)), # from sum of partial densities
-                check)
+                p_tot/(R_d*Tair) * (1. - p_vap/p_tot*(1-eps)),
+                check, 'sum of partial densities')
 
         if not inplace:
             return ds
@@ -386,7 +393,7 @@ class NativeHRRR(object):
         if check:
             zf = (ds['PH'] + ds['PHB']) / CONST_GRAV
             zh = 0.5*(get_hi_faces(zf) + get_lo_faces(zf))
-            self._compare_arrays(zh, self.gh, check)
+            self._compare_arrays(zh, self.gh, check, 'geopotential height')
 
         if not inplace:
             return ds
