@@ -7,7 +7,7 @@ def get_stag_dims(ds_cc, dim_to_stagger='bottom_top'):
     """
     stag_dims = {}
     for dim,size in ds_cc.sizes.items():
-        if dim==unstag_dim:
+        if dim==dim_to_stagger:
             stag_dims[dim+'_stag'] = size+1
         else:
             stag_dims[dim] = size

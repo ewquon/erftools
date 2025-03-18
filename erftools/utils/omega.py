@@ -1,13 +1,14 @@
 import numpy as np
 import xarray as xr
 
+from .xarray import get_stag_dims
 from ..constants import CONST_GRAV
 
 def get_w_from_omega(omega_cc, rho_cc, stag_dims=None):
     """Input `rho_cc` is the _moist_ density at cell centers"""
     if stag_dims is None:
         assert isinstance(omega_cc, xr.DataArray)
-        stag_dims = get_stag_dims(omega_cc)
+        stag_dims = get_stag_dims(omega_cc,'bottom_top')
 
     # following wrf-python (Wallace & Hobbs, see Sec. 7.3.1, says this correct
     # to within 10%)
