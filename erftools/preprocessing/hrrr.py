@@ -175,7 +175,7 @@ class NativeHRRR(object):
     def inventory(self):
         return self.H.inventory()
 
-    def clip(self,xmin,xmax,ymin,ymax,inplace=False):
+    def clip(self,xmin,xmax,ymin,ymax,zmax=None,inplace=False):
         """Clip the dataset based on x,y ranges in HRRR projected
         coordinates. If `inplace==False`, return a copy of the clipped
         dataset.
@@ -188,6 +188,11 @@ class NativeHRRR(object):
         ds = ds.rename_dims(x='west_east',
                             y='south_north',
                             hybrid='bottom_top')
+        if zmax is not None:
+            gh_avg = ds['gh'].mean(['south_north','west_east']).values
+            kmax = np.where(gh_avg > zmax)[0][0]
+            ds = ds.isel(bottom_top=slice(0,kmax))
+            print('Setting nz=',kmax)
         if inplace:
             self.ds = ds
         else:
@@ -215,8 +220,20 @@ class NativeHRRR(object):
         `check` can be "warn" or "assert"
         """
         self.interpolate_na(inplace=True)
+
         self.derive_fields(check,inplace=True)
-        self.calc_real(inplace=True)
+
+        # handle clipping
+        eta = hrrr_eta  # this is staggered
+        nz = self.ds.sizes['bottom_top'] # unstaggered
+        nzmax = len(eta) - 1
+        if nz < nzmax:
+            clip = nzmax - nz
+            eta = eta[:-clip]
+
+        # calculate base state following WRF real.exe
+        self.calc_real(inplace=True,eta=eta)
+
         self.calc_perts(check,inplace=True)
 
         rhow = self.rho_d.isel(bottom_top=-1,drop=True) \
