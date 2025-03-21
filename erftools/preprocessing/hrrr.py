@@ -209,7 +209,7 @@ class NativeHRRR(object):
         else:
             print('Skipping check, unknown type=',checktype)
 
-    def calculate(self,check='assert'):
+    def calculate(self,check='assert',zeroW=False):
         """Do all calculations to provide a consistent wrf-like dataset
 
         `check` can be "warn" or "assert"
@@ -218,6 +218,15 @@ class NativeHRRR(object):
         self.derive_fields(check,inplace=True)
         self.calc_real(inplace=True)
         self.calc_perts(check,inplace=True)
+
+        rhow = self.rho_d.isel(bottom_top=-1,drop=True) \
+             * self.ds['W'].isel(bottom_top_stag=-1,drop=True)
+        zflux = rhow.sum(['south_north','west_east'])*self.dx*self.dy
+        print(f'Note: mass flux through top faces is {zflux.item():g}')
+
+        if zeroW:
+            print('Setting vertical velocity to zero')
+            self.ds['W'] *= 0.
 
     def interpolate_na(self,inplace=False):
         """Linearly interpolate between hybrid levels to remove any
@@ -622,7 +631,7 @@ class NativeHRRR(object):
             'Times': ('Time',
                       [bytes(self.datetime.strftime('%Y-%m-%d_%H:%M:%S'),'utf-8')])
         })
-        output_vars = ['U','V','W','PH','T','MU','QVAPOR','QCLOUD','QRAIN']
+        output_vars = ['U','V','PH','T','MU','QVAPOR','QCLOUD','QRAIN']
         for varn in output_vars:
             for bname,idxs in bndry.items():
                 # get all the buffer region planes
@@ -641,9 +650,12 @@ class NativeHRRR(object):
                               if dim.startswith('south_north')][0]
                     bt_dim = [dim for dim in bdy[bname][varn].dims
                               if dim.startswith('bottom_top')][0]
+                    # boundary-normal dimension
                     bw_dim = [dim for dim in bdy[bname][varn].dims
                               if dim.startswith(width_dim[bname])][0]
+                    # lateral dimension
                     lat_dim = we_dim if bw_dim==sn_dim else sn_dim
+                    # subset the field
                     fld = bdy[bname][varn].isel({we_dim: idxs[0],
                                                  sn_dim: idxs[1]})
                     fld = fld.rename({bw_dim:'bdy_width'})
