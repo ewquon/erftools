@@ -505,9 +505,9 @@ class NativeHRRR(object):
 
         # these are already on the output grid
         # note: MAPFAC_U == MAPFAC_UX == MAPFAC_UY, etc
-        inp['MAPFAC_UY'] = (('south_north', 'west_east_stag'), msf_u.astype(dtype))
-        inp['MAPFAC_VY'] = (('south_north_stag', 'west_east'), msf_v.astype(dtype))
-        inp['MAPFAC_MY'] = (('south_north', 'west_east'), msf.astype(dtype))
+        inp['MAPFAC_U'] = (('south_north', 'west_east_stag'), msf_u.astype(dtype))
+        inp['MAPFAC_V'] = (('south_north_stag', 'west_east'), msf_v.astype(dtype))
+        inp['MAPFAC_M'] = (('south_north', 'west_east'), msf.astype(dtype))
 
         # these only vary with height, no horizontal interp needed
         inp['C1H'] = self.ds['C1H'].astype(dtype)
