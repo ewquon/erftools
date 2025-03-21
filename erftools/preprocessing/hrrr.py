@@ -385,15 +385,18 @@ class NativeHRRR(object):
             ph_hi = 2*CONST_GRAV*gh_avg - ph_lo - phb_hi - phb_lo
             ds['PH'].loc[dict(bottom_top_stag=k)] = ph_hi
 
+        self.zstag = (ds['PHB'] + ds['PH']) / CONST_GRAV
+        zl = get_lo_faces(self.zstag)
+        zh = get_hi_faces(self.zstag)
+        self.zcc = 0.5*(zl + zh)
+        self.dz = zh - zl
+        if check:
+            self._compare_arrays(self.zcc, self.gh, check, 'geopotential height')
+
         ds['MUB'] = self.real.mub
         ds['MU'] = (self.p_dry.isel(bottom_top=0)
                     - ds['C4F'].isel(bottom_top_stag=0)
                     - ds['P_TOP']) / ds['C3F'].isel(bottom_top_stag=0) - ds['MUB']
-
-        if check:
-            zf = (ds['PH'] + ds['PHB']) / CONST_GRAV
-            zh = 0.5*(get_hi_faces(zf) + get_lo_faces(zf))
-            self._compare_arrays(zh, self.gh, check, 'geopotential height')
 
         if not inplace:
             return ds
