@@ -155,6 +155,9 @@ class NativeHRRR(object):
         assert np.allclose(y1[:,0], y1[0,0]) # x values are ~constant
         self.y1 = y1[:,1]
 
+        self.dx = np.mean(np.diff(self.x1))
+        self.dy = np.mean(np.diff(self.y1))
+
         # create dimension coordinates
         self.ds = self.ds.assign_coords(x=self.x1, y=self.y1)
 
@@ -297,6 +300,7 @@ class NativeHRRR(object):
         self.p_dry = p_dry
         self.p_tot = p_tot
         self.rho_d = rho_d
+        self.rho_m = rho_m
         self.Tair = Tair
         self.gh = gh
 
