@@ -6,6 +6,14 @@ yt.set_log_level('error')
 
 xyz = ['x','y','z']
 
+def get_plt_grid_level(g):
+    """Traverse grid g in pltfile to find refinement level"""
+    lvl = 0
+    while g.Parent is not None:
+        g = g.Parent[0]
+        lvl += 1
+    return lvl
+
 class Plotfile(object):
     """Process cell-centered volume data"""
 
@@ -31,16 +39,27 @@ class Plotfile(object):
         self.slc_order = [None,None,None]
         self.slc_shape = [None,None,None]
 
-    def to_xarray(self,verbose=False):
+    def to_xarray(self,fields=None,verbose=False):
         """Convert plotfile raw data to an xarray.Dataset.
 
-        Only single level handled for now. Will need to traverse
-        through grids with index.grids[gid].Children[1].Children[0], etc...
+        By default, convert all fields. A subset of fields may be specified as
+        a list.
 
         See https://yt-project.org/doc/examining/low_level_inspection.html
         """
         dslist = []
-        for fldname in self.fields:
+        if fields is None:
+            fields = self.fields
+        else:
+            assert isinstance(fields, (list,tuple))
+
+        max_level = 0
+        gridlevel = []
+        for g in self.pf.index.grids:
+            gridlevel.append(get_plt_grid_level(g))
+        max_level = np.max(gridlevel)
+
+        for fldname in fields:
             # e.g., fldname == "x_velocity_stag"
             if fldname.endswith('_stag'):
                 stagdim = fldname[0]
@@ -51,14 +70,24 @@ class Plotfile(object):
 
             # loop over grids
             dalist = []
+            attrs = {}
             for ig,g in enumerate(self.pf.index.grids):
                 lo_pt = g.LeftEdge.value
                 hi_pt = g.RightEdge.value
+                lev = gridlevel[ig]
                 if verbose:
-                    print('  grid',ig,lo_pt,hi_pt)
+                    print(' ',ig,g,lo_pt,hi_pt,'level',lev)
 
                 fld = g[('boxlib',fldname)]
+                fld[g.child_indices] = np.nan # blank regions where finer data are available
+
                 ncell = fld.shape
+                cellsizes = g.dds.value
+                dsstr = f'ds{lev}'
+                if dsstr in attrs:
+                    assert all(attrs[dsstr] == cellsizes)
+                else:
+                    attrs[dsstr] = cellsizes
 
                 # setup dimension coordinates
                 coords = {'t': [self.pf.current_time.item()]}
@@ -74,16 +103,34 @@ class Plotfile(object):
                                 + (hi_pt[idim] - lo_pt[idim]) \
                                 * np.arange(0.5,ncell[idim]) / ncell[idim]
 
+                if max_level == 0:
+                    flddata = fld.value[np.newaxis,:,:,:]
+                else:
+                    coords['level'] = [lev]
+                    flddata = fld.value[np.newaxis,:,:,:,np.newaxis]
+
                 # create dataarray
-                da = xr.DataArray(fld.value[np.newaxis,:,:,:],
+                da = xr.DataArray(flddata,
                                   coords=coords,
                                   name=fldname)
                 dalist.append(da)
 
+            # combine grid data into single dataset
             ds = xr.merge(dalist)
             dslist.append(ds)
 
-        return xr.merge(dslist)
+        # combine datasets for all vars
+        ds = xr.merge(dslist)
+
+        # add attributes
+        attrs['max_level'] = max_level
+        if max_level > 0:
+            for i in range(max_level):
+                rrv = attrs[f'ds{i}'] / attrs[f'ds{i+1}']
+                attrs[f'ref_ratio_vect{i}'] = rrv.astype(int)
+        ds.attrs = attrs
+
+        return ds
 
     def slice(self, axis, loc, fields=None):
         """Create cutplane through the volume at index closest to the
