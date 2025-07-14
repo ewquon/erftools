@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import xarray as xr
 from scipy.interpolate import RegularGridInterpolator
 
@@ -59,14 +60,16 @@ class NativeHRRR(object):
     consistent with WRF
     """
 
-    def __init__(self,datetime,varlist=gribvars,verbose=False):
+    def __init__(self,datetime,varlist=gribvars,forecasthour=0,verbose=False):
         """Download data from native levels, see
         https://www.nco.ncep.noaa.gov/pmb/products/hrrr/
         for data inventory
         """
         self.datetime = datetime
         self.verbose = verbose
-        self.H = Herbie(datetime, model='hrrr', product='nat')
+        tdelta = pd.to_timedelta(forecasthour,unit='h')
+        self.H = Herbie(datetime - tdelta, model='hrrr', fxx=tdelta,
+                        product='nat')
         self.H.download(verbose=True)
         self._combine_data(varlist)
         self._setup_hrrr_grid()
