@@ -561,7 +561,7 @@ class NativeHRRR(object):
 
         return inp
 
-    def to_wrfbdy(self,bdy_width,dtype=float):
+    def to_wrfbdy(self,bdy_width,dtype=float,calc_msf=True):
         """Create a new Dataset with HRRR fields interpolated to the
         input grid points on the specified boundary
 
@@ -617,8 +617,12 @@ class NativeHRRR(object):
 
             # setup map scale factors
             sn_ew_idxs = idxs[::-1]
-            msf_u = self.grid.calc_msf(lat_u[*sn_ew_idxs])
-            msf_v = self.grid.calc_msf(lat_v[*sn_ew_idxs])
+            if calc_msf:
+                msf_u = self.grid.calc_msf(lat_u[*sn_ew_idxs])
+                msf_v = self.grid.calc_msf(lat_v[*sn_ew_idxs])
+            else:
+                msf_u = np.ones_like(lat_u[*sn_ew_idxs])
+                msf_v = np.ones_like(lat_v[*sn_ew_idxs])
             ds['MAPFAC_U'] = (('south_north', 'west_east_stag'), msf_u.astype(dtype))
             ds['MAPFAC_V'] = (('south_north_stag', 'west_east'), msf_v.astype(dtype))
 
