@@ -600,8 +600,7 @@ class NativeHRRR(object):
             ds['U'] = Ugrid.rename(west_east='west_east_stag')
             ds['V'] = Vgrid.rename(south_north='south_north_stag')
 
-            # interpolate fields (a subset of wrfinput) that aren't staggered
-            # in x,y
+            # interpolate fields (a subset of wrfinput) that aren't staggered in x,y
             unstag_interp_vars = [
                 'W',
                 'PH',
@@ -639,13 +638,18 @@ class NativeHRRR(object):
                                  not varn.startswith('C1') and
                                  not varn.startswith('C2')]
             for varn in vars_to_couple:
-                # this dimension may or may not be staggered
+                # bdy_width dimension may or may not be staggered
                 bw_dim = [dim for dim in ds[varn].dims
                           if dim.startswith(width_dim[bname])][0]
                 if self.verbose:
                     print(f'Coupling {varn} on {bname} (bdy_width dim: {bw_dim})')
                 for w in range(bdy_width):
-                    coupled = get_mass_weighted(varn, ds, **{bw_dim:w})
+                    if bname.endswith('S'):
+                        # bdy lo
+                        coupled = get_mass_weighted(varn, ds, **{bw_dim:w})
+                    else:
+                        # bdy hi
+                        coupled = get_mass_weighted(varn, ds, **{bw_dim:-1-w})
                     ds[varn].loc[dict({bw_dim:w})] = coupled
 
             bdy[bname] = ds
