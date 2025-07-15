@@ -6,6 +6,7 @@ from scipy.interpolate import RegularGridInterpolator
 import cartopy.crs as ccrs
 from herbie import Herbie
 
+from .interpolation import interp_zlevels
 from ..constants import R_d, R_v, Cp_d, Cp_v, CONST_GRAV, p_0
 from ..EOS import getPgivenRTh, getThgivenRandT, getThgivenPandT
 from ..utils import (get_hi_faces, get_lo_faces,
@@ -488,7 +489,7 @@ class NativeHRRR(object):
         self.yg_v  = pts_v[:,:,1]
 
 
-    def to_wrfinput(self,dtype=float):
+    def to_wrfinput(self,dtype=float,zlevels_stag=None):
         """Create a new Dataset with HRRR fields interpolated to the
         input grid points
         """
@@ -562,9 +563,13 @@ class NativeHRRR(object):
                                  'XLAT_V' : inp['XLAT_V'],
                                  'XLONG_V': inp['XLONG_V']})
 
+        # interpolate to requested heights
+        if zlevels_stag is not None:
+            interp_zlevels(inp, zlevels_stag, dtype=dtype)
+
         return inp
 
-    def to_wrfbdy(self,bdy_width,dtype=float,calc_msf=True):
+    def to_wrfbdy(self,bdy_width,dtype=float,calc_msf=True,zlevels_stag=None):
         """Create a new Dataset with HRRR fields interpolated to the
         input grid points on the specified boundary
 
@@ -607,6 +612,7 @@ class NativeHRRR(object):
             unstag_interp_vars = [
                 'W',
                 'PH',
+                'PHB', # needed for vertical interpolation
                 'T',
                 'MU',
                 'MUB', # needed to couple the other quantities
@@ -657,7 +663,7 @@ class NativeHRRR(object):
             'Times': ('Time',
                       [bytes(self.datetime.strftime('%Y-%m-%d_%H:%M:%S'),'utf-8')])
         })
-        output_vars = ['U','V','PH','T','MU','QVAPOR','QCLOUD','QRAIN']
+        output_vars = ['U','V','PH','PHB','T','MU','MUB','QVAPOR','QCLOUD','QRAIN']
         for varn in output_vars:
             for bname,idxs in bndry.items():
                 # get all the buffer region planes
@@ -685,4 +691,9 @@ class NativeHRRR(object):
                     fld = fld.rename({bw_dim:'bdy_width'})
                     fld = fld.transpose('bdy_width',bt_dim,lat_dim)
                     ds[f'{varn}_{bname}'] = fld.expand_dims('Time',axis=0)
+
+        #if zlevels_stag is not None:
+        #    bdy = interp_zlevels(bdy, zlevels_stag, dtype=dtype)
+        ds = ds.drop('PHB')
+
         return ds
