@@ -37,15 +37,20 @@ def get_mass_weighted(varname,ds,**dims):
         else:
             unstag_dim = dim
     low_end = (idx >= 0)
-    bdy_width = idx if low_end else -idx-1
+    bdy_width = idx if low_end else -idx-1  # always >= 0
 
     mut = (ds['MUB']+ds['MU']).isel({unstag_dim:idx})
     if varname == 'U':
         # stagger in west-east direction
-        if dim == 'west_east_stag' and bdy_width > 0:
-            idx1 = bdy_width - 1
-            if not low_end:
-                idx1 = -idx1 - 1
+        if dim == 'west_east_stag' and bdy_width == 0:
+            # idx = 0 or -1
+            # extrapolate ==> face val equal to interior cell val
+            pass
+        elif dim == 'west_east_stag' and bdy_width > 0:
+            if low_end:
+                idx1 = idx - 1
+            else: # idx=-2, -3, ...
+                idx1 = idx + 1
             mut1 = (ds['MUB']+ds['MU']).isel({unstag_dim:idx1})
             mut = 0.5 * (mut + mut1)
         elif dim == 'south_north':
@@ -56,10 +61,15 @@ def get_mass_weighted(varname,ds,**dims):
                            mut.isel(west_east_stag=slice(0,-2)))
     elif varname == 'V':
         # stagger in south-north direction
-        if dim == 'south_north_stag' and bdy_width > 0:
-            idx1 = bdy_width - 1
-            if not low_end:
-                idx1 = -idx1 - 1
+        if dim == 'south_north_stag' and bdy_width == 0:
+            # idx = 0 or -1
+            # extrapolate ==> face val equal to interior cell val
+            pass
+        elif dim == 'south_north_stag' and bdy_width > 0:
+            if low_end:
+                idx1 = idx - 1
+            else: # idx=-2, -3, ...
+                idx1 = idx + 1
             mut1 = (ds['MUB']+ds['MU']).isel({unstag_dim:idx1})
             mut = 0.5 * (mut + mut1)
         elif dim == 'west_east':
