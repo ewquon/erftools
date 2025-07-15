@@ -436,7 +436,7 @@ class NativeHRRR(object):
 
     def interpxy(self,name,xi,yi,dtype=float):
         """Linearly interpolate to points xi, yi"""
-        da = self.ds[name].astype(dtype)
+        da = self.ds[name]
         xdim = [dim for dim in da.dims if dim.startswith('west_east')][0]
         ydim = [dim for dim in da.dims if dim.startswith('south_north')][0]
         try:
@@ -454,6 +454,8 @@ class NativeHRRR(object):
         interpfun = RegularGridInterpolator((da.x,da.y),vals)
         interppts = np.stack([xi.ravel(), yi.ravel()], axis=-1)
         interpvals = interpfun(interppts)
+
+        interpvals = interpvals.astype(dtype)
 
         shape = list(xi.shape)
         if zdim:
