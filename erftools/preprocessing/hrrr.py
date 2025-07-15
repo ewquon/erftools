@@ -573,7 +573,7 @@ class NativeHRRR(object):
         """
         ib = {
             'lo': slice(0,bdy_width),
-            'hi': slice(-bdy_width,None),
+            'hi': slice(-1,-(bdy_width+1),-1),
         }
         bndry = {
             # dims: west_east*, south_north*
@@ -647,12 +647,7 @@ class NativeHRRR(object):
                 if self.verbose:
                     print(f'Coupling {varn} on {bname} (bdy_width dim: {bw_dim})')
                 for w in range(bdy_width):
-                    if bname.endswith('S'):
-                        # bdy lo
-                        coupled = get_mass_weighted(varn, ds, **{bw_dim:w})
-                    else:
-                        # bdy hi
-                        coupled = get_mass_weighted(varn, ds, **{bw_dim:-1-w})
+                    coupled = get_mass_weighted(varn, ds, **{bw_dim:w})
                     ds[varn].loc[dict({bw_dim:w})] = coupled
 
             bdy[bname] = ds
@@ -668,8 +663,7 @@ class NativeHRRR(object):
                 # get all the buffer region planes
                 if varn=='MU':
                     lat_dim = we_dim if width_dim[bname]==sn_dim else sn_dim
-                    mu = bdy[bname]['MU'].isel({'west_east': idxs[0],
-                                                'south_north': idxs[1]})
+                    mu = bdy[bname]['MU']
                     mu = mu.rename({width_dim[bname]:'bdy_width'})
                     mu = mu.transpose('bdy_width',lat_dim)
                     ds[f'MU_{bname}'] = mu.expand_dims('Time',axis=0)
@@ -687,8 +681,7 @@ class NativeHRRR(object):
                     # lateral dimension
                     lat_dim = we_dim if bw_dim==sn_dim else sn_dim
                     # subset the field
-                    fld = bdy[bname][varn].isel({we_dim: idxs[0],
-                                                 sn_dim: idxs[1]})
+                    fld = bdy[bname][varn]
                     fld = fld.rename({bw_dim:'bdy_width'})
                     fld = fld.transpose('bdy_width',bt_dim,lat_dim)
                     ds[f'{varn}_{bname}'] = fld.expand_dims('Time',axis=0)
