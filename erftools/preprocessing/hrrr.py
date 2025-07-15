@@ -531,6 +531,7 @@ class NativeHRRR(object):
             'SST',
             'LANDMASK',
             'MUB',
+            'MU',
             'QVAPOR',
             'QCLOUD',
             'QRAIN',
