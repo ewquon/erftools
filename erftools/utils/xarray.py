@@ -30,9 +30,35 @@ def destagger(da,dim='bottom_top_stag'):
     lo = get_lo_faces(da,dim)
     return 0.5*(hi + lo)
 
-def stagger(da,dim='bottom_top_stag',loval=0.0,hival=None):
+def stagger(da,dim=''):
+    """Interpolate cell-centered field to staggered locations on the interior;
+    copy boundary adjacent cells to the boundary
+    """
+    assert dim in da.dims, 'Expected unstaggered field'
+    stag_dim = dim + '_stag'
+    n = da.sizes[dim]
+
+    da = da.drop_vars(da.coords)
+    interior = 0.5 * (  da.isel({dim:slice(0, -1)})   \
+                      + da.isel({dim:slice(1, None)}) )
+
+    # boundary slices
+    left_bndry = da.isel({dim:0})
+    right_bndry = da.isel({dim:-1})
+
+    # combine into full staggered array
+    new_da = xr.concat([left_bndry, interior, right_bndry],
+                       dim=dim, coords='minimal')
+    new_da = new_da.rename({dim:stag_dim})
+
+    # preserve original ordering
+    dims = list(da.dims)
+    dims[dims.index(dim)] = stag_dim
+    return new_da.transpose(*dims)
+
+def stagger_vert(da,loval=0.0,hival=None):
     """Interpolate cell-centered field to staggered z locations on the
-    interior; extrapolate to domain top; and set the surface value.
+    interior; linearly extrapolate to domain top; and set the surface value.
     """
     assert 'z' in da.dims, 'Expected unstaggered field'
     assert 'zstag' not in da.dims, 'Should not have both z and zstag'

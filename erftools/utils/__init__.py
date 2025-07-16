@@ -1,4 +1,5 @@
-from .xarray import get_stag_dims, get_lo_faces, get_hi_faces, destagger
+from .xarray import (get_stag_dims, get_lo_faces, get_hi_faces,
+                     destagger, stagger, stagger_vert)
 
 from .omega import get_w_from_omega
 
