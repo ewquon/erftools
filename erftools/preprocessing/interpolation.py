@@ -8,7 +8,8 @@ def interp_zlevels(ds,zlevels_stag,
                    ph='PH',phb='PHB',
                    xlo=False,xhi=False,ylo=False,yhi=False,
                    check_ph=True,
-                   dtype=float):
+                   dtype=float,
+                   verbose=False):
     """Vertical interpolation on a WRF-like dataset to staggered zlevels AGL"""
     # requested heights
     zlevels_unstag = 0.5 * (zlevels_stag[1:] + zlevels_stag[:-1])
@@ -73,7 +74,7 @@ def interp_zlevels(ds,zlevels_stag,
             dimlist.remove('Time')
         is_column_func = (len(dimlist)==1 and dimlist[0].startswith('bottom_top'))
         if 'bottom_top_stag' in dims:
-            print('Interpolating staggered vars with', dims,':',varlist)
+            if verbose: print('Interpolating staggered vars with', dims,':',varlist)
             if is_column_func:
                 zinp = zinp_stag.mean(['south_north','west_east'])
             else:
@@ -82,7 +83,7 @@ def interp_zlevels(ds,zlevels_stag,
             vert_dim = 'bottom_top_stag'
         else:
             assert 'bottom_top' in dims
-            print('Interpolating unstaggered vars with', dims,':',varlist)
+            if verbose: print('Interpolating unstaggered vars with', dims,':',varlist)
             if 'U' in varlist:
                 zinp = zinp_u
             elif 'V' in varlist:
@@ -118,7 +119,7 @@ def interp_zlevels(ds,zlevels_stag,
 
     # interpolated PH, PHB should correspond to the interpolated levels...
     if check_ph:
-        print('Checking interpolated geopotential')
+        if verbose: print('Checking interpolated geopotential')
         zstag_new = (ds[ph] + ds[phb]) / CONST_GRAV - zsurf0
         zstag_new = zstag_new.squeeze()
         zstag_new = zstag_new.transpose(*list(zinp_stag.dims)).values

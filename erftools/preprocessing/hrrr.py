@@ -652,7 +652,8 @@ class NativeHRRR(object):
                     trim_bdy['ylo'] = True
                 elif bname=='BYE':
                     trim_bdy['yhi'] = True
-                ds = interp_zlevels(ds, zlevels_stag, dtype=dtype, **trim_bdy)
+                ds = interp_zlevels(ds, zlevels_stag, **trim_bdy,
+                                    dtype=dtype, verbose=self.verbose)
                 ds = ds.drop('hybrid') # old vert level coord
 
             # calculate coupled fields
