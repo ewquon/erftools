@@ -218,10 +218,16 @@ class NativeHRRR(object):
         else:
             print('Skipping check, unknown type=',checktype)
 
-    def calculate(self,check='assert',zeroW=False):
+    def calculate(self,check='assert',zero_w=False):
         """Do all calculations to provide a consistent wrf-like dataset
 
-        `check` can be "warn" or "assert"
+        Parameters
+        ----------
+        check : str, optional
+            Perform consistency checks on resulting fields, can be
+            "warn" or "assert".
+        zero_w : bool, optional
+            Explicitly set vertical velocity to 0.
         """
         self.interpolate_na(inplace=True)
 
@@ -245,7 +251,7 @@ class NativeHRRR(object):
         zflux = rhow.sum(['south_north','west_east'])*self.dx*self.dy
         print(f'Note: mass flux through top faces is {zflux.item():g}')
 
-        if zeroW:
+        if zero_w:
             print('Setting vertical velocity to zero')
             self.ds['W'] *= 0.
 
@@ -492,6 +498,16 @@ class NativeHRRR(object):
     def to_wrfinput(self,dtype=float,zlevels_stag=None):
         """Create a new Dataset with HRRR fields interpolated to the
         input grid points
+
+        Parameters
+        ----------
+        dtype : optional
+            Data type for all data variables; np.float32 and np.float64
+            correspond to netcdf float and double, respectively.
+        zlevels_stag : array-like
+            If specified, perform vertical interpolation on all data
+            variables -- currently, only linear interpolation is
+            available.
         """
         lat  , lon   = self.grid.calc_lat_lon()
         lat_u, lon_u = self.grid.calc_lat_lon('U')
@@ -575,6 +591,18 @@ class NativeHRRR(object):
 
         This is a stripped down version of to_wrfinput but with mass-
         weighting for the field variables
+
+        Parameters
+        ----------
+        dtype : optional
+            Data type for all data variables; np.float32 and np.float64
+            correspond to netcdf float and double, respectively.
+        calc_msf : boolean, optional
+            Calculate map scale factors; if False, MSFs are set to 1.
+        zlevels_stag : array-like
+            If specified, perform vertical interpolation on all data
+            variables -- currently, only linear interpolation is
+            available.
         """
         ib = {
             'lo': slice(0,bdy_width),
