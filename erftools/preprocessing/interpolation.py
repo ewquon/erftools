@@ -6,14 +6,19 @@ from ..utils import destagger, stagger
 
 def interp_zlevels(ds,zlevels_stag,
                    ph='PH',phb='PHB',
+                   xlo=False,xhi=False,ylo=False,yhi=False,
                    check_ph=True,
                    dtype=float):
     """Vertical interpolation on a WRF-like dataset to staggered zlevels AGL"""
+    # requested heights
     zlevels_unstag = 0.5 * (zlevels_stag[1:] + zlevels_stag[:-1])
 
+    # get geopotential heights from the dataset
     zinp_stag = (ds[ph] + ds[phb]) / CONST_GRAV
     zinp_stag = zinp_stag.squeeze() # drop Time dim
-    assert zinp_stag.dims[0] == 'bottom_top_stag'
+    assert 'bottom_top_stag' in zinp_stag.dims, \
+        f'Unexpected zinp_stag dims: {zinp_stag.dims}'
+
     zsurf = zinp_stag.isel(bottom_top_stag=0)
     zsurf0 = zsurf.values.ravel()[0]
     assert np.all(zsurf == zsurf0), \
@@ -21,7 +26,15 @@ def interp_zlevels(ds,zlevels_stag,
 
     zinp_unstag = destagger(zinp_stag, dim='bottom_top_stag')
     zinp_u = stagger(zinp_unstag, dim='west_east')
+    if xlo:
+        zinp_u = zinp_u.isel(west_east_stag=slice(0,-1))
+    elif xhi:
+        zinp_u = zinp_u.isel(west_east_stag=slice(1,None))
     zinp_v = stagger(zinp_unstag, dim='south_north')
+    if ylo:
+        zinp_v = zinp_v.isel(south_north_stag=slice(0,-1))
+    elif yhi:
+        zinp_v = zinp_v.isel(south_north_stag=slice(1,None))
 
     # sort vars by dimensions
     fieldtypes = {}
@@ -39,6 +52,9 @@ def interp_zlevels(ds,zlevels_stag,
         else:
             fieldtypes[dims].append(varn)
 
+    # don't overwrite original data
+    ds = ds.copy(deep=True)
+
     # linearly interpolate each set of variables, which will include vertical
     # dimension bottom_top or bottom_top_stag
     def interpfun(zvals, columndata, zinterp):
@@ -47,36 +63,42 @@ def interp_zlevels(ds,zlevels_stag,
         #return f(zinterp)
         return np.interp(zinterp, zvals, columndata)
 
-    ds = ds.copy(deep=True)
+    # now, actually do the interpolation on each group of fields with the same
+    # dimensions
     for dims,varlist in fieldtypes.items():
         if 'bottom_top_stag' in dims:
             print('Interpolating staggered vars with', dims,':',varlist)
-            zinp = zinp_stag
+            if len(dims)==1 and dims[0].startswith('bottom_top'):
+                zinp = zinp_stag.mean(['south_north','west_east'])
+            else:
+                zinp = zinp_stag
             zout = zlevels_stag + zsurf0
             vert_dim = 'bottom_top_stag'
         else:
+            assert 'bottom_top' in dims
             print('Interpolating unstaggered vars with', dims,':',varlist)
             if 'U' in varlist:
                 zinp = zinp_u
             elif 'V' in varlist:
                 zinp = zinp_v
-            elif ('south_north' not in varlist) and \
-                 ('west_east' not in varlist):
+            elif len(dims)==1 and dims[0].startswith('bottom_top'):
                 zinp = zinp_unstag.mean(['south_north','west_east'])
             else:
                 zinp = zinp_unstag
             zout = zlevels_unstag + zsurf0
             vert_dim = 'bottom_top'
         new_vert_dim = f'NEW_{vert_dim}'
+        zout = xr.DataArray(zout, dims=new_vert_dim)
 
         interp_fields = xr.apply_ufunc(
             interpfun,
-            zinp, ds[varlist], # args for interpfun
-            input_core_dims=[[vert_dim], [vert_dim]],
+            zinp, ds[varlist], zout, # args for interpfun
+            input_core_dims=[[vert_dim], [vert_dim], [new_vert_dim]],
             output_core_dims=[[new_vert_dim]],
             output_dtypes=[dtype],
-            kwargs={'zinterp': zout},
+            output_sizes={new_vert_dim: len(zinp)},
             vectorize=True,
+            dask='parallelize',
         )
         assert np.all(np.isfinite(interp_fields).all()), 'Interpolation failed'
 

@@ -565,7 +565,7 @@ class NativeHRRR(object):
 
         # interpolate to requested heights
         if zlevels_stag is not None:
-            interp_zlevels(inp, zlevels_stag, dtype=dtype)
+            inp = interp_zlevels(inp, zlevels_stag, dtype=dtype)
 
         return inp
 
@@ -640,6 +640,21 @@ class NativeHRRR(object):
             ds['C1F'] = self.ds['C1F'].astype(dtype)
             ds['C2F'] = self.ds['C2F'].astype(dtype)
 
+            # vertically interpolate -- do this _before_ applying mass
+            # weighting to fields
+            if zlevels_stag is not None:
+                trim_bdy = {}
+                if bname=='BXS':
+                    trim_bdy['xlo'] = True
+                elif bname=='BXE':
+                    trim_bdy['xhi'] = True
+                elif bname=='BYS':
+                    trim_bdy['ylo'] = True
+                elif bname=='BYE':
+                    trim_bdy['yhi'] = True
+                ds = interp_zlevels(ds, zlevels_stag, dtype=dtype, **trim_bdy)
+                ds = ds.drop('hybrid') # old vert level coord
+
             # calculate coupled fields
             vars_to_couple = [varn for varn in ds.data_vars
                               if not varn.startswith('MU') and
@@ -663,7 +678,7 @@ class NativeHRRR(object):
             'Times': ('Time',
                       [bytes(self.datetime.strftime('%Y-%m-%d_%H:%M:%S'),'utf-8')])
         })
-        output_vars = ['U','V','PH','PHB','T','MU','MUB','QVAPOR','QCLOUD','QRAIN']
+        output_vars = ['U','V','PH','T','MU','QVAPOR','QCLOUD','QRAIN']
         for varn in output_vars:
             for bname,idxs in bndry.items():
                 # get all the buffer region planes
@@ -691,9 +706,5 @@ class NativeHRRR(object):
                     fld = fld.rename({bw_dim:'bdy_width'})
                     fld = fld.transpose('bdy_width',bt_dim,lat_dim)
                     ds[f'{varn}_{bname}'] = fld.expand_dims('Time',axis=0)
-
-        #if zlevels_stag is not None:
-        #    bdy = interp_zlevels(bdy, zlevels_stag, dtype=dtype)
-        ds = ds.drop('PHB')
 
         return ds
