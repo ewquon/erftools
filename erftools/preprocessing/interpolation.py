@@ -24,6 +24,8 @@ def interp_zlevels(ds,zlevels_stag,
     assert np.all(zsurf == zsurf0), \
         'Need to implement more sophisiticated interpolation for general terrain'
 
+    # get corresponding geopotential heights for unstaggered or horizontally
+    # staggered fields
     zinp_unstag = destagger(zinp_stag, dim='bottom_top_stag')
     zinp_u = stagger(zinp_unstag, dim='west_east')
     if xlo:
@@ -66,9 +68,13 @@ def interp_zlevels(ds,zlevels_stag,
     # now, actually do the interpolation on each group of fields with the same
     # dimensions
     for dims,varlist in fieldtypes.items():
+        dimlist = list(dims)
+        if 'Time' in dimlist:
+            dimlist.remove('Time')
+        is_column_func = (len(dimlist)==1 and dimlist[0].startswith('bottom_top'))
         if 'bottom_top_stag' in dims:
             print('Interpolating staggered vars with', dims,':',varlist)
-            if len(dims)==1 and dims[0].startswith('bottom_top'):
+            if is_column_func:
                 zinp = zinp_stag.mean(['south_north','west_east'])
             else:
                 zinp = zinp_stag
@@ -81,7 +87,7 @@ def interp_zlevels(ds,zlevels_stag,
                 zinp = zinp_u
             elif 'V' in varlist:
                 zinp = zinp_v
-            elif len(dims)==1 and dims[0].startswith('bottom_top'):
+            elif is_column_func:
                 zinp = zinp_unstag.mean(['south_north','west_east'])
             else:
                 zinp = zinp_unstag
