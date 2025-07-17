@@ -92,21 +92,21 @@ def verify_wrf_inputs(inp, bdy, do_assert=True):
     print('T_BXE',bdy['T_BXE'].sizes)
     print('T_BYS',bdy['T_BYS'].sizes)
     print('T_BYE',bdy['T_BYE'].sizes)
-    T0 = 300.0
-    inp['T'] += T0
-    bdy['T_BXS'] += T0
-    bdy['T_BXE'] += T0
-    bdy['T_BYS'] += T0
-    bdy['T_BYE'] += T0
+    #T0 = 300.0
+    #inp['T'] += T0
+    #bdy['T_BXS'] += T0 # need to decouple first!
+    #bdy['T_BXE'] += T0
+    #bdy['T_BYS'] += T0
+    #bdy['T_BYE'] += T0
     for bdyoff in range(bdywidth):
         print('bdy_width=',bdyoff)
-        my_assert(checkfields(get_mass_weighted('T',inp,west_east=bdyoff),
+        my_assert(checkfields(get_mass_weighted('THM',inp,west_east=bdyoff),
                               bdy['T_BXS'].isel(Time=0,bdy_width=bdyoff)))
-        my_assert(checkfields(get_mass_weighted('T',inp,west_east=-(bdyoff+1)),
+        my_assert(checkfields(get_mass_weighted('THM',inp,west_east=-(bdyoff+1)),
                               bdy['T_BXE'].isel(Time=0,bdy_width=bdyoff)))
-        my_assert(checkfields(get_mass_weighted('T',inp,south_north=bdyoff),
+        my_assert(checkfields(get_mass_weighted('THM',inp,south_north=bdyoff),
                               bdy['T_BYS'].isel(Time=0,bdy_width=bdyoff)))
-        my_assert(checkfields(get_mass_weighted('T',inp,south_north=-(bdyoff+1)),
+        my_assert(checkfields(get_mass_weighted('THM',inp,south_north=-(bdyoff+1)),
                               bdy['T_BYE'].isel(Time=0,bdy_width=bdyoff)))
 
     print('\nVerifying mass weighting in scalar fields')
