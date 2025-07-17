@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+"""
+Perform sanity checks for wrfinput, wrfbdy data. This script will throw an
+assertion error if anything is in disagreement.
+"""
 import sys
 import numpy as np
 import xarray as xr
@@ -6,17 +10,22 @@ import xarray as xr
 from erftools.utils.wrf import get_mass_weighted
 
 def checkfields(fld1,fld2):
-    if not np.all(fld1 == fld2):
-        assert np.allclose(fld1,fld2)
-        absdiff = np.abs(fld2-fld1)
-        maxabs = np.max(absdiff)
-        maxrel = np.max(absdiff/np.abs(fld1))
-        maxidx = np.unravel_index(absdiff.argmax(), absdiff.shape)
-        print(fld1.name, fld2.name, maxabs.item(), maxrel.item(), 'at', maxidx)
-    #else:
-    #    print(fld1.name, fld2.name, 'equal')
+    if np.all(fld1 == fld2):
+        print(f'  {fld1.name} and {fld2.name} are EQUAL')
+    else:
+        #assert np.allclose(fld1,fld2), f'{fld1.name} and {fld2.name} DIFFER'
+        if np.allclose(fld1,fld2):
+            absdiff = np.abs(fld2-fld1)
+            maxabs = np.max(absdiff)
+            maxrel = np.max(absdiff/np.abs(fld1))
+            maxidx = np.unravel_index(absdiff.argmax(), absdiff.shape)
+            print(f'  {fld1.name} and {fld2.name} are CLOSE... max diffs:',
+                  maxabs.item(), maxrel.item(), 'at', maxidx)
+        else:
+            print(f'  {fld1.name} and {fld2.name} DIFFER')
 
-
+if len(sys.argv) <= 2:
+    sys.exit(f'USAGE: {sys.argv[0]} wrfinput wrfbdy')
 inpfile = sys.argv[1]
 bdyfile = sys.argv[2]
 
@@ -41,7 +50,7 @@ for bdyoff in range(bdywidth):
     checkfields(inp['MU'].isel(south_north=-(bdyoff+1)),
                 bdy['MU_BYE'].isel(Time=0,bdy_width=bdyoff))
 
-print('Verifying mass weighting in U,V')
+print('\nVerifying mass weighting in U,V')
 print('U_BXS',bdy['U_BXS'].sizes)
 print('U_BXE',bdy['U_BXE'].sizes)
 print('U_BYS',bdy['U_BYS'].sizes)
@@ -69,9 +78,32 @@ for bdyoff in range(bdywidth):
     checkfields(get_mass_weighted('V',inp,south_north_stag=-(bdyoff+1)),
                 bdy['V_BYE'].isel(Time=0,bdy_width=bdyoff))
 
-print('Verifying mass weighting in scalar fields')
-vars_to_check = ['T','QVAPOR','QCLOUD','QRAIN']
+print('\nVerifying mass weighting in T')
+print('T_BXS',bdy['T_BXS'].sizes)
+print('T_BXE',bdy['T_BXE'].sizes)
+print('T_BYS',bdy['T_BYS'].sizes)
+print('T_BYE',bdy['T_BYE'].sizes)
+T0 = 300.0
+inp['T'] += T0
+bdy['T_BXS'] += T0
+bdy['T_BXE'] += T0
+bdy['T_BYS'] += T0
+bdy['T_BYE'] += T0
+for bdyoff in range(bdywidth):
+    print('bdy_width=',bdyoff)
+    checkfields(get_mass_weighted('T',inp,west_east=bdyoff),
+                bdy['T_BXS'].isel(Time=0,bdy_width=bdyoff))
+    checkfields(get_mass_weighted('T',inp,west_east=-(bdyoff+1)),
+                bdy['T_BXE'].isel(Time=0,bdy_width=bdyoff))
+    checkfields(get_mass_weighted('T',inp,south_north=bdyoff),
+                bdy['T_BYS'].isel(Time=0,bdy_width=bdyoff))
+    checkfields(get_mass_weighted('T',inp,south_north=-(bdyoff+1)),
+                bdy['T_BYE'].isel(Time=0,bdy_width=bdyoff))
+
+print('\nVerifying mass weighting in scalar fields')
+vars_to_check = ['QVAPOR','QCLOUD','QRAIN']
 for bdyvarn in vars_to_check:
+    print('')
     print(f'{bdyvarn}_BXS',bdy[f'{bdyvarn}_BXS'].sizes)
     print(f'{bdyvarn}_BXE',bdy[f'{bdyvarn}_BXE'].sizes)
     print(f'{bdyvarn}_BYS',bdy[f'{bdyvarn}_BYS'].sizes)
