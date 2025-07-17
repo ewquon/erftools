@@ -641,7 +641,7 @@ class NativeHRRR(object):
                 'W',
                 'PH',
                 'PHB', # needed for vertical interpolation
-                'T',
+                'THM',
                 'MU',
                 'MUB', # needed to couple the other quantities
                 'QVAPOR',
@@ -707,7 +707,7 @@ class NativeHRRR(object):
             'Times': ('Time',
                       [bytes(self.datetime.strftime('%Y-%m-%d_%H:%M:%S'),'utf-8')])
         })
-        output_vars = ['U','V','PH','T','MU','QVAPOR','QCLOUD','QRAIN']
+        output_vars = ['U','V','PH','THM','MU','QVAPOR','QCLOUD','QRAIN']
         for varn in output_vars:
             for bname,idxs in bndry.items():
                 # get all the buffer region planes
@@ -734,6 +734,9 @@ class NativeHRRR(object):
                     fld = bdy[bname][varn]
                     fld = fld.rename({bw_dim:'bdy_width'})
                     fld = fld.transpose('bdy_width',bt_dim,lat_dim)
-                    ds[f'{varn}_{bname}'] = fld.expand_dims('Time',axis=0)
+                    if varn == 'THM':
+                        ds[f'T_{bname}'] = fld.expand_dims('Time',axis=0)
+                    else:
+                        ds[f'{varn}_{bname}'] = fld.expand_dims('Time',axis=0)
 
         return ds
