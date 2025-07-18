@@ -244,14 +244,13 @@ class NativeHRRR(object):
         # calculate base state following WRF real.exe
         self.calc_real(inplace=True,eta=eta)
 
+        # calculate perturbational quantities
         self.calc_perts(check,inplace=True)
 
-        rhow = self.rho_d.isel(bottom_top=-1,drop=True) \
-             * self.ds['W'].isel(bottom_top_stag=-1,drop=True)
-        zflux = rhow.sum(['south_north','west_east'])*self.dx*self.dy
-        print(f'Note: mass flux through top faces is {zflux.item():g}')
-
         if zero_w:
+            print('Vertical velocity at top boundary ~',
+                  self.ds['W'].isel(bottom_top_stag=-1).mean(['south_north','west_east']).item(), '+/-',
+                  self.ds['W'].isel(bottom_top_stag=-1).std(['south_north','west_east']).item())
             print('Setting vertical velocity to zero')
             self.ds['W'] *= 0.
 
