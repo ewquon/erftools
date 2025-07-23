@@ -109,13 +109,24 @@ class NativeHRRR(object):
         #    dslist.append(self.H.xarray(f':{varn}:surface:anl'))
         #print('')
         #surf = xr.merge(dslist)
+
         surf = xr.open_dataset(gribpath,engine='cfgrib',
                                filter_by_keys={'stepType':'instant',
                                                'typeOfLevel':'surface'})
+        #for varn in surf.data_vars:
+        #    print(varn, surf[varn].attrs['long_name'])
+
         ds['LANDMASK'] = surf['lsm']
         ds['SST']      = surf['t']
         ds['HGT']      = surf['orog']
         ds['PSFC']     = surf['sp']
+
+        # other fields, not read by ERF
+        ds['UST']      = surf['fricv'] # friction velocity
+        ds['HFX']      = surf['ishf']  # (instantaneous) surface sensible heat flux
+        ds['LHF']      = surf['lhtfl'] # latent heat net flux
+        ds['GFX']      = surf['gflux'] # ground heat flux
+        ds['PBLH']     = surf['blh']   # boundary layer height
 
         self.ds = ds
 
@@ -544,6 +555,7 @@ class NativeHRRR(object):
             'PHB',
             'PB',
             'P',
+            'PSFC',
             'SST',
             'LANDMASK',
             'MUB',
