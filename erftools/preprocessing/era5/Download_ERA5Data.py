@@ -143,10 +143,17 @@ def Download_ERA5_Data(inputs):
     assert area[0] > area[2], "Latitude order invalid: North (1st) must be greater than South (3rd)"
     assert area[3] > area[1], "Longitude order invalid: East (4th) must be greater than West (2nd)"
 
-
-
-    # Download data
+    # Instantiate Copernicus client
     client = cdsapi.Client()
-    filename = client.retrieve(dataset, request).download()
-    print(f"Downloaded file: {filename}")
+    result = client.retrieve(dataset, request)
+    filename = result.location
+    filename = filename.split('/')[-1]
+
+    if os.path.isfile(filename):
+        print(f"Downloaded file found: {filename}")
+    else:
+        downloaded = result.download()
+        print(f"Downloaded file: {downloaded}")
+        assert downloaded == filename
+
     return filename, area

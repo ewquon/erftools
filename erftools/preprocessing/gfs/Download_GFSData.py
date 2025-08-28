@@ -75,8 +75,12 @@ def construct_url_filename(data):
 def Download_GFS_Data(inputs):
     data = read_user_input(inputs)
     lat_max, lon_min, lat_min, lon_max = data.get('area')
+    area = [lat_max, lon_min, lat_min, lon_max]
 
     url, filename = construct_url_filename(data)
+    if os.path.isfile(filename):
+        print('Gribfile found:',filename)
+        return filename, area
 
     print("Download URL:", url)
     print("Filename:", filename)
@@ -91,7 +95,6 @@ def Download_GFS_Data(inputs):
     else:
         print("Download complete.")
 
-    area = [lat_max, lon_min, lat_min, lon_max]
     return filename, area
 
 def reporthook(block_num, block_size, total_size):
