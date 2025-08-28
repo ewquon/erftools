@@ -7,11 +7,11 @@ import sys
 import os
 from scipy.interpolate import interp1d
 
-from erftools.preprocessing import calculate_utm_zone
 from erftools.preprocessing import write_binary_vtk_structured_grid
 from erftools.preprocessing import write_binary_vtk_cartesian
 from erftools.preprocessing import plot_1d
 
+from erftools.utils.mapproj import calculate_utm_zone
 
 
 #from IO import *

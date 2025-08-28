@@ -4,7 +4,6 @@ from .grids import LambertConformalGrid
 # ERA5 related funrcions
 from .era5.Download_ERA5Data import Download_ERA5_Data
 from .era5.Download_ERA5Data import Download_ERA5_ForecastData
-from .era5.IO import calculate_utm_zone
 from .era5.IO import write_binary_simple_ERF
 from .era5.IO import write_binary_vtk_structured_grid
 from .era5.IO import write_binary_vtk_cartesian_file
@@ -18,7 +17,6 @@ from .era5.ReadERA5DataAndWriteERF_IC import ReadERA5_3DData
 # GFS related funrcions
 from .gfs.Download_GFSData import Download_GFS_Data
 from .gfs.Download_GFSData import Download_GFS_ForecastData
-from .gfs.IO import calculate_utm_zone
 from .gfs.IO import write_binary_simple_ERF
 from .gfs.IO import write_binary_vtk_structured_grid
 from .gfs.IO import write_binary_vtk_cartesian_file
