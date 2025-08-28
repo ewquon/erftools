@@ -1,6 +1,7 @@
 import numpy as np
+import struct
 
-def write_binary_simple_ERF(output_binary,
+def write_binary_simple_erf(output_binary,
                             lat_erf, lon_erf,
                             x_grid, y_grid, z_grid,
                             point_data):

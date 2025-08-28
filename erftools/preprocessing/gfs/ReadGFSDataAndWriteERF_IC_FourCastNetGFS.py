@@ -7,11 +7,11 @@ import sys
 import os
 from scipy.interpolate import interp1d
 
-from erftools.preprocessing import write_binary_vtk_structured_grid
-from erftools.preprocessing import write_binary_vtk_cartesian
+from erftools.preprocessing.gfs.IO import write_binary_vtk_cartesian
 from erftools.preprocessing import plot_1d
 
 from erftools.utils.mapproj import calculate_utm_zone
+from erftools.io import write_binary_structured_vtk
 
 
 def ReadGFS_3DData_FourCastNetGFS(file_path, area, is_IC):
