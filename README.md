@@ -1,5 +1,5 @@
-# ERFtools
-A collection of scripts for facilitating the usage of ERF.
+# ERF Tools
+A collection of Python-based modules and scripts for facilitating the usage of ERF.
 
 ## Examples
 
@@ -32,5 +32,6 @@ print(log.ds) # data are stored in an xarray dataset
 Some notes and recommendations:
 
 * An aspirational goal is to contribute code that can be used as in the examples above, with clear, intuitive naming and following PEP-8 style as a set of guidelines rather than gospel.
-* To avoid duplication, model constants are defined in `erf.constants`, which should replicate `ERF/Source/ERF_Constants.H`.
-* In the same vein, equation of state evaluations are defined in `erf.EOS`, which should replicate `ERF/Source/Utils/ERF_EOS.H`. 
+* To avoid duplication, model constants are defined in `erftools.constants`, which should replicate `ERF/Source/ERF_Constants.H`.
+* In the same vein, equation of state evaluations are defined in `erftools.EOS`, which should replicate `ERF/Source/Utils/ERF_EOS.H`.
+* Other utilities for calculating/deriving/diagnosing quantities of interest are in `erftools.utils.*`
