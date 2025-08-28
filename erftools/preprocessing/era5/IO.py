@@ -4,11 +4,7 @@ import os
 from pyproj import Proj, Transformer, CRS
 from math import *
 
-def calculate_utm_zone(longitude):
-     """
-     Calculate the UTM zone for a given longitude.
-     """
-     return int((longitude + 180) // 6) + 1
+from erftools.utils.projection import calculate_utm_zone
 
 def write_binary_simple_ERF(output_binary, lat_erf, lon_erf, x_grid, y_grid, z_grid, point_data):
 
