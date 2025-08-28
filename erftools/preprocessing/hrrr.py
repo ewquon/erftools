@@ -7,7 +7,8 @@ from herbie import Herbie
 
 from ..constants import R_d, R_v, Cp_d, Cp_v, CONST_GRAV, p_0
 from ..EOS import getPgivenRTh, getThgivenRandT, getThgivenPandT
-from ..utils import get_hi_faces, get_lo_faces, get_w_from_omega
+from ..utils.diag import get_w_from_omega
+from ..utils.xarray import get_hi_faces, get_lo_faces
 from ..wrf.real import RealInit
 
 
