@@ -1,6 +1,25 @@
 # ERF Tools
 A collection of Python-based modules and scripts for facilitating the usage of ERF.
 
+## Installation
+
+Clone and create a conda (or mamba) environment:
+```shell
+git clone https://github.com/erf-model/erftools.git
+cd erftools
+conda create -n erftools python=3.9
+conda activate erftools
+```
+
+Then, install with:
+```shell
+pip install -e . # editable install
+```
+or install with all optional dependencies:
+```shell
+pip install -e .[all]
+```
+
 ## Examples
 
 ### Converting a WRF namelist into ERF inputs
