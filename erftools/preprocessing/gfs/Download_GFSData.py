@@ -1,10 +1,16 @@
 # --- Read user values from file ---
 from concurrent.futures import ThreadPoolExecutor
-import urllib.request
 import sys
 import os
 from tqdm import tqdm
 import threading
+
+import requests
+import urllib3
+
+# Suppress SSL warnings
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 
 def read_user_input(filename):
     inputs = {}
@@ -75,14 +81,15 @@ def Download_GFS_Data(inputs):
     print("Download URL:", url)
     print("Filename:", filename)
 
-    import urllib.request
     try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req) as response, open(filename, 'wb') as out_file:
-            out_file.write(response.read())
-        print("Download complete.")
+        response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'},
+                                verify=False)
+        with open(filename, 'wb') as out_file:
+            out_file.write(response.content)
     except Exception as e:
         print("Download failed:", e)
+    else:
+        print("Download complete.")
 
     area = [lat_max, lon_min, lat_min, lon_max]
     return filename, area
