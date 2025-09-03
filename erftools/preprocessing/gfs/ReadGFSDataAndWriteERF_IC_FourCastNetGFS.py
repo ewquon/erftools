@@ -11,14 +11,9 @@ from erftools.preprocessing import write_binary_vtk_structured_grid
 from erftools.preprocessing import write_binary_vtk_cartesian
 from erftools.preprocessing import plot_1d
 
+from erftools.constants import CONST_GRAV as const_g
 from erftools.utils.projection import calculate_utm_zone
 
-
-#from IO import *
-#from Plot_1D import plot_1d
-#from Download_GFSData import *
-
-const_g = 9.81
 
 def ReadGFS_3DData_FourCastNetGFS(file_path, area, is_IC):
 	# Open the GRIB2 file
