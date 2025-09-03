@@ -11,9 +11,14 @@ from erftools.utils.mapproj import (find_latlon_indices,
                                     calculate_utm_zone)
 
 
-def write_binary_vtk_cartesian(date_time_forecast_str, output_binary, domain_lats, domain_lons,
-                               x_grid, y_grid, z_grid, nx, ny, nz,
-                               k_to_delete, lambert_conformal, point_data=None):
+def write_binary_vtk_cartesian(date_time_forecast_str,
+                               output_binary,
+                               domain_lats, domain_lons,
+                               x_grid, y_grid, z_grid,
+                               nx, ny, nz,
+                               k_to_delete,
+                               lambert_conformal,
+                               point_data=None):
 
 
 
@@ -97,7 +102,7 @@ def write_binary_vtk_cartesian(date_time_forecast_str, output_binary, domain_lat
     uvel_3d = point_data["uvel"]
     vvel_3d = point_data["vvel"]
 
-    
+
     print("Values of nx_erf and ny_erf are", nx_erf, ny_erf);
     print("Shapes of xgrid and ygrid are", x_grid.shape, y_grid.shape);
     print("Shapes of xgrid_erf and ygrid_erf are", x_grid_erf.shape, y_grid_erf.shape);
@@ -110,23 +115,26 @@ def write_binary_vtk_cartesian(date_time_forecast_str, output_binary, domain_lat
     if point_data:
         for name, data in point_data.items():
             if name in scalars_to_plot:  # Check if the name exists in the scalars dictionary
-
                 if data is None:
                     print(f"name is {name}, but data is None")
                 else:
                     print("name is", name)
                     print("size is", data.shape)
+
                 for j in range(ny_erf):
                     for i in range(nx_erf):
                         lon, lat = transformer.transform(x_grid_erf[j,i], y_grid_erf[j,i])
-                        lon_idx, lat_idx = find_latlon_indices(domain_lons, domain_lats, lon, lat)
+                        lon_idx, lat_idx = find_latlon_indices(domain_lons,
+                                                               domain_lats,
+                                                               lon,
+                                                               lat)
                         lat_erf[i,j,0] = lat;
                         lon_erf[i,j,0] = lon;
 
                         lat0 = domain_lats[lat_idx-1]
                         lat1 = domain_lats[lat_idx]
                         lon0 = domain_lons[lon_idx-1]
-                        lon1 = domain_lons[lon_idx]     
+                        lon1 = domain_lons[lon_idx]
 
                         # fractional distances
                         fx = (lon - lon0) / (lon1 - lon0)
@@ -145,9 +153,7 @@ def write_binary_vtk_cartesian(date_time_forecast_str, output_binary, domain_lat
                             x2 = x_grid[j,i]
                             y2 = y_grid[j,i]
 
-                        theta = atan2(y2-y1, x2-x1)                    
-                            
-                        #print("theta is ", x1, x2, y1, y2, theta)
+                        theta = atan2(y2-y1, x2-x1)
 
                         kcount = 1
                         for k in range(nz):  # Iterate over the z-dimension

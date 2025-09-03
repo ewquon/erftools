@@ -11,9 +11,14 @@ from erftools.utils.mapproj import (find_latlon_indices,
                                     calculate_utm_zone)
 
 
-def write_binary_vtk_cartesian(date_time_forecast_str, output_binary, domain_lats, domain_lons,
-                               x_grid, y_grid, z_grid, nx, ny, nz,
-                               k_to_delete, lambert_conformal, point_data=None):
+def write_binary_vtk_cartesian(date_time_forecast_str,
+                               output_binary,
+                               domain_lats, domain_lons,
+                               x_grid, y_grid, z_grid,
+                               nx, ny, nz,
+                               k_to_delete,
+                               lambert_conformal,
+                               point_data=None):
 
 
 
@@ -110,14 +115,12 @@ def write_binary_vtk_cartesian(date_time_forecast_str, output_binary, domain_lat
                 for j in range(ny_erf):
                     for i in range(nx_erf):
                         lon, lat = transformer.transform(x_grid_erf[j,i], y_grid_erf[j,i])
-                        lon_idx, lat_idx = find_latlon_indices(domain_lons, domain_lats, 360.0+lon, lat)
+                        lon_idx, lat_idx = find_latlon_indices(domain_lons,
+                                                               domain_lats,
+                                                               360.0+lon,
+                                                               lat)
                         lat_erf[i,j,0] = lat;
                         lon_erf[i,j,0] = lon;
-                        #if(lat_idx > 110):
-                        #    print("Lat value out of range", lat_idx, lon_idx, x_grid_erf[i,j], y_grid_erf[i,j])
-                        #    sys.exit()
-                        #print("The values of lat and lon are", x_grid_erf[i,j], y_grid_erf[i,j], lon, lat, lon_idx, lat_idx)
-                        #sys.exit()
                         kcount = 1
                         for k in range(nz):  # Iterate over the z-dimension
                             if nz-1-k in k_to_delete:
