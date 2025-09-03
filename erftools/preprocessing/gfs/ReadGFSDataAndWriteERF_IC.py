@@ -45,10 +45,9 @@ def ReadGFS_3DData(file_path, area, lambert_conformal):
                 month = grb.month
                 day = grb.day
                 hour = grb.hour
-                forecast_hour = grb.forecastTime
-
                 minute = grb.minute if hasattr(grb, 'minute') else 0
                 print(f"Date: {year}-{month:02d}-{day:02d}, Time: {hour:02d}:{minute:02d} UTC")
+                forecast_hour = grb.forecastTime
                 date_time_forecast_str = f"{year:04d}_{month:02d}_{day:02d}_{hour:02d}_{minute:02d}_{forecast_hour:03d}"
                 print(f"Datetime string: {date_time_forecast_str}")
                 printed_time = True
@@ -111,9 +110,6 @@ def ReadGFS_3DData(file_path, area, lambert_conformal):
     temp_3d_hr3 = np.stack(temp_3d_hr3, axis=0)
     vort_3d_hr3 = np.stack(vort_3d_hr3, axis=0)
 
-
-        
-
     #pressure_3d_hr3 = np.stack(pressure_3d_hr3, axis=0)
     # Get the size of each dimension
     dim1, dim2, dim3 = ght_3d_hr3.shape
@@ -126,13 +122,11 @@ def ReadGFS_3DData(file_path, area, lambert_conformal):
     # Convert pressure levels to numpy array for indexing
     pressure_levels = np.array(pressure_levels)
 
-
     # Extract unique latitude and longitude values
     unique_lats = np.unique(lats[:, 0])  # Take the first column for unique latitudes
     unique_lons = np.unique(lons[0, :])  # Take the first row for unique longitudes
 
     print("Min max lat lons are ", unique_lats[0], unique_lats[-1], unique_lons[0], unique_lons[-1]);
-
 
     nlats = len(unique_lats)
     nlons = len(unique_lons)
@@ -162,8 +156,8 @@ def ReadGFS_3DData(file_path, area, lambert_conformal):
     ny = domain_lons.shape[0]
 
     print("nx and ny here are ", nx, ny)
-   
-    ght_3d_hr3   = ght_3d_hr3[:, nlats-lat_end-1:nlats-lat_start, lon_start:lon_end+1]  
+
+    ght_3d_hr3   = ght_3d_hr3[:, nlats-lat_end-1:nlats-lat_start, lon_start:lon_end+1]
     uvel_3d_hr3  = uvel_3d_hr3[:, nlats-lat_end-1:nlats-lat_start, lon_start:lon_end+1]
     vvel_3d_hr3  = vvel_3d_hr3[:, nlats-lat_end-1:nlats-lat_start, lon_start:lon_end+1]
     wvel_3d_hr3  = wvel_3d_hr3[:, nlats-lat_end-1:nlats-lat_start, lon_start:lon_end+1]
@@ -192,8 +186,6 @@ def ReadGFS_3DData(file_path, area, lambert_conformal):
     nz = nz_admissible
 
     print("The number of lats and lons are levels are %d, %d, %d"%(lats.shape[0], lats.shape[1], nz));
-
-    #sys.exit("Stopping the script here.")
 
     z_grid = np.zeros((nx, ny, nz))
     rhod_3d = np.zeros((nx, ny, nz))
@@ -227,7 +219,7 @@ def ReadGFS_3DData(file_path, area, lambert_conformal):
     k_to_delete = []
 
     print("size is ", len(qv_3d_hr3))
-    
+
     dirname = "./TypicalAtmosphereData/"
     pressure_filename = dirname + "pressure_vs_z_actual.txt"
 
@@ -270,11 +262,6 @@ def ReadGFS_3DData(file_path, area, lambert_conformal):
         else:
             vort_at_lev = vort_3d_hr3[k]
 
-        # Print temperature for the specified level using nested loops
-        #for i in range(lats.shape[0]):  # Latitude index
-            #for j in range(lats.shape[1]):  # Longitude index
-        #lat = lats[i, j]
-        #lon = lons[i, j]
         temp_3d[:, :, k] = temp_at_lev
         z_grid[:,:,k] = ght_at_lev
         #pressure_3d[:,:,k] = pressure_at_lev
@@ -297,8 +284,6 @@ def ReadGFS_3DData(file_path, area, lambert_conformal):
 
         print("Avg val is ", k, np.mean(z_grid[:,:,k]),  )
 
-
-
         #pressure_3d[:, :, k] = (temp_3d[:, :, k]/theta_3d[:, :, k])**(1004.5/287.0)*1000.0
         #pressure_3d[:, :, k] = 0.622*pv/qv_3d[:, :, k] + pv
         pressure_3d[:, :, k] = 1000.0*np.exp(-const_g*(np.mean(z_grid[:,:,k])-0.0)/(287*temp_3d[:, :, k]*(1.0+1.6*qv_3d[:, :, k])))
@@ -316,7 +301,6 @@ def ReadGFS_3DData(file_path, area, lambert_conformal):
                 for j in np.arange(0,ny,1):
                     if(pressure_3d[i, j, k] <= 0.0):
                         print("Value here problematic ", i, j, pressure_3d[i, j, k],pressure_3d[i, j, k+1],temp_3d[i, j, k+1],qv_3d[i, j, k+1],z_grid[i,j,k],z_grid[i,j,k+1])
-                
 
         #pressure_typical_here = pressure_interp_func(np.mean(z_grid[:,:,k]));
         #indices = np.argwhere( (pressure_3d[:,:,k] <= 0.9*pressure_typical_here) | (pressure_3d[:,:,k] >= 1.02*pressure_typical_here))
@@ -379,11 +363,13 @@ def ReadGFS_3DData(file_path, area, lambert_conformal):
     dir_path = "Output"
     os.makedirs(dir_path, exist_ok=True)
 
-     # Extract the filename from the full path
+    # Extract the filename from the full path
     filename = os.path.basename(file_path)
 
+    # Extract the forecast hour string, e.g., 'f024'
     forecast_hour = filename.split(".f")[1].split(".")[0]
 
+    # Write VTK output
     output_vtk = "./Output/GFS_" + date_time_forecast_str + ".vtk"
 
     output_binary = "./Output/ERF_IC_" + date_time_forecast_str + ".bin"
@@ -394,9 +380,14 @@ def ReadGFS_3DData(file_path, area, lambert_conformal):
                                     point_data=scalars,
                                     velocity=velocity)
 
-    write_binary_vtk_cartesian(date_time_forecast_str, output_binary, domain_lats, domain_lons,
+    write_binary_vtk_cartesian(date_time_forecast_str,
+                               output_binary,
+                               domain_lats, domain_lons,
                                x_grid, y_grid, z_grid,
-                               nx, ny, nz, k_to_delete, lambert_conformal, scalars)
+                               nx, ny, nz,
+                               k_to_delete,
+                               lambert_conformal,
+                               scalars)
 
     scalars_for_ERF = {
          "theta": theta_3d,

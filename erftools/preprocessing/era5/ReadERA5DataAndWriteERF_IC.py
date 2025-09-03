@@ -45,7 +45,6 @@ def ReadERA5_3DData(file_path, lambert_conformal):
                 month = grb.month
                 day = grb.day
                 hour = grb.hour
-
                 minute = grb.minute if hasattr(grb, 'minute') else 0
                 print(f"Date: {year}-{month:02d}-{day:02d}, Time: {hour:02d}:{minute:02d} UTC")
                 date_time_forecast_str = f"{year:04d}_{month:02d}_{day:02d}_{hour:02d}_{minute:02d}"
@@ -121,10 +120,10 @@ def ReadERA5_3DData(file_path, lambert_conformal):
 
     # Convert pressure levels to numpy array for indexing
     pressure_levels = np.array(pressure_levels)
-    nz = 37
+    nz = len(pressure_levels)
+    assert nz == 37
 
     print("The number of lats and lons are levels are %d, %d, %d"%(lats.shape[0], lats.shape[1], nz));
-
 
     # Extract unique latitude and longitude values
     unique_lats = np.unique(lats[:, 0])  # Take the first column for unique latitudes
@@ -184,7 +183,7 @@ def ReadERA5_3DData(file_path, lambert_conformal):
     k_to_delete = []
 
     print("size is ", len(qv_3d_hr3))
-    
+
     dirname = "./TypicalAtmosphereData/"
     pressure_filename = dirname + "pressure_vs_z_actual.txt"
 
@@ -192,7 +191,7 @@ def ReadERA5_3DData(file_path, lambert_conformal):
     pressure_interp_func = interp1d(pressure_typical[:,1], pressure_typical[:,0], kind='linear', fill_value="extrapolate")
 
     # Find the index of the desired pressure level
-    for k in np.arange(36, -1, -1):
+    for k in np.arange(nz-1, -1, -1):
 
         # Extract temperature at the desired pressure level
         ght_at_lev = ght_3d_hr3[k]
@@ -227,11 +226,6 @@ def ReadERA5_3DData(file_path, lambert_conformal):
         else:
             vort_at_lev = vort_3d_hr3[k]
 
-        # Print temperature for the specified level using nested loops
-        #for i in range(lats.shape[0]):  # Latitude index
-            #for j in range(lats.shape[1]):  # Longitude index
-        #lat = lats[i, j]
-        #lon = lons[i, j]
         temp_3d[:, :, k] = temp_at_lev
         z_grid[:,:,k] = ght_at_lev/const_g
         #pressure_3d[:,:,k] = pressure_at_lev
@@ -254,14 +248,12 @@ def ReadERA5_3DData(file_path, lambert_conformal):
 
         print("Max val is ", np.max(z_grid[:,:,k]),  )
 
-
-
         #pressure_3d[:, :, k] = (temp_3d[:, :, k]/theta_3d[:, :, k])**(1004.5/287.0)*1000.0
         #pressure_3d[:, :, k] = 0.622*pv/qv_3d[:, :, k] + pv
         #pressure_3d[:, :, k] = 1000.0*np.exp(-const_g*(np.mean(z_grid[:,:,k])-0.0)/(287*temp_3d[:, :, k]*(1.0+1.6*qv_3d[:, :, k])))
 
         # Assuming quantities at surface is same as the first cell
-        if(k==36):
+        if(k==nz-1):
             pressure_3d[:, :, k] = 1000.0 - 1000.0/(287*temp_3d[:, :, k]*(1.0+1.6*qv_3d[:, :, k]))*const_g*z_grid[:,:,k]
         else:
             pressure_3d[:, :, k] = pressure_3d[:, :, k+1] - pressure_3d[:, :, k+1]/(287*temp_3d[:, :, k+1]*(1.0+1.6*qv_3d[:, :, k+1]))*const_g*(z_grid[:,:,k]-z_grid[:,:,k+1])
@@ -305,8 +297,8 @@ def ReadERA5_3DData(file_path, lambert_conformal):
 
 
     scalars = {
-         "latitude": None,  
-         "longitude": None,  
+         "latitude": None,
+         "longitude": None,
          "density": rhod_3d,
          "uvel": uvel_3d,
          "vvel": vvel_3d,
@@ -329,6 +321,7 @@ def ReadERA5_3DData(file_path, lambert_conformal):
     dir_path = "Output"
     os.makedirs(dir_path, exist_ok=True)
 
+    # Write VTK output
     output_vtk = "./Output/ERA5_" + date_time_forecast_str + ".vtk"
 
     output_binary = "./Output/ERF_IC_" + date_time_forecast_str + ".bin"
@@ -339,9 +332,14 @@ def ReadERA5_3DData(file_path, lambert_conformal):
                                     point_data=scalars,
                                     velocity=velocity)
 
-    write_binary_vtk_cartesian(date_time_forecast_str, output_binary, domain_lats, domain_lons,
+    write_binary_vtk_cartesian(date_time_forecast_str,
+                               output_binary,
+                               domain_lats, domain_lons,
                                x_grid, y_grid, z_grid,
-                               nx, ny, nz, k_to_delete, lambert_conformal, scalars)
+                               nx, ny, nz,
+                               k_to_delete,
+                               lambert_conformal,
+                               scalars)
 
     scalars_for_ERF = {
          "theta": theta_3d,

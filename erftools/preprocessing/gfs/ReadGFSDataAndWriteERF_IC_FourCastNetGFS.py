@@ -119,13 +119,11 @@ def ReadGFS_3DData_FourCastNetGFS(file_path, area, is_IC):
     # Convert pressure levels to numpy array for indexing
     pressure_levels = np.array(pressure_levels)
 
-
     # Extract unique latitude and longitude values
     unique_lats = np.unique(lats[:, 0])  # Take the first column for unique latitudes
     unique_lons = np.unique(lons[0, :])  # Take the first row for unique longitudes
 
     print("Min max lat lons are ", unique_lats[0], unique_lats[-1], unique_lons[0], unique_lons[-1]);
-
 
     nlats = len(unique_lats)
     nlons = len(unique_lons)
@@ -182,8 +180,6 @@ def ReadGFS_3DData_FourCastNetGFS(file_path, area, is_IC):
 
     print("The number of lats and lons are levels are %d, %d, %d"%(lats.shape[0], lats.shape[1], nz));
 
-    #sys.exit("Stopping the script here.")
-
     z_grid = np.zeros((nx, ny, nz))
     rhod_3d = np.zeros((nx, ny, nz))
     uvel_3d = np.zeros((nx, ny, nz))
@@ -236,11 +232,6 @@ def ReadGFS_3DData_FourCastNetGFS(file_path, area, is_IC):
         vvel_at_lev = vvel_3d_hr3[k]
         rh_at_lev = rh_3d_hr3[k]
         temp_at_lev = temp_3d_hr3[k]
-        # Print temperature for the specified level using nested loops
-        #for i in range(lats.shape[0]):  # Latitude index
-            #for j in range(lats.shape[1]):  # Longitude index
-        #lat = lats[i, j]
-        #lon = lons[i, j]
         temp_3d[:, :, k] = temp_at_lev
         z_grid[:,:,k] = ght_at_lev
         #pressure_3d[:,:,k] = pressure_at_lev
@@ -272,10 +263,21 @@ def ReadGFS_3DData_FourCastNetGFS(file_path, area, is_IC):
 
 
     scalars = {
+         #"latitude": None,
+         #"longitude": None,
+         #"density": rhod_3d,
          "uvel": uvel_3d,
          "vvel": vvel_3d,
+         #"wvel": wvel_3d,
+         #"theta": theta_3d,
+         #"qv": qv_3d,
+         #"qc": qc_3d,
+         #"qr": qr_3d,
          "rh": rh_3d,
          "temperature": temp_3d,
+         #"vorticity": vort_3d,
+         #"pressure": pressure_3d,
+         #"qsat": qsat_3d,
     }
 
 
@@ -291,6 +293,7 @@ def ReadGFS_3DData_FourCastNetGFS(file_path, area, is_IC):
     # Extract the forecast hour string, e.g., 'f024'
     forecast_hour = filename.split('.')[-1]
 
+    # Write VTK output
     output_vtk = "./Output/GFS_" + datetime_str + "_" + forecast_hour + ".vtk"
 
     output_binary = "./Output/ERF_IC_" + datetime_str + "_" + forecast_hour + ".bin"
@@ -301,11 +304,17 @@ def ReadGFS_3DData_FourCastNetGFS(file_path, area, is_IC):
                                     point_data=scalars,
                                     velocity=velocity)
 
-    write_binary_vtk_cartesian(output_binary, domain_lats, domain_lons,
+    write_binary_vtk_cartesian(datetime_str,
+                               output_binary,
+                               domain_lats, domain_lons,
                                x_grid, y_grid, z_grid,
-                               nx, ny, nz, k_to_delete, scalars)
+                               nx, ny, nz,
+                               k_to_delete,
+                               lambert_conformal,
+                               scalars)
 
     scalars_for_ERF = {
+         #"theta": theta_3d,
          "uvel": uvel_3d,
          "vvel": vvel_3d,
     }
