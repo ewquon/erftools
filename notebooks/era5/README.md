@@ -1,6 +1,7 @@
-# Read weather data from ERA5 and write initial condition file for ERF
+# ERA5 pre-processor for ERF simulations
 
-This directory contains the python scripts to create an initial condition for hurricane simulations in ERF from the ERA5 weather data.
+This directory contains the python scripts to write the initial condition file, lateral forcing files and surface fluxes files  
+for hurricane simulations in ERF from the ERA5 weather data.
 
 1. Follow the steps here https://cds.climate.copernicus.eu/how-to-api to create a free account   
    to download ERA5 data
@@ -16,16 +17,18 @@ area: 50,-130,10,-50
 ```
 Note: The geographical area is specified as latitude maximum, longitude minimum, latitude minimum, longitude maximum.
 
-3. `python3 WriteICFromERA5Data.py <input_file>`   
-The `input_file` is the text file in step 2. If any packages are missing, install them using `pip install <package>`
+3. Run the script.    
+`srun -n 32 python3 WriteICFromERA5Data.py <input_file> --do_forecast=true --forecast_time_hours=72 --interval_hours=3`    
+where `input_file` is the file in Step 2 above. This uses 32 MPI ranks to download and process the weather data for    
+hurricane Henri for a total of 72 hours with an interval of 3 hours.   
 
-4. The output VTK files for visualization is written into a directory `Output`. The initial condition binary file (`*bin`) for ERF   
-is also written into `Output`.
+4. The output VTK files for visualization is written into  `Output/VTK/3D` for 3D data and `Output/VTK/Surface` for surface data. These  
+can be visualized in VisIt or ParaView. 
 
-## Examples
+5. The following directories are to be copied into the ERF run directory.  
+`Output/3D`- The binary files (`*bin`) for lateral forcing. The first file in `Output/3D` can be used as the initial condition file.   
+`Output/Surface` -  The binary files (`*.bin`) for surface fluxes.  
+The domain extents to be used for the ERF run is written into `Output/domain_extents.txt`.  
 
-Example inputs are given in the input file `input_for_Laura` and `input_for_Henri`. 
-
-1. Run `python3 WriteICFromERA5Data.py input_for_Laura`.  
-2. Visualize the VTK files in the `Output` directory in VisIt or ParaView.
+Various example inputs for different hurricanes are provided in this folder. 
 

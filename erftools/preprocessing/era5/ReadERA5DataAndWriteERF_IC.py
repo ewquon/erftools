@@ -351,9 +351,9 @@ def ReadERA5_3DData(file_path, lambert_conformal):
     dir_path = "Output"
     os.makedirs(dir_path, exist_ok=True)
 
-    output_vtk = "./Output/ERA5_" + date_time_forecast_str + ".vtk"
+    output_vtk = "./Output/VTK/3D/ERA5Domain/ERA5_" + date_time_forecast_str + ".vtk"
 
-    output_binary = "./Output/ERF_IC_" + date_time_forecast_str + ".bin"
+    output_binary = "./Output/ERA5Data_3D/ERF_IC_" + date_time_forecast_str + ".bin"
 
     write_binary_vtk_structured_grid(output_vtk, x_grid, y_grid, z_grid,
                                      nz, k_to_delete, True,

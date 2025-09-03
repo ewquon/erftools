@@ -355,34 +355,34 @@ def write_binary_vtk_cartesian(date_time_forecast_str, output_binary, domain_lat
     x2 = 0.0
     y2 = 0.0
 
-	if point_data:
-		for name, data in point_data.items():
-			if name in scalars_to_plot:  # Check if the name exists in the scalars dictionary
-				print("name is", name);
-				for j in range(ny_erf):
-					for i in range(nx_erf):
-						lon, lat = transformer.transform(x_grid_erf[j,i], y_grid_erf[j,i])
-						lon_idx, lat_idx = find_latlon_indices(domain_lons, domain_lats, 360.0+lon, lat)
-						lat_erf[i,j,0] = lat;
-						lon_erf[i,j,0] = lon;
-						#if(lat_idx > 110):
-						#	print("Lat value out of range", lat_idx, lon_idx, x_grid_erf[i,j], y_grid_erf[i,j])
-						#	sys.exit()
-						#print("The values of lat and lon are", x_grid_erf[i,j], y_grid_erf[i,j], lon, lat, lon_idx, lat_idx)
-						#sys.exit()
-						kcount = 1
-						for k in range(nz):  # Iterate over the z-dimension
-							if nz-1-k in k_to_delete:
-								continue
-							if(name == "latitude"):
-								scalars_to_plot[name][i,j,kcount] = lat;
-								#print("Reaching here lat", lat)
-							elif(name == "longitude"):
-								scalars_to_plot[name][i,j,kcount] = lon;	
-								#print("Reaching here lon", lon)
-							else:
-								scalars_to_plot[name][i,j,kcount] = (data[nx-1-lat_idx, lon_idx, nz-1-k] + data[nx-1-lat_idx, lon_idx-1, nz-1-k] +
-														 data[nx-1-lat_idx+1, lon_idx-1, nz-1-k] + data[nx-1-lat_idx+1, lon_idx, nz-1-k])/4.0
+    if point_data:
+        for name, data in point_data.items():
+            if name in scalars_to_plot:  # Check if the name exists in the scalars dictionary
+                print("name is", name);
+                for j in range(ny_erf):
+                    for i in range(nx_erf):
+                        lon, lat = transformer.transform(x_grid_erf[j,i], y_grid_erf[j,i])
+                        lon_idx, lat_idx = find_latlon_indices(domain_lons, domain_lats, 360.0+lon, lat)
+                        lat_erf[i,j,0] = lat;
+                        lon_erf[i,j,0] = lon;
+                        #if(lat_idx > 110):
+                        #    print("Lat value out of range", lat_idx, lon_idx, x_grid_erf[i,j], y_grid_erf[i,j])
+                        #    sys.exit()
+                        #print("The values of lat and lon are", x_grid_erf[i,j], y_grid_erf[i,j], lon, lat, lon_idx, lat_idx)
+                        #sys.exit()
+                        kcount = 1
+                        for k in range(nz):  # Iterate over the z-dimension
+                            if nz-1-k in k_to_delete:
+                                continue
+                            if(name == "latitude"):
+                                scalars_to_plot[name][i,j,kcount] = lat;
+                                #print("Reaching here lat", lat)
+                            elif(name == "longitude"):
+                                scalars_to_plot[name][i,j,kcount] = lon;    
+                                #print("Reaching here lon", lon)
+                            else:
+                                scalars_to_plot[name][i,j,kcount] = (data[nx-1-lat_idx, lon_idx, nz-1-k] + data[nx-1-lat_idx, lon_idx-1, nz-1-k] +
+                                                         data[nx-1-lat_idx+1, lon_idx-1, nz-1-k] + data[nx-1-lat_idx+1, lon_idx, nz-1-k])/4.0
 
                         lat0 = domain_lats[lat_idx-1]
                         lat1 = domain_lats[lat_idx]

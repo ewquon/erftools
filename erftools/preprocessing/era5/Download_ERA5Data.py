@@ -2,7 +2,7 @@ import cdsapi
 import os
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor
-
+from mpi4py import MPI
 
 def read_user_input(filename):
     data = {}
@@ -39,7 +39,7 @@ def download_one_timestep(cds_client, dataset, request, output_filename, idx):
     print(f"[{idx}] Done: {output_filename}")
 
 
-def Download_ERA5_ForecastData(inputs_file):
+def Download_ERA5_ForecastData(inputs_file, forecast_time, interval):
     user_inputs = read_user_input(inputs_file)
 
     dataset = "reanalysis-era5-pressure-levels"
@@ -73,15 +73,30 @@ def Download_ERA5_ForecastData(inputs_file):
         int(user_inputs["time"].split(":")[0])
     )
 
-    timestamps = generate_timestamps(start_time)
+    timestamps = generate_timestamps(start_time, forecast_time, interval)
+
+     # MPI setup
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    size = comm.Get_size()
 
     cds_client = cdsapi.Client()
     filenames = []
 
-    with ThreadPoolExecutor(max_workers=4) as executor:
-        for idx, dt in enumerate(timestamps):
-            y, m, d, h = dt.strftime("%Y"), dt.strftime("%m"), dt.strftime("%d"), dt.strftime("%H:%M")
-            request = {
+    max_download_ranks = 4   # only allow 4 ranks to download
+    active_ranks = min(size, max_download_ranks)
+
+    for idx, dt in enumerate(timestamps):
+        # Assign only among the active ranks
+        if (idx % active_ranks) != rank:
+            continue
+
+        if rank >= active_ranks:
+            # This rank is idle for downloading
+            continue
+
+        y, m, d, h = dt.strftime("%Y"), dt.strftime("%m"), dt.strftime("%d"), dt.strftime("%H:%M")
+        request = {
                 "product_type": "reanalysis",
                 "variable": variables,
                 "pressure_level": pressure_levels,
@@ -92,10 +107,9 @@ def Download_ERA5_ForecastData(inputs_file):
                 "format": "grib",
                 "area": area,
             }
-
-            fname = f"era5_{y}{m}{d}_{h.replace(':', '')}.grib"
-            filenames.append(fname)
-            executor.submit(download_one_timestep, cds_client, dataset, request, fname, idx)
+        fname = f"era5_3d_{y}{m}{d}_{h.replace(':', '')}.grib"
+        filenames.append(fname)
+        download_one_timestep(cds_client, dataset, request, fname, idx)
 
     return filenames, area
 

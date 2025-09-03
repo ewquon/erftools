@@ -38,7 +38,7 @@ def p_sat(temp):
 
     return ps
 
-def ReadGFS_3DData(file_path, area, lambert_conformal):
+def ReadGFS_3DData_UVW(file_path, area, lambert_conformal):
     # Open the GRIB2 file
     pressure_levels = []
     ght_3d_hr3 = []
@@ -76,44 +76,44 @@ def ReadGFS_3DData(file_path, area, lambert_conformal):
                 printed_time = True
 
             #print(f"Variable: {grb.name}, Level: {grb.level}, Units: {grb.parameterUnits}")
-            if "Temperature" in grb.name:
+            if "Temperature" in grb.name and grb.typeOfLevel == "isobaricInhPa":
                 # Append temperature values
                 temp_3d_hr3.append(grb.values)
 
                 # Append pressure level
                 pressure_levels.append(grb.level)
 
-            if "Geopotential height" in grb.name:
+            if "Geopotential height" in grb.name and grb.typeOfLevel == "isobaricInhPa":
                 ght_3d_hr3.append(grb.values)
 
-            if "Potential temperature" in grb.name:
+            if "Potential temperature" in grb.name and grb.typeOfLevel == "isobaricInhPa":
                 theta_3d_hr3.append(grb.values)
 
-            if "Pressure" in grb.name:
+            if "Pressure" in grb.name and grb.typeOfLevel == "isobaricInhPa":
                 pressure_3d_hr3.append(grb.values)
 
-            if "U component of wind" in grb.name:
+            if "U component of wind" in grb.name and grb.typeOfLevel == "isobaricInhPa":
                 uvel_3d_hr3.append(grb.values)
 
-            if "V component of wind" in grb.name:
+            if "V component of wind" in grb.name and grb.typeOfLevel == "isobaricInhPa":
                 vvel_3d_hr3.append(grb.values)
 
-            if "Geometric vertical velocity" in grb.name:
+            if "Geometric vertical velocity" in grb.name and grb.typeOfLevel == "isobaricInhPa":
                 wvel_3d_hr3.append(grb.values)
 
-            if "Specific humidity" in grb.name:
+            if "Specific humidity" in grb.name and grb.typeOfLevel == "isobaricInhPa":
                 qv_3d_hr3.append(grb.values)
 
-            if "Cloud mixing ratio" in grb.name:
+            if "Cloud mixing ratio" in grb.name and grb.typeOfLevel == "isobaricInhPa":
                 qc_3d_hr3.append(grb.values)
 
-            if "Rain mixing ratio" in grb.name:
+            if "Rain mixing ratio" in grb.name and grb.typeOfLevel == "isobaricInhPa":
                 qr_3d_hr3.append(grb.values)
 
-            if "Relative humidity" in grb.name:
+            if "Relative humidity" in grb.name and grb.typeOfLevel == "isobaricInhPa":
                 rh_3d_hr3.append(grb.values)
 
-            if "Absolute vorticity" in grb.name:
+            if "Absolute vorticity" in grb.name and grb.typeOfLevel == "isobaricInhPa":
                 vort_3d_hr3.append(grb.values)
 
             # Retrieve latitude and longitude grids (once)
@@ -126,19 +126,19 @@ def ReadGFS_3DData(file_path, area, lambert_conformal):
     vvel_3d_hr3 = np.stack(vvel_3d_hr3, axis=0)
     wvel_3d_hr3 = np.stack(wvel_3d_hr3, axis=0)
     #theta_3d_hr3 = np.stack(theta_3d_hr3, axis=0)
-    qv_3d_hr3 = np.stack(qv_3d_hr3, axis=0)
-    qc_3d_hr3 = np.stack(qc_3d_hr3, axis=0)
-    qr_3d_hr3 = np.stack(qr_3d_hr3, axis=0)
-    rh_3d_hr3 = np.stack(rh_3d_hr3, axis=0)
-    temp_3d_hr3 = np.stack(temp_3d_hr3, axis=0)
-    vort_3d_hr3 = np.stack(vort_3d_hr3, axis=0)
-
 
         
 
     #pressure_3d_hr3 = np.stack(pressure_3d_hr3, axis=0)
     # Get the size of each dimension
-    dim1, dim2, dim3 = ght_3d_hr3.shape
+    dim1, dim2, dim3 = uvel_3d_hr3.shape
+
+    qv_3d_hr3   = np.zeros_like(uvel_3d_hr3)
+    qc_3d_hr3   = np.zeros_like(uvel_3d_hr3)
+    qr_3d_hr3   = np.zeros_like(uvel_3d_hr3)
+    rh_3d_hr3   = np.zeros_like(uvel_3d_hr3)
+    temp_3d_hr3 = np.zeros_like(uvel_3d_hr3)
+    vort_3d_hr3 = np.zeros_like(uvel_3d_hr3)
 
     # Print the sizes
     print(f"Size of dimension 1: {dim1}")
@@ -198,6 +198,8 @@ def ReadGFS_3DData(file_path, area, lambert_conformal):
 
     print("Size of rh_3d_hr3 is ", rh_3d_hr3.shape[0])
 
+    # Number of levels in the z-direction
+    nz = 0
 
     prev_mean = np.mean(ght_3d_hr3[0])  # start from the top level
     for k in range(1, ght_3d_hr3.shape[0]):
@@ -205,18 +207,14 @@ def ReadGFS_3DData(file_path, area, lambert_conformal):
         print("Val is", k, current_mean)
         if current_mean >= prev_mean:
             nz_admissible = k
+            nz = nz_admissible
             print(f"Mean starts increasing at index {k}")
             break
         prev_mean = current_mean
     else:
+        nz = dim1
         print("Means are strictly decreasing through all levels.")
 
-    # GFS does not store the data of velocities on the bottom 2 levels
-    # Hence doing this. This was identified by using the grb.typeLevel="isobaricInhPA"
-    # when extracting the data in the loop above (in addition to using grb.name)
-    # and then pringitng out and seeing that the size of ght_3d_hr3 is 33 
-    # but uvel_3d_hr3 is 31
-    nz = nz_admissible-2
 
     print("The number of lats and lons are levels are %d, %d, %d"%(lats.shape[0], lats.shape[1], nz));
 
@@ -328,13 +326,13 @@ def ReadGFS_3DData(file_path, area, lambert_conformal):
 
         #pressure_3d[:, :, k] = (temp_3d[:, :, k]/theta_3d[:, :, k])**(1004.5/287.0)*1000.0
         #pressure_3d[:, :, k] = 0.622*pv/qv_3d[:, :, k] + pv
-        #pressure_3d[:, :, k] = 1000.0*np.exp(-const_g*(np.mean(z_grid[:,:,k])-0.0)/(287*temp_3d[:, :, k]*(1.0+1.6*qv_3d[:, :, k])))
+        pressure_3d[:, :, k] = 1000.0*np.exp(-const_g*(np.mean(z_grid[:,:,k])-0.0)/(287*temp_3d[:, :, k]*(1.0+1.6*qv_3d[:, :, k])))
 
         # Assuming quantities at surface is same as the first cell
-        if(k==nz-1):
-            pressure_3d[:, :, k] = 1000.0 - 1000.0/(287*temp_3d[:, :, k]*(1.0+1.6*qv_3d[:, :, k]))*const_g*z_grid[:,:,k]
-        else:
-            pressure_3d[:, :, k] = pressure_3d[:, :, k+1] - pressure_3d[:, :, k+1]/(287*temp_3d[:, :, k+1]*(1.0+1.6*qv_3d[:, :, k+1]))*const_g*(z_grid[:,:,k]-z_grid[:,:,k+1])
+        #if(k==nz-1):
+        #    pressure_3d[:, :, k] = 1000.0 - 1000.0/(287*temp_3d[:, :, k]*(1.0+1.6*qv_3d[:, :, k]))*const_g*z_grid[:,:,k]
+        #else:
+        #    pressure_3d[:, :, k] = pressure_3d[:, :, k+1] - pressure_3d[:, :, k+1]/(287*temp_3d[:, :, k+1]*(1.0+1.6*qv_3d[:, :, k+1]))*const_g*(z_grid[:,:,k]-z_grid[:,:,k+1])
 
         qsat_3d[:,:,k] = 0.622*ps/(pressure_3d[:, :, k]-ps)
 

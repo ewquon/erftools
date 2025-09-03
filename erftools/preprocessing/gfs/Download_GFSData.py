@@ -35,7 +35,7 @@ def generate_urls_for_24_hours(data):
     urls = []
     filenames = []
     # 24 hours / 3 = 8 forecast times: 0,3,6,...,21
-    for fhour in range(0, 48, 3):
+    for fhour in range(0, 123, 3):
         fhour_str = f"f{fhour:03d}"
         filename = f"gfs.0p25.{yyyymmddhh}.{fhour_str}.grib2"
         url = f"https://data-osdf.rda.ucar.edu/ncar/rda/d084001/{year}/{yyyymmdd}/{filename}"

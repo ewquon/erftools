@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 from erftools.preprocessing import Download_GFS_Data
 from erftools.preprocessing import Download_GFS_ForecastData
 from erftools.preprocessing import ReadGFS_3DData
+from erftools.preprocessing import ReadGFS_3DData_UVW
 
 from pyproj import CRS, Transformer
 from numpy import *
@@ -163,3 +164,4 @@ if __name__ == "__main__":
         print("Filename is ", filename)
         print(f"Processing file: {filename}")
         ReadGFS_3DData(filename, area, lambert_conformal)
+        #ReadGFS_3DData_UVW(filename, area, lambert_conformal)
