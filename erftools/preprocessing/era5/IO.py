@@ -4,7 +4,8 @@ import os
 from pyproj import Proj, Transformer, CRS
 from math import *
 
-from erftools.utils.projection import calculate_utm_zone
+from erftools.utils.latlon import (find_erf_domain_extents,
+                                   find_latlon_indices)
 
 def write_binary_simple_ERF(output_binary, lat_erf, lon_erf, x_grid, y_grid, z_grid, point_data):
 
@@ -181,109 +182,12 @@ def write_binary_vtk_cartesian_file(filename, x_grid, y_grid, z_grid,
                             f.write(struct.pack('>f', value))
 
 
-def find_latlon_indices(domain_lons, domain_lats, lon, lat):
-    nlats = len(domain_lats)
-    nlons = len(domain_lons)
-    lat_idx = 0
-    lon_idx = 0
-    for i in range(0,nlats):
-        if(lat < domain_lats[i]):
-            lat_idx = i
-            break
-
-    for j in range(0,nlons):
-        if(lon < domain_lons[j]):
-            lon_idx = j
-            break
-
-    return lon_idx, lat_idx
-
-def find_erf_domain_extents(x_grid, y_grid, nx, ny):
-
-    # Need to determine the box extents of the cartesian box
-    # (xmin, xmax), (y_min, y_max) that fits
-    # in this region. Currently this method only works for the
-    # northern hemisphere
-
-
-    # Top is  [nx-1,:]
-    # Bpttom is [0,:]
-    # Left is [:,0]
-    # Right is [:,ny-1]
-    #print(x_grid[0,:])
-
-    ymax = min(y_grid[nx-1,:]) - 100e3;
-    #print("Value of ymin is ", ymax);
-
-    # Intersect it with the leftmost longitude and
-    # rightmost longitude
-
-    # Leftmost longitude is the line joined by
-    # x1,y1 = x_grid[0,-1], y_grid[0,-1]
-    # x2, y2 = x_grid[nx-1,-1], y_grid[nx-1,-1]
-
-    #print("Values are ", x_grid[0,-1], y_grid[0,-1], x_grid[-1,-1], y_grid[-1,-1])
-
-    i1 = 0
-    for i in range(0, nx-1):
-        if(y_grid[i,-1] < ymax and y_grid[i+1,-1] > ymax):
-            i1 = i
-            break
-
-    xmax = min(x_grid[i1,-1], x_grid[0,-1])    - 100e3
-
-    for i in range(0, nx-1):
-        if(y_grid[i,0] < ymax and y_grid[i+1,0] > ymax):
-            i1 = i
-            break
-    xmin = max(x_grid[i1,0], x_grid[0,0]) + 100e3
-
-    for i in range(0, ny-1):
-        if(x_grid[0,i] < xmax and x_grid[0,i+1] > xmax):
-            i1 = i
-            break
-    y1 = y_grid[0,i1];
-
-    for i in range(0, ny-1):
-        if(x_grid[0,i] < xmin and x_grid[0,i+1] > xmin):
-            i1 = i
-            break
-
-    y2 = y_grid[0,i1]
-
-    ymin = max(y1,y2) + 100e3
-
-    filename = "Output/domain_extents.txt"
-
-    try:
-        # Use exclusive creation mode ("x") so only one rank succeeds
-        with open(filename, "x") as f:
-            print("geometry.prob_lo  =",
-                   np.ceil(xmin + 50e3),
-                   np.ceil(ymin + 50e3),
-                   0.0,
-                   file=f)
-            print("geometry.prob_hi  =",
-                   np.floor(xmax - 50e3),
-                   np.floor(ymax - 50e3),
-                   25000.0,
-                   file=f)
-    except FileExistsError:
-        # Another rank already wrote the file — just skip
-        pass
-
-    return xmin, xmax, ymin, ymax
-
-
 def write_binary_vtk_cartesian(date_time_forecast_str, output_binary, domain_lats, domain_lons,
                                x_grid, y_grid, z_grid, nx, ny, nz,
                                k_to_delete, lambert_conformal, point_data=None):
 
-
-
-    xmin, xmax, ymin, ymax = find_erf_domain_extents(x_grid, y_grid, nx, ny)
-    #print("xmin, xmax, ymin, ymax are ", xmin, xmax, ymin, ymax);
-
+    xmin, xmax, ymin, ymax = find_erf_domain_extents(x_grid, y_grid, nx, ny,
+                                                     outfile='Output/domain_extents.txt')
 
     print("Value of nx and ny are ", nx, ny)
 
@@ -361,7 +265,6 @@ def write_binary_vtk_cartesian(date_time_forecast_str, output_binary, domain_lat
     uvel_3d = point_data["uvel"]
     vvel_3d = point_data["vvel"]
 
-    
     print("Values of nx_erf and ny_erf are", nx_erf, ny_erf);
     print("Shapes of xgrid and ygrid are", x_grid.shape, y_grid.shape);
     print("Shapes of xgrid_erf and ygrid_erf are", x_grid_erf.shape, y_grid_erf.shape);
