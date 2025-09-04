@@ -32,21 +32,26 @@ dependencies = [
     "netcdf4>=1.7.2",
     "pydantic",
     "f90nml",
-    "cartopy",
 ]
 
 [project.optional-dependencies]
 dev = [
     "jupyter",
     "matplotlib",
-    "dask>=2024.8.0",
 ]
-preprocessing = [
+performance = [
+    "dask>=2024.8.0",
+    "mpi4py>=4.1.0",
+]
+grib = [
+    "pygrib>=2.1.6",
     "cdsapi>=0.7.6",
     "herbie-data>=2024.8.0",
+    "cartopy>=0.23.0",
+    "pyproj>=3.6.1",
 ]
 all = [
-    "erftools[dev,preprocessing]"
+    "erftools[dev,performance,grib]"
 ]
 
 [tool.setuptools]
