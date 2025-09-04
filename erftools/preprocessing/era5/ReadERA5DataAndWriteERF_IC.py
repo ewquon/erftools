@@ -7,7 +7,7 @@ import sys
 import os
 from scipy.interpolate import interp1d
 
-from erftools.preprocessing import write_binary_vtk_structured_grid
+from erftools.io import write_binary_vtk_structured_grid
 from erftools.preprocessing import write_binary_vtk_cartesian
 from erftools.preprocessing import plot_1d
 
@@ -333,9 +333,11 @@ def ReadERA5_3DData(file_path, lambert_conformal):
 
     output_binary = "./Output/ERA5Data_3D/ERF_IC_" + date_time_forecast_str + ".bin"
 
-    write_binary_vtk_structured_grid(output_vtk, x_grid, y_grid, z_grid,
+    write_binary_vtk_structured_grid(output_vtk,
+                                     x_grid, y_grid, z_grid,
                                      nz, k_to_delete, True,
-                                     scalars, velocity)
+                                     point_data=scalars,
+                                     velocity=velocity)
 
     write_binary_vtk_cartesian(date_time_forecast_str, output_binary, domain_lats, domain_lons,
                                x_grid, y_grid, z_grid,
