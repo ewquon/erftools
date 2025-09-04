@@ -13,7 +13,6 @@ from erftools.preprocessing import Download_ERA5_ForecastSurfaceData
 from erftools.preprocessing import ReadERA5_3DData
 from erftools.preprocessing import ReadERA5_SurfaceData
 
-from pyproj import CRS, Transformer
 from numpy import *
 import time
 
@@ -24,7 +23,7 @@ def CreateLCCMapping(area):
     lon1 = area[1]
     lon2 = area[3]
 
-    # Build CRS
+    # Build CRS string
     delta = lat2 - lat1
     lon0 = (lon1 + lon2) / 2
     lat0 = (lat1 + lat2) / 2
@@ -95,6 +94,9 @@ if __name__ == "__main__":
         print("Running surface download + processing...")
         filenames, area = Download_ERA5_SurfaceData(input_filename)
     comm.Barrier();
+
+    #lambert_conformal = CRS.from_proj4(
+    #    "+proj=lcc +lat_1=30 +lat_2=60 +lat_0=38.5 +lon_0=-97 +datum=WGS84 +units=m +no_defs")
 
     lambert_conformal = CreateLCCMapping(area)
 

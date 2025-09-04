@@ -9,7 +9,7 @@ from erftools.preprocessing import Download_GFS_ForecastData
 from erftools.preprocessing import ReadGFS_3DData
 from erftools.preprocessing import ReadGFS_3DData_UVW
 
-from pyproj import CRS, Transformer
+from pyproj import Transformer
 from numpy import *
 
 def CreateLCCMapping(area):
@@ -19,7 +19,7 @@ def CreateLCCMapping(area):
     lon1 = area[1]
     lon2 = area[3]
 
-    # Build CRS
+    # Build CRS string
     delta = lat2 - lat1
     lon0 = (lon1 + lon2) / 2
     lat0 = (lat1 + lat2) / 2
@@ -96,11 +96,10 @@ def WriteUSMapVTKFile(area):
     utm_x = []
     utm_y = []
 
-    lambert_conformal = CreateLCCMapping(area)
-
     #lambert_conformal = CRS.from_proj4(
-    #    "+proj=lcc +lat_1=30 +lat_2=60 +lat_0=38.5 +lon_0=-97 +datum=WGS84 +units=m +no_defs"
-    #)
+    #    "+proj=lcc +lat_1=30 +lat_2=60 +lat_0=38.5 +lon_0=-97 +datum=WGS84 +units=m +no_defs")
+
+    lambert_conformal = CreateLCCMapping(area)
 
     # Create transformer FROM geographic (lon/lat) TO Lambert
     transformer = Transformer.from_crs("EPSG:4326", lambert_conformal, always_xy=True)
