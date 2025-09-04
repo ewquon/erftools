@@ -10,9 +10,14 @@ from erftools.io import (write_binary_simple_erf,
                          write_binary_vtk_on_cartesian_grid)
 
 
-def write_binary_vtk_cartesian(date_time_forecast_str, output_binary, domain_lats, domain_lons,
-                               x_grid, y_grid, z_grid, nx, ny, nz,
-                               k_to_delete, lambert_conformal, point_data=None):
+def write_binary_vtk_cartesian(date_time_forecast_str,
+                               output_binary,
+                               domain_lats, domain_lons,
+                               x_grid, y_grid, z_grid,
+                               nx, ny, nz,
+                               k_to_delete,
+                               lambert_conformal,
+                               point_data=None):
 
     xmin, xmax, ymin, ymax = find_erf_domain_extents(x_grid, y_grid, nx, ny)
 
@@ -47,7 +52,7 @@ def write_binary_vtk_cartesian(date_time_forecast_str, output_binary, domain_lat
     qr_erf = np.zeros((nx_erf, ny_erf, nz_erf))
     theta_erf = np.zeros((nx_erf, ny_erf, nz_erf))
 
-    lat_erf = np.zeros((nx_erf,ny_erf,nz_erf))    
+    lat_erf = np.zeros((nx_erf,ny_erf,nz_erf))
     lon_erf = np.zeros((nx_erf,ny_erf,nz_erf))
 
     scalars = {
@@ -104,14 +109,11 @@ def write_binary_vtk_cartesian(date_time_forecast_str, output_binary, domain_lat
                 for j in range(ny_erf):
                     for i in range(nx_erf):
                         lon, lat = transformer.transform(x_grid_erf[j,i], y_grid_erf[j,i])
-                        lon_idx, lat_idx = find_latlon_indices(domain_lons, domain_lats, 360.0+lon, lat)
-                        lat_erf[i,j,0] = lat;
-                        lon_erf[i,j,0] = lon;
-                        #if(lat_idx > 110):
-                        #    print("Lat value out of range", lat_idx, lon_idx, x_grid_erf[i,j], y_grid_erf[i,j])
-                        #    sys.exit()
-                        #print("The values of lat and lon are", x_grid_erf[i,j], y_grid_erf[i,j], lon, lat, lon_idx, lat_idx)
-                        #sys.exit()
+                        lon_idx, lat_idx = find_latlon_indices(domain_lons,
+                                                               domain_lats,
+                                                               360.0+lon, lat)
+                        lat_erf[i,j,0] = lat
+                        lon_erf[i,j,0] = lon
                         kcount = 1
                         for k in range(nz):  # Iterate over the z-dimension
                             if nz-1-k in k_to_delete:
@@ -120,7 +122,7 @@ def write_binary_vtk_cartesian(date_time_forecast_str, output_binary, domain_lat
                                 scalars_to_plot[name][i,j,kcount] = lat;
                                 #print("Reaching here lat", lat)
                             elif(name == "longitude"):
-                                scalars_to_plot[name][i,j,kcount] = lon;    
+                                scalars_to_plot[name][i,j,kcount] = lon;
                                 #print("Reaching here lon", lon)
                             else:
                                 scalars_to_plot[name][i,j,kcount] = (data[nx-1-lat_idx, lon_idx, nz-1-k] + data[nx-1-lat_idx, lon_idx-1, nz-1-k] +
@@ -134,7 +136,6 @@ def write_binary_vtk_cartesian(date_time_forecast_str, output_binary, domain_lat
                         # fractional distances
                         fx = (360.0 + lon - lon0) / (lon1 - lon0)
                         fy = (lat - lat0) / (lat1 - lat0)
-
 
                         if(i < nx_erf-1):
                             x1 = x_grid[j,i]
@@ -159,13 +160,14 @@ def write_binary_vtk_cartesian(date_time_forecast_str, output_binary, domain_lat
                                 scalars_to_plot[name][i,j,kcount] = lat;
                                 #print("Reaching here lat", lat)
                             elif(name == "longitude"):
-                                scalars_to_plot[name][i,j,kcount] = lon;    
+                                scalars_to_plot[name][i,j,kcount] = lon;
                                 #print("Reaching here lon", lon)
                             elif(name == "uvel" or name == "vvel"):
                                 u_tmp = (fx*fy*uvel_3d[nx-1-lat_idx, lon_idx, nz-1-k] + fx*(1-fy)*uvel_3d[nx-1-lat_idx, lon_idx-1, nz-1-k] +
                                                          (1-fx)*(1-fy)*uvel_3d[nx-1-lat_idx+1, lon_idx-1, nz-1-k] + (1-fx)*fy*uvel_3d[nx-1-lat_idx+1, lon_idx, nz-1-k])
                                 v_tmp = (fx*fy*vvel_3d[nx-1-lat_idx, lon_idx, nz-1-k] + fx*(1-fy)*vvel_3d[nx-1-lat_idx, lon_idx-1, nz-1-k] +
                                                          (1-fx)*(1-fy)*vvel_3d[nx-1-lat_idx+1, lon_idx-1, nz-1-k] + (1-fx)*fy*vvel_3d[nx-1-lat_idx+1, lon_idx, nz-1-k])
+
                                 if(name == "uvel"):
                                     scalars_to_plot[name][i,j,kcount] = u_tmp*cos(theta) - v_tmp*sin(theta)
                                 elif(name == "vvel"):
@@ -173,7 +175,7 @@ def write_binary_vtk_cartesian(date_time_forecast_str, output_binary, domain_lat
                             else:
                                 scalars_to_plot[name][i,j,kcount] = (fx*fy*data[nx-1-lat_idx, lon_idx, nz-1-k] + fx*(1-fy)*data[nx-1-lat_idx, lon_idx-1, nz-1-k] +
                                                          (1-fx)*(1-fy)*data[nx-1-lat_idx+1, lon_idx-1, nz-1-k] + (1-fx)*fy*data[nx-1-lat_idx+1, lon_idx, nz-1-k])
-                        
+
                             if(name != "latitude" and name != "longitude"):
                                 scalars[name][i,j,kcount] = scalars_to_plot[name][i,j,kcount]
 
@@ -182,7 +184,7 @@ def write_binary_vtk_cartesian(date_time_forecast_str, output_binary, domain_lat
                         scalars_to_plot[name][i,j,0] = scalars_to_plot[name][i,j,1]
                         if(name != "latitude" and name != "longitude"):
                             scalars[name][i,j,0] = scalars[name][i,j,1]
-                                
+
             else:
                 print("Variable not found in scalars list", name)
                 #sys.exit()
