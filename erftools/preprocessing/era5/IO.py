@@ -7,7 +7,7 @@ from math import *
 from erftools.utils.latlon import (find_erf_domain_extents,
                                    find_latlon_indices)
 from erftools.io import (write_binary_simple_erf,
-                         write_binary_vtk_cartesian_file)
+                         write_binary_vtk_on_cartesian_grid)
 
 
 def write_binary_vtk_cartesian(date_time_forecast_str, output_binary, domain_lats, domain_lons,
@@ -183,8 +183,13 @@ def write_binary_vtk_cartesian(date_time_forecast_str, output_binary, domain_lat
                 #sys.exit()
     output_cart_vtk = "./Output/VTK/3D/ERFDomain/" + "ERF_IC_" + date_time_forecast_str +".vtk"
 
-    tmp = []
-    print("Writing write_binary_vtk_cartesian_file")
-    write_binary_vtk_cartesian_file(output_cart_vtk, x_grid_erf, y_grid_erf, z_grid_erf, nz_erf, tmp, False, scalars_to_plot)
+    print("Writing write_binary_vtk_on_cartesian_grid")
+    write_binary_vtk_on_cartesian_grid(output_cart_vtk,
+                                       x_grid_erf, y_grid_erf, z_grid_erf,
+                                       point_data=scalars_to_plot)
+
     print("Writing write_binary_simple_erf")
-    write_binary_simple_erf(output_binary, lat_erf, lon_erf, x_grid_erf, y_grid_erf, z_grid_erf, scalars)
+    write_binary_simple_erf(output_binary,
+                            lat_erf, lon_erf,
+                            x_grid_erf, y_grid_erf, z_grid_erf,
+                            scalars)

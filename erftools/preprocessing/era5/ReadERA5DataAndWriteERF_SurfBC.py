@@ -15,7 +15,7 @@ import time
 
 from erftools.utils.latlon import (find_erf_domain_extents,
                                    find_latlon_indices)
-from erftools.io import write_binary_vtk_structured_grid
+from erftools.io import write_binary_vtk_on_native_grid
 
 def CreateLCCMapping(area):
 
@@ -194,9 +194,13 @@ def write_binary_vtk_cartesian(date_time_forecast_str, output_binary, domain_lat
 
     output_cart_vtk = "./Output/VTK/Surface/ERFDomain/" + "ERF_Surface_Cart_" + date_time_forecast_str +".vtk"
 
-    tmp = []    
-    write_binary_vtk_cartesian_file(output_cart_vtk, x_grid_erf, y_grid_erf, z_grid_erf, nz_erf, tmp, False, scalars)    
-    write_binary_simple_ERF(output_binary, x_grid_erf, y_grid_erf, z_grid_erf, scalars)
+    write_binary_vtk_on_cartesian_grid(output_cart_vtk,
+                                       x_grid_erf, y_grid_erf, z_grid_erf,
+                                       scalars)    
+
+    write_binary_simple_ERF(output_binary,
+                            x_grid_erf, y_grid_erf, z_grid_erf,
+                            scalars)
 
 def ReadERA5_SurfaceData(file_path, lambert_conformal):
     # Open the GRIB2 file
@@ -339,12 +343,12 @@ def ReadERA5_SurfaceData(file_path, lambert_conformal):
 
     output_binary = "./Output/ERA5Data_Surface/ERF_Surface_" + date_time_forecast_str + ".bin"
     
-    write_binary_vtk_structured_grid(output_vtk,
-                                     x_grid, y_grid, z_grid,
-                                     nz, k_to_delete, True,
-                                     skip_latlon=False,
-                                     zoffset=1e-6,
-                                     point_data=scalars)
+    write_binary_vtk_on_native_grid(output_vtk,
+                                    x_grid, y_grid, z_grid,
+                                    k_to_delete=k_to_delete,
+                                    skip_latlon=False,
+                                    zoffset=1e-6,
+                                    point_data=scalars)
 
     write_binary_vtk_cartesian(date_time_forecast_str, output_binary, domain_lats, domain_lons, 
                                x_grid, y_grid, z_grid, 
