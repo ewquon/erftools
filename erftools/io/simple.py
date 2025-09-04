@@ -2,9 +2,9 @@ import numpy as np
 import struct
 
 def write_binary_simple_erf(output_binary,
-                            lat_erf, lon_erf,
                             x_grid, y_grid, z_grid,
-                            point_data):
+                            lat_erf=None, lon_erf=None,
+                            point_data=None):
 
     x_grid = np.asarray(x_grid)
     y_grid = np.asarray(y_grid)
@@ -16,13 +16,15 @@ def write_binary_simple_erf(output_binary,
     with open(output_binary, "wb") as file:
         file.write(struct.pack('iiii', ncol, nrow, nz, len(point_data)))
 
-        for j in range(nrow):  # Iterate over the y-dimension
-            for i in range(ncol):  # Iterate over the x-dimension
-                file.write(struct.pack('f', lat_erf[i,j,0]))
+        if lat_erf is not None:
+            for j in range(nrow):  # Iterate over the y-dimension
+                for i in range(ncol):  # Iterate over the x-dimension
+                    file.write(struct.pack('f', lat_erf[i,j,0]))
 
-        for j in range(nrow):  # Iterate over the y-dimension
-            for i in range(ncol):  # Iterate over the x-dimension
-                file.write(struct.pack('f', lon_erf[i,j,0]))
+        if lon_erf is not None:
+            for j in range(nrow):  # Iterate over the y-dimension
+                for i in range(ncol):  # Iterate over the x-dimension
+                    file.write(struct.pack('f', lon_erf[i,j,0]))
 
         # Write grid points using a nested for loop
         for i in range(ncol):

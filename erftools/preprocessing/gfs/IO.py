@@ -198,6 +198,6 @@ def write_binary_vtk_cartesian(date_time_forecast_str,
 
     print("Writing write_binary_simple_erf")
     write_binary_simple_erf(output_binary,
-                            lat_erf, lon_erf,
                             x_grid_erf, y_grid_erf, z_grid_erf,
-                            scalars)
+                            lat_erf=lat_erf, lon_erf=lon_erf,
+                            point_data=scalars)

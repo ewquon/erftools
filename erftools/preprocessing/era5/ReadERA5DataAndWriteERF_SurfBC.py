@@ -15,7 +15,9 @@ import time
 
 from erftools.utils.latlon import (find_erf_domain_extents,
                                    find_latlon_indices)
-from erftools.io import write_binary_vtk_on_native_grid
+from erftools.io import (write_binary_vtk_on_native_grid,
+                         write_binary_vtk_on_cartesian_grid,
+                         write_binary_simple_erf)
 
 
 def read_user_input(filename):
@@ -65,41 +67,6 @@ def Download_ERA5_SurfaceData(inputs):
     client = cdsapi.Client()
     filename = client.retrieve(dataset, request).download()
     return [filename], area    
-
-
-def write_binary_simple_ERF(output_binary, x_grid, y_grid, z_grid, point_data):
-    
-    x_grid = np.asarray(x_grid)
-    y_grid = np.asarray(y_grid)
-     # Ensure grids are consistent
-    nrow, ncol = x_grid.shape
-    nz = len(z_grid[0,0,:])
-
-    with open(output_binary, "wb") as file:
-        file.write(struct.pack('iiii', ncol, nrow, nz, len(point_data)))
-
-        
-       # Write grid points using a nested for loop
-        for i in range(ncol):
-            x = x_grid[0, i]
-            file.write(struct.pack('f', x))
-
-        for j in range(nrow):
-            y = y_grid[j, 0]
-            file.write(struct.pack('f', y))
-
-        for k in range(nz):
-            zavg = np.mean(z_grid[:,:,k])
-            file.write(struct.pack('f', zavg))
-
-        # Write point data (if any)
-        if point_data:
-            for name, data in point_data.items():
-                for k in range(nz):  # Iterate over the z-dimension
-                    for j in range(nrow):  # Iterate over the y-dimension
-                        for i in range(ncol):  # Iterate over the x-dimension
-                            value = data[i, j, k]
-                            file.write(struct.pack('f', value))
 
 
 def write_binary_vtk_cartesian(date_time_forecast_str, output_binary, domain_lats, domain_lons, 
@@ -176,9 +143,9 @@ def write_binary_vtk_cartesian(date_time_forecast_str, output_binary, domain_lat
                                        x_grid_erf, y_grid_erf, z_grid_erf,
                                        scalars)    
 
-    write_binary_simple_ERF(output_binary,
+    write_binary_simple_erf(output_binary,
                             x_grid_erf, y_grid_erf, z_grid_erf,
-                            scalars)
+                            point_data=scalars)
 
 def ReadERA5_SurfaceData(file_path, lambert_conformal):
     # Open the GRIB2 file
