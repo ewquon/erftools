@@ -2,7 +2,6 @@ from importlib import resources
 import sys
 import os
 import argparse
-from pyproj import Transformer
 import numpy as np
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
@@ -11,7 +10,7 @@ from erftools.preprocessing import Download_ERA5_Data
 from erftools.preprocessing import Download_ERA5_ForecastData
 from erftools.preprocessing import ReadERA5_3DData
 
-from erftools.utils.projection import create_lcc_mapping
+from erftools.utils.map import write_US_map_vtk
 
 
 def read_user_input(filename):
@@ -31,89 +30,6 @@ def read_user_input(filename):
     return data
 
 
-def write_vtk_states(x, y, count, filename):
-    """
-    Write a VTK file containing borders for all states.
-
-    Parameters:
-        x (list or ndarray): List or array of x-coordinates.
-        y (list or ndarray): List or array of y-coordinates.
-        count (list or ndarray): List or array of state indices corresponding to each (x, y).
-        filename (str): Name of the output VTK file.
-    """
-    x = np.asarray(x)
-    y = np.asarray(y)
-    count = np.asarray(count)
-
-    if len(x) != len(y) or len(x) != len(count):
-        raise ValueError("The length of x, y, and count must be the same.")
-
-    # Open VTK file for writing
-    with open(filename, 'w') as vtk_file:
-        # Write VTK header
-        vtk_file.write("# vtk DataFile Version 3.0\n")
-        vtk_file.write("State borders\n")
-        vtk_file.write("ASCII\n")
-        vtk_file.write("DATASET POLYDATA\n")
-
-        # Group points by state
-        unique_states = np.unique(count)
-        points = []  # List of all points
-        lines = []  # List of all lines
-
-        # Process each state
-        check = 0
-        for state in unique_states:
-            if(check >=0):
-                state_indices = np.where(count == state)[0]  # Indices for this state
-                state_points = [(x[i], y[i]) for i in state_indices]
-                start_idx = len(points)  # Starting index for this state's points
-                points.extend(state_points)
-
-                # Create line segments connecting adjacent points
-                for i in range(len(state_points) - 1):
-                    lines.append((start_idx + i, start_idx + i + 1))
-            check = check+1;
-
-        # Write points
-        vtk_file.write(f"POINTS {len(points)} float\n")
-        for px, py in points:
-            vtk_file.write(f"{px} {py} 1e-12\n")
-
-        # Write lines
-        vtk_file.write(f"LINES {len(lines)} {3 * len(lines)}\n")
-        for p1, p2 in lines:
-            vtk_file.write(f"2 {p1} {p2}\n")
-
-
-def WriteUSMapVTKFile(area):
-    # Main script to process coordinates
-    with resources.open_text('erftools.data', 'state_borders_coordinates.txt') as f:
-        coordinates = np.loadtxt(f)  # Load lon, lat from a file
-    utm_x = []
-    utm_y = []
-
-    lambert_conformal = create_lcc_mapping(area)
-
-    # Create transformer FROM geographic (lon/lat) TO Lambert
-    transformer = Transformer.from_crs("EPSG:4326", lambert_conformal, always_xy=True)
-
-    # Process each latitude and longitude
-    utm_x = []
-    utm_y = []
-    count_vec = []
-
-    for lon, lat, count in coordinates:
-        x, y = transformer.transform(lon, lat)  # Convert (lon, lat) to Lambert
-        utm_x.append(x)
-        utm_y.append(y)
-        count_vec.append(count)
-
-    # Write the shifted UTM coordinates to a VTK file
-    write_vtk_states(utm_x, utm_y, count_vec, "USMap_LambertProj.vtk")
-    return lambert_conformal
-
-
 if __name__ == "__main__":
 
      # --- Parse arguments ---
@@ -131,5 +47,5 @@ if __name__ == "__main__":
     print("User inputs:", user_inputs)
     area = user_inputs.get("area", None)
 
-    lambert_conformal = WriteUSMapVTKFile(area)
+    lambert_conformal = write_US_map_vtk(area)
 
