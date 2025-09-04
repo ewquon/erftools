@@ -71,12 +71,15 @@ def construct_url_filename(inp, product):
 def Download_GFS_Data(inputs, product='forecast'):
     inp = read_user_input(inputs)
     lat_max, lon_min, lat_min, lon_max = inp.get('area')
+    area = [lat_max, lon_min, lat_min, lon_max]
 
     url, filename = construct_url_filename(inp, product)
+    if os.path.isfile(filename):
+        print('Gribfile found:',filename)
+        return filename, area
 
     print("Download URL:", url)
     print("Filename:", filename)
-
     try:
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
         with urllib.request.urlopen(req) as response, open(filename, 'wb') as out_file:
@@ -86,7 +89,6 @@ def Download_GFS_Data(inputs, product='forecast'):
     else:
         print("Download complete.")
 
-    area = [lat_max, lon_min, lat_min, lon_max]
     return filename, area
 
 def download_one_with_progress(url, filename, position):
