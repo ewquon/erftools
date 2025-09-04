@@ -2,7 +2,7 @@ import numpy as np
 import struct
 import os
 from pyproj import Proj, Transformer, CRS
-from math import *
+from math import sin, cos, atan2
 
 from erftools.utils.latlon import (find_erf_domain_extents,
                                    find_latlon_indices)
