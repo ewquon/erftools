@@ -1,7 +1,8 @@
+from importlib import resources
 import pygrib
 import numpy as np
 import struct
-from pyproj import Proj, Transformer, CRS
+from pyproj import Transformer
 import matplotlib.pyplot as plt
 import sys
 import os
@@ -230,10 +231,8 @@ def ReadGFS_3DData_UVW(file_path, area, lambert_conformal):
 
     print("size is ", len(qv_3d_hr3))
     
-    dirname = "./TypicalAtmosphereData/"
-    pressure_filename = dirname + "pressure_vs_z_actual.txt"
-
-    pressure_typical = np.loadtxt(pressure_filename)
+    with resources.open_text('erftools.data.typical_atmosphere', 'pressure_vs_z_actual.txt') as f:
+        pressure_typical = np.loadtxt(f)
     pressure_interp_func = interp1d(pressure_typical[:,1], pressure_typical[:,0], kind='linear', fill_value="extrapolate")
 
     # Find the index of the desired pressure level

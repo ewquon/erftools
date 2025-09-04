@@ -1,3 +1,4 @@
+from importlib import resources
 import sys
 import os
 import argparse
@@ -71,7 +72,8 @@ def write_vtk_states(x, y, count, filename):
 
 def WriteUSMapVTKFile(area):
     # Main script to process coordinates
-    coordinates = np.loadtxt('StateBordersCoordinates.txt')  # Load lon, lat from a file
+    with resources.open_text('erftools.data', 'state_borders_coordinates.txt') as f:
+        coordinates = np.loadtxt(f)  # Load lon, lat from a file
     utm_x = []
     utm_y = []
 
