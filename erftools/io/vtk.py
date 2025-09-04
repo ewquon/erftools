@@ -159,3 +159,57 @@ def write_binary_vtk_on_cartesian_grid(filename,
             mirrored_x=False,
             top_down=False,
             **kwargs)
+
+
+def write_vtk_map(x, y, ids, filename):
+    """
+    Write an ASCII polydata VTK file containing borders for specified
+    regions.
+
+    Parameters:
+        x (list or ndarray): x coordinates
+        y (list or ndarray): y coordinates
+        ids (list or ndarray): state/country/region indices
+            corresponding to each (x, y)
+        filename (str): Name of the output VTK file.
+    """
+    x = np.asarray(x)
+    y = np.asarray(y)
+    ids = np.asarray(ids)
+
+    if len(x) != len(y) or len(x) != len(ids):
+        raise ValueError("The length of x, y, and ids must be the same.")
+
+    # Open VTK file for writing
+    with open(filename, 'w') as vtk_file:
+        # Write VTK header
+        vtk_file.write("# vtk DataFile Version 3.0\n")
+        vtk_file.write("State borders\n")
+        vtk_file.write("ASCII\n")
+        vtk_file.write("DATASET POLYDATA\n")
+
+        # Group points by region
+        unique_ids = np.unique(ids)
+        points = []  # List of all points
+        lines = []  # List of all lines
+
+        # Process each region
+        for region in unique_ids:
+            region_indices = np.where(ids == region)[0]
+            region_points = [(x[i], y[i]) for i in region_indices]
+            start_idx = len(points)  # Starting index for this region's points
+            points.extend(region_points)
+
+            # Create line segments connecting adjacent points
+            for i in range(len(region_points) - 1):
+                lines.append((start_idx + i, start_idx + i + 1))
+
+        # Write points
+        vtk_file.write(f"POINTS {len(points)} float\n")
+        for px, py in points:
+            vtk_file.write(f"{px} {py} 1e-12\n")
+
+        # Write lines
+        vtk_file.write(f"LINES {len(lines)} {3 * len(lines)}\n")
+        for p1, p2 in lines:
+            vtk_file.write(f"2 {p1} {p2}\n")

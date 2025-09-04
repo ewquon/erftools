@@ -1,6 +1,11 @@
+#from pyproj import CRS
+#default_lambert_conformal = CRS.from_proj4(
+#    "+proj=lcc +lat_1=30 +lat_2=60 +lat_0=38.5 +lon_0=-97 +datum=WGS84 +units=m +no_defs")
+
 def create_lcc_mapping(area):
     """Create a PROJ string describing a Lambert conformal conic (LCC)
-    projection centered in the given area
+    projection centered in the given area described by:
+        (lat_max, lon_min, lat_min, lon_max)
     """
     lat1 = area[2]
     lat2 = area[0]

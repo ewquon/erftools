@@ -47,5 +47,5 @@ if __name__ == "__main__":
     print("User inputs:", user_inputs)
     area = user_inputs.get("area", None)
 
-    lambert_conformal = write_US_map_vtk(area)
+    lambert_conformal = write_US_map_vtk("USMap_LambertProj.vtk", area)
 
