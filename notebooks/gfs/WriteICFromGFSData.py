@@ -1,6 +1,8 @@
 import sys
 import os
 import argparse
+from pyproj import Transformer
+import numpy as np
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
@@ -10,9 +12,6 @@ from erftools.preprocessing import ReadGFS_3DData
 from erftools.preprocessing import ReadGFS_3DData_UVW
 
 from erftools.utils.projection import create_lcc_mapping
-
-from pyproj import Transformer
-from numpy import *
 
 
 def write_vtk_states(x, y, count, filename):
@@ -25,9 +24,9 @@ def write_vtk_states(x, y, count, filename):
         count (list or ndarray): List or array of state indices corresponding to each (x, y).
         filename (str): Name of the output VTK file.
     """
-    x = asarray(x)
-    y = asarray(y)
-    count = asarray(count)
+    x = np.asarray(x)
+    y = np.asarray(y)
+    count = np.asarray(count)
 
     if len(x) != len(y) or len(x) != len(count):
         raise ValueError("The length of x, y, and count must be the same.")
@@ -41,7 +40,7 @@ def write_vtk_states(x, y, count, filename):
         vtk_file.write("DATASET POLYDATA\n")
 
         # Group points by state
-        unique_states = unique(count)
+        unique_states = np.unique(count)
         points = []  # List of all points
         lines = []  # List of all lines
 
@@ -49,7 +48,7 @@ def write_vtk_states(x, y, count, filename):
         check = 0
         for state in unique_states:
             if(check >=0):
-                state_indices = where(count == state)[0]  # Indices for this state
+                state_indices = np.where(count == state)[0]  # Indices for this state
                 state_points = [(x[i], y[i]) for i in state_indices]
                 start_idx = len(points)  # Starting index for this state's points
                 points.extend(state_points)
@@ -72,7 +71,7 @@ def write_vtk_states(x, y, count, filename):
 
 def WriteUSMapVTKFile(area):
     # Main script to process coordinates
-    coordinates = loadtxt('StateBordersCoordinates.txt')  # Load lon, lat from a file
+    coordinates = np.loadtxt('StateBordersCoordinates.txt')  # Load lon, lat from a file
     utm_x = []
     utm_y = []
 

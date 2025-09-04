@@ -1,8 +1,11 @@
 import sys
 import os
-import argparse
-from mpi4py import MPI
 import glob
+import argparse
+import time
+import numpy as np
+
+from mpi4py import MPI
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
@@ -15,8 +18,6 @@ from erftools.preprocessing import ReadERA5_SurfaceData
 
 from erftools.utils.projection import create_lcc_mapping
 
-from numpy import *
-import time
 
 if __name__ == "__main__":
 

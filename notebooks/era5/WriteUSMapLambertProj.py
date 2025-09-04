@@ -1,6 +1,10 @@
 import sys
 import os
 import argparse
+from pyproj import Transformer
+import numpy as np
+import pandas as pd
+import pyvista as pv
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
@@ -10,10 +14,6 @@ from erftools.preprocessing import ReadERA5_3DData
 
 from erftools.utils.projection import create_lcc_mapping
 
-from pyproj import Transformer
-from numpy import *
-import pandas as pd
-import pyvista as pv
 
 def read_user_input(filename):
     data = {}
@@ -89,7 +89,7 @@ def write_vtk_states(x, y, count, filename):
 
 def WriteUSMapVTKFile(area):
     # Main script to process coordinates
-    coordinates = loadtxt('StateBordersCoordinates.txt')  # Load lon, lat from a file
+    coordinates = np.loadtxt('StateBordersCoordinates.txt')  # Load lon, lat from a file
     utm_x = []
     utm_y = []
 
