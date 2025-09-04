@@ -32,6 +32,7 @@ dependencies = [
     "netcdf4>=1.7.2",
     "pydantic",
     "f90nml",
+    "click",
 ]
 
 [project.optional-dependencies]
@@ -56,6 +57,10 @@ all = [
 
 [tool.setuptools]
 packages = ["erftools"]
+
+# Console scripts -- creates command line tools
+[project.scripts]
+write_US_map_lambert = "erftools.utils.map:write_US_map_vtk"
 
 [project.urls]
 Homepage = "https://erf.readthedocs.io/en/latest/"

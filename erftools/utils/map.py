@@ -1,6 +1,7 @@
 from importlib import resources
 import numpy as np
 from pyproj import Transformer
+import click
 
 from erftools.utils.projection import create_lcc_mapping
 from erftools.io.vtk import write_vtk_map
@@ -44,10 +45,17 @@ def create_map(area,
     return x_trans, y_trans, id_vec, lambert_conformal
 
 
-def write_US_map_vtk(filename, area, **kwargs):
-    """Wrapper around `create_map` in erftools.utils.map
-    and `write_vtk_map` in erftools.io.vtk
+@click.command()
+@click.argument('output_file', type=click.Path(writable=True))
+@click.option('--area', nargs=4, type=float,
+              help='Bounding box: lat_max, lon_min, lat_min, lon_max')
+def write_US_map_vtk(output_file, area, **kwargs):
+    """Write out map of the United States forvisualization.
+
+    A map of the US within the specified area is transformed with the
+    Lambert conformal conic projection and then written to a VTK file in
+    ASCII polydata format
     """
     x_trans, y_trans, id_vec, lcc_proj = create_map(area, **kwargs)
-    write_vtk_map(x_trans, y_trans, id_vec, filename)
+    write_vtk_map(x_trans, y_trans, id_vec, output_file)
     return lcc_proj
