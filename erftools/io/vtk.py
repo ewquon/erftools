@@ -161,7 +161,8 @@ def write_binary_vtk_on_cartesian_grid(filename,
             **kwargs)
 
 
-def write_vtk_map(x, y, ids, filename):
+def write_vtk_map(x, y, ids, filename, zlo=1e-12,
+                  point_data=None):
     """
     Write an ASCII polydata VTK file containing borders for specified
     regions.
@@ -172,6 +173,8 @@ def write_vtk_map(x, y, ids, filename):
         ids (list or ndarray): state/country/region indices
             corresponding to each (x, y)
         filename (str): Name of the output VTK file.
+        zlo (float): constant elevation value
+        point_data (dict): scalar data associated with points, optional
     """
     x = np.asarray(x)
     y = np.asarray(y)
@@ -207,9 +210,20 @@ def write_vtk_map(x, y, ids, filename):
         # Write points
         vtk_file.write(f"POINTS {len(points)} float\n")
         for px, py in points:
-            vtk_file.write(f"{px} {py} 1e-12\n")
+            vtk_file.write(f"{px} {py} {zlo}\n")
 
         # Write lines
         vtk_file.write(f"LINES {len(lines)} {3 * len(lines)}\n")
         for p1, p2 in lines:
             vtk_file.write(f"2 {p1} {p2}\n")
+
+        # Write point data (optional)
+        if point_data is not None:
+            vtk_file.write(f"POINT_DATA {len(points)}\n")
+
+            for name, values in point_data.items():
+                assert len(values) == len(points)
+                vtk_file.write(f"SCALARS {name} double\n")
+                vtk_file.write("LOOKUP_TABLE default\n")
+                valstr = '\n'.join([f"{val:.14g}" for val in values])
+                vtk_file.write(valstr+'\n')

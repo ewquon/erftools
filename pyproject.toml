@@ -60,7 +60,8 @@ packages = ["erftools"]
 
 # Console scripts -- creates command line tools
 [project.scripts]
-write_US_map_lambert = "erftools.utils.map:write_US_map_vtk"
+write_US_map = "erftools.utils.map:write_US_map_vtk"
+write_map_region = "erftools.utils.map:write_map_region_vtk"
 
 [project.urls]
 Homepage = "https://erf.readthedocs.io/en/latest/"
