@@ -17,28 +17,6 @@ from erftools.utils.latlon import (find_erf_domain_extents,
                                    find_latlon_indices)
 from erftools.io import write_binary_vtk_on_native_grid
 
-def CreateLCCMapping(area):
-
-    lat1 = area[2]
-    lat2 = area[0]
-    lon1 = area[1]
-    lon2 = area[3]
-
-    # Build CRS
-    delta = lat2 - lat1
-    lon0 = (lon1 + lon2) / 2
-    lat0 = (lat1 + lat2) / 2
-
-    lat_1 = lat1 + delta/6
-    lat_2 = lat2 - delta/6
-
-    lambert_conformal = (
-        f"+proj=lcc +lat_1={lat_1:.6f} +lat_2={lat_2:.6f} "
-        f"+lat_0={lat0:.6f} +lon_0={lon0:.6f} +datum=WGS84 +units=m +no_defs"
-    )
-
-    return lambert_conformal
-
 
 def read_user_input(filename):
     data = {}
