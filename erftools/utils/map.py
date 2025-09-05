@@ -45,10 +45,6 @@ def create_map(coordinates, area, shift_to_origin=False):
     return x_trans, y_trans, id_vec, lambert_conformal
 
 
-@click.command()
-@click.argument('output_file', type=click.Path(writable=True))
-@click.option('--area', nargs=4, type=float,
-              help='Bounding box: lat_max, lon_min, lat_min, lon_max')
 def write_US_map_vtk(output_file, area,
                      mapfile='US_state_borders_coordinates.txt',
                      **kwargs):
@@ -65,13 +61,23 @@ def write_US_map_vtk(output_file, area,
 
 
 @click.command()
+@click.argument('output_file', type=click.Path(writable=True))
+@click.option('--area', nargs=4, type=float,
+              help='Bounding box: lat_max, lon_min, lat_min, lon_max')
+def write_US_map(output_file, area):
+    write_US_map_vtk(output_file, area)
+
+write_US_map.__doc__ = write_US_map_vtk.__doc__
+
+
+@click.command()
 @click.argument('input_file', type=click.Path(exists=True, readable=True))
 @click.argument('output_file', type=click.Path(writable=True))
 @click.option('--area', nargs=4, type=float,
               help='Bounding box: lat_max, lon_min, lat_min, lon_max')
 @click.option('--elev', type=float, default=5000.0,
               help='Constant elevation (z) for all points')
-def write_map_region_vtk(input_file, output_file, area, elev):
+def write_map_region(input_file, output_file, area, elev):
     """Write out a bounded region for visualization.
 
     The bounded region within the specified area is transformed with the
