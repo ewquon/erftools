@@ -45,16 +45,16 @@ class NWPDataset(object):
 
     def _validate_inputs(self):
         if self.forecast < 0:
-            raise ValueError("Number of forecast hours should be >= 0")
+            raise ValueError('Number of forecast hours should be >= 0')
 
         if len(self.area) != 4:
-            raise ValueError("Area should have four values")
+            raise ValueError('Area should have four values')
         if not all(isinstance(bnd, (int, float)) for bnd in self.area):
-            raise TypeError("Area lat/lon bounds must be numeric")
+            raise TypeError('Area lat/lon bounds must be numeric')
         lat_max, lon_min, lat_min, lon_max = self.area
         if (lat_max <= lat_min) or (lon_max <= lon_min):
-            raise ValueError("Expect area to be defined as "
-                             "(lat_max, lon_min, lat_min, lon_max)")
+            raise ValueError('Expect area to be defined as '
+                             '(lat_max, lon_min, lat_min, lon_max)')
 
     def _default_setup(self):
         # setup forecast times
@@ -88,5 +88,5 @@ class NWPDataset(object):
 
     def download(self):
         """This uses the appropriate API to download grib data"""
-        raise NotImplementedError("Subclass needs to define download()")
+        raise NotImplementedError('Subclass needs to define download()')
 
