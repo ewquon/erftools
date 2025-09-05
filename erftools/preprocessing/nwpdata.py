@@ -1,11 +1,16 @@
+import os
 from typing import Union, Tuple
 from datetime import datetime
 import pandas as pd
+from tqdm import tqdm
 
-import tqdm
-import urllib.request
+import requests
+import urllib3
+# suppress SSL warnings
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 from erftools.utils.projection import create_lcc_mapping
+
 
 class NWPDataset(object):
     """Base class for handling from numerical weather prediction modeled data
@@ -74,17 +79,24 @@ class NWPDataset(object):
         """Do dataset-specific setup, validation tasks"""
         pass
 
-    def _download_with_progress(url, filename, position):
-        def hook(block_num, block_size, total_size):
-            downloaded = block_num * block_size
-            if total_size > 0:
-                pbar.total = total_size
-                pbar.update(downloaded - pbar.n)
-        with tqdm(total=0,
-                  unit='B', unit_scale=True,
-                  position=position,
-                  desc=os.path.basename(filename)) as pbar:
-            urllib.request.urlretrieve(url, filename, hook)
+    def _download_with_progress(self, url, filename, chunk_size=8192,
+                                position=0):
+        # send request with streaming to enable progress bar
+        with requests.get(url, stream=True,
+                          headers={'User-Agent': 'Mozilla/5.0'},
+                          verify=False) as r:
+            total_size = int(r.headers.get("Content-Length", 0))
+
+            with tqdm(
+                total=total_size,
+                unit='B', unit_scale=True,
+                position=position,
+                desc=os.path.basename(filename)
+            ) as pbar, open(filename, 'wb') as f:
+                for chunk in r.iter_content(chunk_size=chunk_size):
+                    if chunk:  # filter out keep-alive chunks
+                        f.write(chunk)
+                        pbar.update(len(chunk))
 
     def download(self):
         """This uses the appropriate API to download grib data"""
