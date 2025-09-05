@@ -61,7 +61,7 @@ def construct_url_filename(inp, product):
         filename = f"gfs.0p25.{yyyymmddhh}.f000.grib2"
         url = f"https://data-osdf.rda.ucar.edu/ncar/rda/d084001/{year}/{yyyymmdd}/{filename}"
 
-    elif product.lower() in ['final', 'd083003', 83.3]:
+    elif product.lower() in ['fnl', 'final', 'd083003', 83.3]:
         # Final reanalaysis data (0.25 deg x 0.25 deg grids, every 6h)
         filename = f"gdas1.fnl0p25.{yyyymmddhh}.f00.grib2"
         url = f"https://data-osdf.rda.ucar.edu/ncar/rda/d083003/{year}/{yyyymm}/{filename}"

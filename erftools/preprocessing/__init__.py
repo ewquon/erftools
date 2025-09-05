@@ -18,12 +18,14 @@ else:
     from .era5.Download_ERA5Data import Download_ERA5_ForecastData
 
 # GFS related funrcions
-from .gfs.Download_GFSData import Download_GFS_Data
-from .gfs.Download_GFSData import Download_GFS_ForecastData
-from .gfs.IO import write_binary_vtk_cartesian
-from .gfs.ReadGFSDataAndWriteERF_IC import ReadGFS_3DData
-from .gfs.ReadGFSDataAndWriteERF_IC_FourCastNetGFS import ReadGFS_3DData_FourCastNetGFS
-from .gfs.ReadGFSDataAndWriteERF_IC_OnlyUVW import ReadGFS_3DData_UVW
+from ._gfs.Download_GFSData import Download_GFS_Data
+from ._gfs.Download_GFSData import Download_GFS_ForecastData
+from ._gfs.IO import write_binary_vtk_cartesian
+from ._gfs.ReadGFSDataAndWriteERF_IC import ReadGFS_3DData
+from ._gfs.ReadGFSDataAndWriteERF_IC_FourCastNetGFS import ReadGFS_3DData_FourCastNetGFS
+from ._gfs.ReadGFSDataAndWriteERF_IC_OnlyUVW import ReadGFS_3DData_UVW
+
+from .gfs import GFSDataset
 
 try:
     from herbie import Herbie
