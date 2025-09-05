@@ -2,7 +2,8 @@ import os
 from typing import Union, Tuple
 from datetime import datetime
 import pandas as pd
-from tqdm import tqdm
+from tqdm.auto import tqdm
+from concurrent.futures import ThreadPoolExecutor
 
 import requests
 import urllib3
@@ -62,10 +63,8 @@ class NWPDataset(object):
                              '(lat_max, lon_min, lat_min, lon_max)')
 
     def _default_setup(self):
-        # setup forecast times
-        self.datetimes = pd.date_range(start=self.analysis_datetime,
-                                       freq='1h',
-                                       periods=self.forecast+1)
+        self.urls = []
+        self.filenames = []
 
         # setup map projection
         proj = self.projection_type.lower()
@@ -98,7 +97,28 @@ class NWPDataset(object):
                         f.write(chunk)
                         pbar.update(len(chunk))
 
-    def download(self):
-        """This uses the appropriate API to download grib data"""
-        raise NotImplementedError('Subclass needs to define download()')
+    def _parallel_download(self, urls, filenames, chunk_size=8192,
+                           max_workers=4):
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            for i, (url, fpath) in enumerate(zip(urls, filenames)):
+                if os.path.isfile(fpath):
+                    print(f'{fpath} found')
+                else:
+                    executor.submit(self._download_with_progress,
+                                    url, fpath, chunk_size=chunk_size, position=i)
 
+    def download(self, dpath='.', nprocs=1):
+        if len(self.filenames) == 0:
+            raise ValueError('No grib files to download -- invalid inputs?')
+
+        filenames = [os.path.join(dpath, fname) for fname in self.filenames]
+
+        if nprocs==1:
+            for url,filename in zip(self.urls, self.filenames):
+                fpath = os.path.join(dpath, filename)
+                if os.path.isfile(fpath):
+                    print(f'{fpath} found')
+                else:
+                    self._download_with_progress(url, fpath)
+        else:
+            self._parallel_download(self.urls, filenames, max_workers=nprocs)
