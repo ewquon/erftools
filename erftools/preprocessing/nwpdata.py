@@ -1,16 +1,19 @@
 import os
 from typing import Union, Tuple
 from datetime import datetime
+
+import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from tqdm.auto import tqdm
 from concurrent.futures import ThreadPoolExecutor
-
 import requests
 import urllib3
 # suppress SSL warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 from erftools.utils.projection import create_lcc_mapping
+from erftools.utils.map import create_US_map, write_vtk_map
 
 
 class NWPDataset(object):
@@ -108,6 +111,7 @@ class NWPDataset(object):
                                     url, fpath, chunk_size=chunk_size, position=i)
 
     def download(self, dpath='.', nprocs=1):
+        """Download all grib files"""
         if len(self.filenames) == 0:
             raise ValueError('No grib files to download -- invalid inputs?')
 
@@ -122,3 +126,26 @@ class NWPDataset(object):
                     self._download_with_progress(url, fpath)
         else:
             self._parallel_download(self.urls, filenames, max_workers=nprocs)
+
+    def create_US_map(self, plot=False, output=None):
+        """Create a map of the US in projected coordinates
+
+        The default coordinate system is Lambert conformal conic. The
+        resulting coordinates may be plotted on screen and/or output
+        as an ASCII VTK file; otherwise, the projected coordinates and
+        a list of state IDs are returned.
+        """
+        x_trans, y_trans, id_vec = create_US_map(self.area)
+        if output is not None:
+            write_vtk_map(x_trans, y_trans, id_vec, output)
+        if plot:
+            fig,ax = plt.subplots()
+            for state_id in np.unique(id_vec):
+                sel_state = np.where(id_vec == state_id)[0]
+                ax.plot(x_trans[sel_state], y_trans[sel_state], 'k-', lw=1)
+            ax.axis('scaled')
+            ax.set_xlabel('$x$ [m]')
+            ax.set_ylabel('$y$ [m]')
+            return fig,ax
+        elif output is None:
+            return x_trans, y_trans, id_vec

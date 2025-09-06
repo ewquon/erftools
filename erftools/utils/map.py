@@ -35,29 +35,26 @@ def create_map(coordinates, area, shift_to_origin=False):
         x, y = transformer.transform(lon, lat)
         x_trans.append(x)
         y_trans.append(y)
-        id_vec.append(region_id)
+        id_vec.append(int(region_id))
+    x_trans = np.array(x_trans)
+    y_trans = np.array(y_trans)
 
     # Shift coordinates to ensure minimum x and y start at 0
     if shift_to_origin:
-        x_trans = np.array(x_trans) - min(x_trans)
-        y_trans = np.array(y_trans) - min(y_trans)
+        x_trans = x_trans - np.min(x_trans)
+        y_trans = y_trans - np.min(y_trans)
 
-    return x_trans, y_trans, id_vec, lambert_conformal
+    return x_trans, y_trans, id_vec
 
+def create_US_map(area, mapfile='US_state_borders_coordinates.txt', **kwargs):
+    """Create a map of the US in projected coordinates
 
-def write_US_map_vtk(output_file, area,
-                     mapfile='US_state_borders_coordinates.txt',
-                     **kwargs):
-    """Write out map of the United States for visualization.
-
-    A map of the US within the specified area is transformed with the
-    Lambert conformal conic projection and then written to a VTK file in
-    ASCII polydata format
+    Coordinates are transformed with a Lambert conformal conic
+    projection centered on the given area.
     """
     with resources.open_text('erftools.data', mapfile) as f:
         coords = np.loadtxt(f)
-    x_trans, y_trans, id_vec, _ = create_map(coords, area, **kwargs)
-    write_vtk_map(x_trans, y_trans, id_vec, output_file)
+    return create_map(coords, area, **kwargs)
 
 
 @click.command()
@@ -65,9 +62,13 @@ def write_US_map_vtk(output_file, area,
 @click.option('--area', nargs=4, type=float,
               help='Bounding box: lat_max, lon_min, lat_min, lon_max')
 def write_US_map(output_file, area):
-    write_US_map_vtk(output_file, area)
+    """Write out a map of the United States for visualization.
 
-write_US_map.__doc__ = write_US_map_vtk.__doc__
+    A map of the US is transformed with the Lambert conformal conic
+    projection centered on the given area and written to a VTK file in
+    ASCII polydata format
+    """
+    write_vtk_map(*create_US_map(area), output_file)
 
 
 @click.command()
@@ -88,7 +89,7 @@ def write_map_region(input_file, output_file, area, elev):
         coords = pd.read_csv(input_file).values
     else:
         coords = np.loadtxt(input_file)
-    x_trans, y_trans, id_vec, _ = create_map(coords, area)
+    x_trans, y_trans, id_vec = create_map(coords, area)
     write_vtk_map(x_trans, y_trans, id_vec, output_file, zlo=elev,
                   point_data={"Longitude": coords[:,0],
                               "Latitude": coords[:,1]})
