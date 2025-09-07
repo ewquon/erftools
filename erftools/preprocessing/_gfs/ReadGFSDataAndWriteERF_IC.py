@@ -12,7 +12,6 @@ from erftools.preprocessing import write_binary_vtk_cartesian
 from erftools.preprocessing import plot_1d
 
 from erftools.constants import CONST_GRAV as const_g
-from erftools.utils.projection import calculate_utm_zone
 from erftools.utils.microphysics import p_sat
 
 

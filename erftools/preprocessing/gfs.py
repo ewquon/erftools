@@ -4,6 +4,9 @@ import numpy as np
 import pandas as pd
 
 from erftools.preprocessing.nwpdata import NWPDataset
+from erftools.preprocessing.gribdata import GribData
+from erftools.constants import CONST_GRAV as const_g
+from erftools.utils.microphysics import p_sat
 
 class GFSDataset(NWPDataset):
     """NCAR Global Forecast System (GFS) global analysis data
@@ -16,6 +19,7 @@ class GFSDataset(NWPDataset):
     """
 
     def _setup(self, **kwargs):
+        """Do dataset-specific setup, validation tasks"""
         # get name of RDA data product
         default_product = 'forecast' if self.forecast > 0 else 'final'
         self.product = kwargs.get('product', default_product)
@@ -26,6 +30,59 @@ class GFSDataset(NWPDataset):
             self.analysis_datetime,
             self.forecast,
             self.product)
+
+    def read(self):
+        self._grib = GribData(
+            gh='Geopotential height',
+            temp='Temperature',
+            theta='Potential temperature',
+            p='Pressure',
+            u='U component of wind',
+            v='V component of wind',
+            w='Geometric vertical velocity',
+            qv='Specific humidity',
+            qc='Cloud mixing ratio',
+            qr='Rain mixing ratio',
+            vort='Absolute vorticity')
+        self._create_latlon_grid()
+
+    def _create_latlon_grid():
+        """TODO: integrate with erftools.preprocessing.grids"""
+        # Extract unique latitude and longitude values
+        unique_lats = np.unique(self._grib.lats[:, 0])  # Take the first column for unique latitudes
+        unique_lons = np.unique(self._grib.lons[0, :])  # Take the first row for unique longitudes
+
+        print("Min max lat lons are ", unique_lats[0], unique_lats[-1], unique_lons[0], unique_lons[-1]);
+
+        nlats = len(unique_lats)
+        nlons = len(unique_lons)
+
+        lat_max = self.area[0]
+        lon_min = 360.0 + self.area[1]
+        lat_min = self.area[2]
+        lon_max = 360.0 + self.area[3]
+
+        print("Lat/lon min/max are ", lat_min, lat_max, lon_min, lon_max)
+
+        # Assume regular grid
+        lat_resolution = unique_lats[1] - unique_lats[0]
+        lon_resolution = unique_lons[1] - unique_lons[0]
+
+        lat_start = int((lat_min - unique_lats[0]) / lat_resolution)
+        lat_end   = int((lat_max - unique_lats[0]) / lat_resolution)
+        lon_start = int((lon_min - unique_lons[0]) / lon_resolution)
+        lon_end   = int((lon_max - unique_lons[0]) / lon_resolution)
+
+        # Clip
+        domain_lats = unique_lats[lat_start:lat_end+1]
+        domain_lons = unique_lons[lon_start:lon_end+1]
+
+        print("The min max are",(lat_start, lat_end, lon_start, lon_end));
+
+        nx = domain_lats.shape[0]
+        ny = domain_lons.shape[0]
+
+        print("nx and ny here are ", nx, ny)
 
 
 def construct_urls_filenames(datetime, forecast, product):

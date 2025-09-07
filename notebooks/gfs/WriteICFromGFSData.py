@@ -12,7 +12,7 @@ from erftools.preprocessing import ReadGFS_3DData
 from erftools.preprocessing import ReadGFS_3DData_UVW
 
 from erftools.utils.projection import create_lcc_mapping
-from erftools.utils.map import write_US_map_vtk
+from erftools.utils.map import create_US_map, write_vtk_map
 
 
 if __name__ == "__main__":
@@ -33,7 +33,7 @@ if __name__ == "__main__":
     if do_forecast:
         filenames, area = Download_GFS_ForecastData(input_filename)
         lambert_conformal = create_lcc_mapping(area)
-        write_US_map_vtk("USMap_LambertProj.vtk", area)
+        write_vtk_map(*create_US_map(area), "USMap_LambertProj.vtk")
         # Create the directory if it doesn't exist
         os.makedirs("Output", exist_ok=True)
         for filename in filenames:
@@ -43,7 +43,7 @@ if __name__ == "__main__":
     else:
         filename, area = Download_GFS_Data(input_filename)
         lambert_conformal = create_lcc_mapping(area)
-        write_US_map_vtk("USMap_LambertProj.vtk", area)
+        write_vtk_map(*create_US_map(area), "USMap_LambertProj.vtk")
         print("Filename is ", filename)
         print(f"Processing file: {filename}")
         ReadGFS_3DData(filename, area, lambert_conformal)

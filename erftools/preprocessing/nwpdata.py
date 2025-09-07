@@ -127,6 +127,11 @@ class NWPDataset(object):
         else:
             self._parallel_download(self.urls, filenames, max_workers=nprocs)
 
+    def read(self):
+        """Process all downloaded grib data"""
+        raise NotImplementedError(f'{self.__class__.__name__}'
+                                  ' needs to define this function')
+
     def create_US_map(self, plot=False, output=None):
         """Create a map of the US in projected coordinates
 
