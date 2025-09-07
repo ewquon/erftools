@@ -58,6 +58,11 @@ class GribData(object):
             data = getattr(self, varn)
             setattr(self, varn, np.stack(data, axis=0))
 
+    def clip(self, lat_slice, lon_slice):
+        for varn in self.vars:
+            arr = getattr(self, varn)
+            setattr(self, varn, arr[:, lat_slice, lon_slice])
+
     def sizes(self):
         for varn in self.vars:
             arr = getattr(self, varn)

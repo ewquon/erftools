@@ -31,7 +31,7 @@ class GFSDataset(NWPDataset):
             self.forecast,
             self.product)
 
-    def read(self):
+    def read(self, clip=True):
         self.grib = GribData(
             gh='Geopotential height',
             temp='Temperature',
@@ -45,12 +45,14 @@ class GFSDataset(NWPDataset):
             qc='Cloud mixing ratio',
             qr='Rain mixing ratio',
             vort='Absolute vorticity')
-        self.grib.read(self.filenames[0])
         print('NOTE: ONLY READ FIRST GRIBFILE FOR NOW')
-        self._create_latlon_grid()
+        self.grib.read(self.filenames[0])
+        print('NOTE: PRESSURE LEVELS BASED ON TEMP -- VERIFY THIS MAKES SENSE')
+        self.pressure_levels = self.grib.pressure_levels['temp']
+        if clip:
+            self._clip_grid_data()
 
-    def _create_latlon_grid(self):
-        """TODO: integrate with erftools.preprocessing.grids"""
+    def _clip_grid_data(self):
         # Extract unique latitude and longitude values
         unique_lats = np.unique(self.grib.lats[:, 0])  # Take the first column for unique latitudes
         unique_lons = np.unique(self.grib.lons[0, :])  # Take the first row for unique longitudes
@@ -76,7 +78,6 @@ class GFSDataset(NWPDataset):
         lon_start = int((lon_min - unique_lons[0]) / lon_resolution)
         lon_end   = int((lon_max - unique_lons[0]) / lon_resolution)
 
-        # Clip
         domain_lats = unique_lats[lat_start:lat_end+1]
         domain_lons = unique_lons[lon_start:lon_end+1]
 
@@ -86,6 +87,9 @@ class GFSDataset(NWPDataset):
         ny = domain_lons.shape[0]
 
         print("nx and ny here are ", nx, ny)
+
+        self.grib.clip(slice(nlats-lat_end-1, nlats-lat_start),
+                       slice(lon_start, lon_end+1))
 
 
 def construct_urls_filenames(datetime, forecast, product):
