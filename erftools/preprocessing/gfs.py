@@ -32,9 +32,10 @@ class GFSDataset(NWPDataset):
             self.product)
 
     def read(self):
-        self._grib = GribData(
+        self.grib = GribData(
             gh='Geopotential height',
             temp='Temperature',
+            rh='Relative humidity',
             theta='Potential temperature',
             p='Pressure',
             u='U component of wind',
@@ -44,13 +45,15 @@ class GFSDataset(NWPDataset):
             qc='Cloud mixing ratio',
             qr='Rain mixing ratio',
             vort='Absolute vorticity')
+        self.grib.read(self.filenames[0])
+        print('NOTE: ONLY READ FIRST GRIBFILE FOR NOW')
         self._create_latlon_grid()
 
-    def _create_latlon_grid():
+    def _create_latlon_grid(self):
         """TODO: integrate with erftools.preprocessing.grids"""
         # Extract unique latitude and longitude values
-        unique_lats = np.unique(self._grib.lats[:, 0])  # Take the first column for unique latitudes
-        unique_lons = np.unique(self._grib.lons[0, :])  # Take the first row for unique longitudes
+        unique_lats = np.unique(self.grib.lats[:, 0])  # Take the first column for unique latitudes
+        unique_lons = np.unique(self.grib.lons[0, :])  # Take the first row for unique longitudes
 
         print("Min max lat lons are ", unique_lats[0], unique_lats[-1], unique_lons[0], unique_lons[-1]);
 
