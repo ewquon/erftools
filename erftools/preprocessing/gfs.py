@@ -46,9 +46,8 @@ class GFSDataset(NWPDataset):
             qr='Rain mixing ratio',
             vort='Absolute vorticity')
         print('NOTE: ONLY READ FIRST GRIBFILE FOR NOW')
-        self.grib.read(self.filenames[0])
-        print('NOTE: PRESSURE LEVELS BASED ON TEMP -- VERIFY THIS MAKES SENSE')
-        self.pressure_levels = self.grib.pressure_levels['temp']
+        self.grib.read(self.filenames[0],
+                       filter_level_type=['isobaricInPa','isobaricInhPa'])
         if clip:
             self._clip_grid_data()
 

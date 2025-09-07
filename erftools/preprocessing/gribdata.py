@@ -18,8 +18,11 @@ class GribData(object):
             self.pressure_levels[localvar] = []
             setattr(self, localvar, [])
 
-    def read(self, gribfile):
+    def read(self, gribfile, filter_level_type=[]):
         """Read all variables with defined keys in the varmap"""
+        if not isinstance(filter_level_type, (list, tuple)):
+            filter_level_type = [filter_level_type]
+
         printed_time = False
         with pygrib.open(gribfile) as grbs:
             for grb in grbs:
@@ -42,10 +45,19 @@ class GribData(object):
                 
                 # Retrieve all variables in the variable mapping
                 for localvar, gribvar in self.varmap.items():
-                    if gribvar == grb.name:
+                    if grb.name == gribvar and (
+                        (not filter_level_type) or
+                        (grb.typeOfLevel in filter_level_type)
+                    ):
+                        #print(f'{localvar} '
+                        #      f'level {len(self.pressure_levels[localvar])} '
+                        #      f'= {grb.level} (type: {grb.typeOfLevel})')
+
                         arr = getattr(self, localvar)
                         arr.append(grb.values)
+
                         self.pressure_levels[localvar].append(grb.level)
+
                         break
 
         # NOTE: These levels are not necessarily monotonically increasing, nor finite!
@@ -54,9 +66,21 @@ class GribData(object):
 
         # Stack into a 3D array (level, lat, lon)
         # NOTE: These fields do not necessarily all have the same number of levels!
+        read_fail = []
         for varn in self.vars:
             data = getattr(self, varn)
-            setattr(self, varn, np.stack(data, axis=0))
+            try:
+                data = np.stack(data, axis=0)
+            except ValueError as e:
+                print(f"'{varn}' was not read ({e})? Dropping...")
+                read_fail.append(varn)
+            else:
+                setattr(self, varn, data)
+
+        # if we filtered by a type of 3D data (e.g., isobaric levels only),
+        # then some fields may not have been read in
+        for varn in read_fail:
+            self.varmap.pop(varn)
 
     def clip(self, lat_slice, lon_slice):
         for varn in self.vars:
