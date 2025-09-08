@@ -129,8 +129,46 @@ class NWPDataset(object):
 
     def read(self):
         """Process all downloaded grib data"""
+        # Initialize data container with GRIB variable names
+        #self.grib = GribData(
+        #    ...)
+        #self.grib.read(self.filenames[0])
+        #
+        # Create projected grid
+        #self._create_grids()
+        #
+        # Create fields
+        #self._init_arrays()
+        #for k in np.arange(...):
+        #    self._fill_arrays_at_level(k)
         raise NotImplementedError(f'{self.__class__.__name__}'
                                   ' needs to define this function')
+
+    def _create_grid(self):
+        """Create projected grid with coordinates (x_grid, y_grid) with
+        dimensions nx, ny, nz
+        """
+        raise NotImplementedError(f'{self.__class__.__name__}'
+                                  ' needs to define this function')
+
+    def _init_arrays(self):
+        """Create 3D arrays with shape (nx, ny, nz) determined by
+        _create_grids()
+
+        TODO: flip nx, ny variables for clarity
+        """
+        self.z_grid      = np.zeros((self.nx, self.ny, self.nz))
+        self.velocity_3d = np.zeros((self.nx, self.ny, self.nz, 3))
+        self.rhod_3d     = np.zeros((self.nx, self.ny, self.nz))
+        self.theta_3d    = np.zeros((self.nx, self.ny, self.nz))
+        self.qv_3d       = np.zeros((self.nx, self.ny, self.nz))
+        self.qc_3d       = np.zeros((self.nx, self.ny, self.nz))
+        self.qr_3d       = np.zeros((self.nx, self.ny, self.nz))
+        self.rh_3d       = np.zeros((self.nx, self.ny, self.nz))
+        self.temp_3d     = np.zeros((self.nx, self.ny, self.nz))
+        self.qsat_3d     = np.zeros((self.nx, self.ny, self.nz))
+        self.vort_3d     = np.zeros((self.nx, self.ny, self.nz))
+        self.pressure_3d = np.zeros((self.nx, self.ny, self.nz))
 
     def create_US_map(self, plot=False, output=None):
         """Create a map of the US in projected coordinates

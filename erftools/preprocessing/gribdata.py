@@ -19,7 +19,15 @@ class GribData(object):
             setattr(self, localvar, [])
 
     def read(self, gribfile, filter_level_type=[]):
-        """Read all variables with defined keys in the varmap"""
+        """Read all variables with defined keys in the varmap
+
+        Specific level types may be specified as one or more of {
+        'maxWind', 'sigma', 'isothermZero', 'hybrid', 'isobaricInhPa',
+        'atmosphereSingleLayer', 'highestTroposphericFreezing',
+        'tropopause', 'sigmaLayer', 'planetaryBoundaryLayer',
+        'isobaricInPa', 'heightAboveSea', 'heightAboveGround',
+        'surface', 'potentialVorticity', 'pressureFromGroundLayer'}
+        """
         if not isinstance(filter_level_type, (list, tuple)):
             filter_level_type = [filter_level_type]
 
@@ -49,16 +57,19 @@ class GribData(object):
                         (not filter_level_type) or
                         (grb.typeOfLevel in filter_level_type)
                     ):
-                        #print(f'{localvar} '
-                        #      f'level {len(self.pressure_levels[localvar])} '
-                        #      f'= {grb.level} (type: {grb.typeOfLevel})')
-
                         arr = getattr(self, localvar)
                         arr.append(grb.values)
 
+                        #if localvar == 'temp':
+                        #    print(f'level {len(self.pressure_levels[localvar])} '
+                        #          f'= {grb.level} (type: {grb.typeOfLevel})')
+
+                        # TODO: properly handle typeOfLevel
                         self.pressure_levels[localvar].append(grb.level)
 
                         break
+            #-- end loop over grib data
+        #-- close gribfile
 
         # NOTE: These levels are not necessarily monotonically increasing, nor finite!
         for varn, lvls in self.pressure_levels.items():
