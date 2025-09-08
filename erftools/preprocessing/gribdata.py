@@ -31,6 +31,7 @@ class GribData(object):
         if not isinstance(filter_level_type, (list, tuple)):
             filter_level_type = [filter_level_type]
 
+        found = []
         printed_time = False
         with pygrib.open(gribfile) as grbs:
             for grb in grbs:
@@ -67,9 +68,15 @@ class GribData(object):
                         # TODO: properly handle typeOfLevel
                         self.pressure_levels[localvar].append(grb.level)
 
+                        found.append(localvar)
                         break
             #-- end loop over grib data
         #-- close gribfile
+
+        found = set(found)
+        if len(found) < len(self.vars):
+            print('Warning: Requested GRIB variables not found',
+                  set(self.vars)-found)
 
         # NOTE: These levels are not necessarily monotonically increasing, nor finite!
         for varn, lvls in self.pressure_levels.items():
@@ -83,7 +90,7 @@ class GribData(object):
             try:
                 data = np.stack(data, axis=0)
             except ValueError as e:
-                print(f"'{varn}' was not read ({e})? Dropping...")
+                print(f"'{varn}' was not read ({e}), dropping...")
                 read_fail.append(varn)
             else:
                 setattr(self, varn, data)

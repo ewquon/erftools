@@ -12,6 +12,7 @@ import urllib3
 # suppress SSL warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+from erftools.io import write_binary_vtk_on_native_grid
 from erftools.utils.projection import create_lcc_mapping
 from erftools.utils.map import create_US_map, write_vtk_map
 
@@ -157,18 +158,51 @@ class NWPDataset(object):
 
         TODO: flip nx, ny variables for clarity
         """
-        self.z_grid      = np.zeros((self.nx, self.ny, self.nz))
-        self.velocity_3d = np.zeros((self.nx, self.ny, self.nz, 3))
-        self.rhod_3d     = np.zeros((self.nx, self.ny, self.nz))
-        self.theta_3d    = np.zeros((self.nx, self.ny, self.nz))
-        self.qv_3d       = np.zeros((self.nx, self.ny, self.nz))
-        self.qc_3d       = np.zeros((self.nx, self.ny, self.nz))
-        self.qr_3d       = np.zeros((self.nx, self.ny, self.nz))
-        self.rh_3d       = np.zeros((self.nx, self.ny, self.nz))
-        self.temp_3d     = np.zeros((self.nx, self.ny, self.nz))
-        self.qsat_3d     = np.zeros((self.nx, self.ny, self.nz))
-        self.vort_3d     = np.zeros((self.nx, self.ny, self.nz))
-        self.pressure_3d = np.zeros((self.nx, self.ny, self.nz))
+        size_3d = (self.nx, self.ny, self.nz)
+        self.z_grid      = np.full(size_3d, np.nan)
+        self.rhod_3d     = np.full(size_3d, np.nan)
+        self.theta_3d    = np.full(size_3d, np.nan)
+        self.qv_3d       = np.full(size_3d, np.nan)
+        self.qc_3d       = np.full(size_3d, np.nan)
+        self.qr_3d       = np.full(size_3d, np.nan)
+        self.rh_3d       = np.full(size_3d, np.nan)
+        self.temp_3d     = np.full(size_3d, np.nan)
+        self.qsat_3d     = np.full(size_3d, np.nan)
+        self.vort_3d     = np.full(size_3d, np.nan)
+        self.pressure_3d = np.full(size_3d, np.nan)
+
+        # TODO: don't need u,v,w scalar and velocity vector fields
+        self.uvel_3d     = np.full(size_3d, np.nan)
+        self.vvel_3d     = np.full(size_3d, np.nan)
+        self.wvel_3d     = np.full(size_3d, np.nan)
+        self.velocity_3d = np.full((*size_3d, 3), np.nan)
+
+    def _set_scalars(self):
+        """Scalars to output on native grid"""
+        self.scalars = {}
+        def add_if_not_nans(name, varn):
+            field_3d = getattr(self, varn)
+            if not np.any(np.isnan(field_3d)):
+                self.scalars[name] = field_3d
+        add_if_not_nans('density', 'rhod_3d')
+        add_if_not_nans('uvel', 'uvel_3d')
+        add_if_not_nans('vvel', 'vvel_3d')
+        add_if_not_nans('wvel', 'wvel_3d')
+        add_if_not_nans('theta', 'theta_3d')
+        add_if_not_nans('qv', 'qv_3d')
+        add_if_not_nans('qc', 'qc_3d')
+        add_if_not_nans('qr', 'qr_3d')
+        add_if_not_nans('rh', 'rh_3d')
+        add_if_not_nans('temperature', 'temp_3d')
+        add_if_not_nans('vorticity', 'vort_3d')
+        add_if_not_nans('pressure', 'pressure_3d')
+        add_if_not_nans('qsat', 'qsat_3d')
+
+    def write_native_grid(self, output_vtk):
+        write_binary_vtk_on_native_grid(output_vtk,
+                                        self.x_grid, self.y_grid, self.z_grid,
+                                        point_data=self.scalars,
+                                        velocity=self.velocity_3d)
 
     def create_US_map(self, plot=False, output=None):
         """Create a map of the US in projected coordinates

@@ -7,7 +7,7 @@ from pyproj import Transformer
 
 from erftools.preprocessing.nwpdata import NWPDataset
 from erftools.preprocessing.gribdata import GribData
-from erftools.constants import CONST_GRAV, R_d, Cp_d, p_0
+from erftools.constants import CONST_GRAV, R_d, Cp_d
 from erftools.utils.microphysics import p_sat
 
 
@@ -64,6 +64,7 @@ class GFSDataset(NWPDataset):
         self._init_arrays()
         for k in np.arange(self.nz-1, -1, -1):
             self._fill_arrays_at_level(k)
+        self._set_scalars()
 
     def _create_grids(self, clip=True):
         """Create projected grid with coordinates (x_grid, y_grid) with
@@ -148,8 +149,16 @@ class GFSDataset(NWPDataset):
         self.z_grid[:,:,k] = self.grib.gh[k,:,:]
         print("Avg val is ", k, np.mean(self.z_grid[:,:,k]),  )
 
+        self.uvel_3d[:,:,k] = self.grib.u[k,:,:]
+        self.vvel_3d[:,:,k] = self.grib.v[k,:,:]
+        try:
+            self.wvel_3d[:,:,k] = self.grib.w[k,:,:]
+        except IndexError:
+            # TODO: check why wvel has fewer levels
+            self.wvel_3d[:,:,k] = 0.0
         self.velocity_3d[:,:,k,0] = self.grib.u[k,:,:]
         self.velocity_3d[:,:,k,1] = self.grib.v[k,:,:]
+        self.velocity_3d[:,:,k,2] = 0.0
 
         self.temp_3d[:, :, k] = self.grib.temp[k,:,:]
         self.rh_3d[:, :, k]   = self.grib.rh[k,:,:]
@@ -178,6 +187,7 @@ class GFSDataset(NWPDataset):
             T_prev = self.temp_3d[:, :, k+1]
             qv_prev = self.qv_3d[:, :, k+1]
             delta_z = self.z_grid[:,:,k] - self.z_grid[:,:,k+1]
+
             p_lvl = (
                 p_prev
                 - p_prev / (R_d * T_prev * (1.0 + 1.6*qv_prev))
@@ -189,7 +199,7 @@ class GFSDataset(NWPDataset):
         self.rhod_3d[:,:,k] = (p_lvl * 100.0
                             / (R_d * T_lvl * (1.0 + 1.6*qv_lvl)))
 
-        self.theta_3d[:,:,k] = T_lvl * (p_0 / p_lvl)**(R_d/Cp_d)
+        self.theta_3d[:,:,k] = T_lvl * (1000.0 / p_lvl)**(R_d/Cp_d)
 
         ps = p_sat(T_lvl) # [hPa]
         self.qsat_3d[:,:,k] = 0.622 * ps / (p_lvl - ps)
