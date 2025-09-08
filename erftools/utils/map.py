@@ -81,9 +81,10 @@ def write_US_map(output_file, area):
 def write_map_region(input_file, output_file, area, elev):
     """Write out a bounded region for visualization.
 
-    The bounded region within the specified area is transformed with the
-    Lambert conformal conic projection and then written to a VTK file in
-    ASCII polydata format
+    The bounded region (specified as a whitespace- or comma-delimited
+    text file) within the specified area is transformed with the Lambert
+    conformal conic projection and then written to a VTK file in ASCII
+    polydata format
     """
     if input_file.lower().endswith('.csv'):
         coords = pd.read_csv(input_file).values

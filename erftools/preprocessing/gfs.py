@@ -4,6 +4,7 @@ import tqdm
 import numpy as np
 import pandas as pd
 from pyproj import Transformer
+import click
 
 from erftools.preprocessing.nwpdata import NWPDataset
 from erftools.preprocessing.gribdata import GribData
@@ -235,3 +236,38 @@ def construct_urls_filenames(datetime, forecast, product):
     filenames = [filename.format(fhr) for fhr in f_hrs]
 
     return datetimes, urls, filenames
+
+
+@click.command()
+@click.option('--datetime', type=click.DateTime(formats=['%Y-%m-%d',
+                                                         '%Y-%m-%d %H:%M']),
+              required=True,
+              help='Analysis datetime')
+@click.option('--area', nargs=4, type=float,
+              required=True,
+              help='Bounding box: lat_max, lon_min, lat_min, lon_max')
+@click.option('--forecast', '-f',
+              type=int, default=0,
+              help='Number of forecast hours to process')
+@click.option('--product',
+              type=click.Choice(['final','forecast']),
+              help='NCAR RDA dataset to use, defaulting to the final analysis '
+                   '(d083003) or historical forecast (d084001) depending on '
+                   'whether forecast hour=0 or >0, respectively')
+@click.option('--output_dir', '-o',
+              type=click.Path(file_okay=False, dir_okay=True, writable=True),
+              default='Output')
+def gfs_to_erf_ICs(datetime, area, forecast, product, output_dir):
+    """Create initial conditions for ERF from GFS data products"""
+    if not product:
+        product = 'forecast' if forecast > 0 else 'final'
+
+    gfs = GFSDataset(datetime, area=area, forecast=forecast, product=product)
+    gfs.download() # from NCAR RDA
+    gfs.read() # process download data
+
+    os.makedirs(output_dir, exist_ok=True)
+    output_vtk = datetime.strftime(f'{output_dir}/GFS_%Y-%m-%d_%HZ_f{forecast:03d}.vtk')
+    gfs.write_native_grid(output_vtk)
+
+    gfs.create_US_map('USMap_LambertProj.vtk') # for visualization

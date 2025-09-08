@@ -60,6 +60,7 @@ packages = ["erftools"]
 
 # Console scripts -- creates command line tools
 [project.scripts]
+gfs_to_erf_ICs = "erftools.preprocessing.gfs:gfs_to_erf_ICs"
 write_US_map = "erftools.utils.map:write_US_map"
 write_map_region = "erftools.utils.map:write_map_region"
 
