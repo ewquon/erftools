@@ -68,14 +68,22 @@ class GFSDataset(NWPDataset):
         self._set_scalars()
 
     def _create_grids(self, clip=True):
-        """Create projected grid with coordinates (x_grid, y_grid) with
-        dimensions nx, ny, nz
+        """Create native grid with projected coordinates x_grid, y_grid
+        and dimensions nx, ny, nz
         """
         # Extract unique latitude and longitude values
         unique_lats = np.unique(self.grib.lats[:, 0])  # Take the first column for unique latitudes
         unique_lons = np.unique(self.grib.lons[0, :])  # Take the first row for unique longitudes
 
-        print("Min max lat lons are ", unique_lats[0], unique_lats[-1], unique_lons[0], unique_lons[-1])
+        print("Output grid lat/lon min/max are", unique_lats[0], unique_lats[-1], unique_lons[0], unique_lons[-1])
+
+        # Assume regular lat-lon grid (equal spacing in both directions)
+        lat_resolution = unique_lats[1] - unique_lats[0]
+        lon_resolution = unique_lons[1] - unique_lons[0]
+        assert np.allclose(np.diff(unique_lats), lat_resolution)
+        assert np.allclose(np.diff(unique_lons), lon_resolution)
+
+        print("Lat/lon resolution is", lat_resolution, lon_resolution)
 
         nlats = len(unique_lats)
         nlons = len(unique_lons)
@@ -85,34 +93,32 @@ class GFSDataset(NWPDataset):
         lat_min = self.area[2]
         lon_max = 360.0 + self.area[3]
 
-        print("Lat/lon min/max are ", lat_min, lat_max, lon_min, lon_max)
-
-        # Assume regular grid
-        lat_resolution = unique_lats[1] - unique_lats[0]
-        lon_resolution = unique_lons[1] - unique_lons[0]
+        print("Requested lat/lon min/max are", lat_min, lat_max, lon_min, lon_max)
 
         lat_start = int((lat_min - unique_lats[0]) / lat_resolution)
         lat_end   = int((lat_max - unique_lats[0]) / lat_resolution)
         lon_start = int((lon_min - unique_lons[0]) / lon_resolution)
         lon_end   = int((lon_max - unique_lons[0]) / lon_resolution)
 
+        print("The min max are",(lat_start, lat_end, lon_start, lon_end))
+
+        # Create clipped GFS output grid
         domain_lats = unique_lats[lat_start:lat_end+1]
         domain_lons = unique_lons[lon_start:lon_end+1]
 
         lon_grid, lat_grid = np.meshgrid(domain_lons, domain_lats)
 
+        # Transform from the clipped GFS output grid to the target CRS
         transformer = Transformer.from_crs("EPSG:4326", self.proj, always_xy=True)
         self.x_grid, self.y_grid = transformer.transform(lon_grid, lat_grid)
 
-        print("The min max are",(lat_start, lat_end, lon_start, lon_end))
-
-        self.nx = len(domain_lats)
-        self.ny = len(domain_lons)
-        self.nz = self.grib.u.shape[0]
+        self.nx, self.ny = lat_grid.shape
+        self.nz = self.grib.u.shape[0] # TODO: better way to get this?
 
         print("nx, ny, nz =", self.nx, self.ny, self.nz)
 
         if clip:
+            # Clip all data arrays
             self.grib.clip(slice(nlats-lat_end-1, nlats-lat_start),
                            slice(lon_start, lon_end+1))
 
