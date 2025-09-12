@@ -27,7 +27,7 @@ class Plotfile(object):
         if verbose:
             print('Loading',fpath)
         self.pf = yt.load(fpath, *args, **kwargs)
-        self.fields = [fld for (typ,fld) in self.pf.field_list if typ=='boxlib']
+        self._set_metadata()
         if verbose:
             print('Found fields:',self.fields)
 
@@ -39,7 +39,27 @@ class Plotfile(object):
         self.slc_order = [None,None,None]
         self.slc_shape = [None,None,None]
 
-    def to_xarray(self,fields=None,verbose=False):
+    def _set_metadata(self):
+        self.fields = [fld for (typ,fld) in self.pf.field_list if typ=='boxlib']
+        self.time = self.pf.current_time.value
+        self.dims = self.pf.domain_dimensions
+        self.prob_extent = self.pf.domain_width.value
+        self.attrs = {
+            'basename': self.pf.basename,
+            'filename': self.pf.filename,
+            'parameters': self.pf.parameters,
+            'domain_center': self.pf.domain_center.value,
+            'domain_width': self.pf.domain_width.value,
+            'domain_left_edge': self.pf.domain_left_edge.value,
+            'domain_right_edge': self.pf.domain_right_edge.value,
+        }
+        if 'erf.terrain_z_levels' in self.pf.parameters.keys():
+            self.terrain_z_levels = np.array(self.pf.parameters['erf.terrain_z_levels'])
+            self.stretched_dz = True
+        else:
+            self.stretched_dz = False
+
+    def to_xarray(self,level=None,fields=None,verbose=False):
         """Convert plotfile raw data to an xarray.Dataset.
 
         By default, convert all fields. A subset of fields may be specified as
@@ -58,6 +78,8 @@ class Plotfile(object):
         for g in self.pf.index.grids:
             gridlevel.append(get_plt_grid_level(g))
         max_level = np.max(gridlevel)
+        if verbose:
+            print(len(gridlevel),'levels, max level:',max_level)
 
         for fldname in fields:
             # e.g., fldname == "x_velocity_stag"
@@ -72,9 +94,13 @@ class Plotfile(object):
             dalist = []
             attrs = {}
             for ig,g in enumerate(self.pf.index.grids):
+                lev = gridlevel[ig]
+                if (level is not None) and (lev != level):
+                    continue
+
                 lo_pt = g.LeftEdge.value
                 hi_pt = g.RightEdge.value
-                lev = gridlevel[ig]
+                cellsizes = g.dds.value
                 if verbose:
                     print(' ',ig,g,lo_pt,hi_pt,'level',lev)
 
@@ -82,7 +108,6 @@ class Plotfile(object):
                 fld[g.child_indices] = np.nan # blank regions where finer data are available
 
                 ncell = fld.shape
-                cellsizes = g.dds.value
                 dsstr = f'ds{lev}'
                 if dsstr in attrs:
                     assert all(attrs[dsstr] == cellsizes)
@@ -93,7 +118,7 @@ class Plotfile(object):
                 coords = {'t': [self.pf.current_time.item()]}
                 for idim,coord in enumerate(['x','y','z']):
                     if coord==stagdim:
-                        coords[coord+'_stag'] = \
+                        coords[coord+'stag'] = \
                                 lo_pt[idim] \
                                 + (hi_pt[idim] - lo_pt[idim]) \
                                 * np.arange(ncell[idim]) / (ncell[idim]-1)
@@ -116,10 +141,14 @@ class Plotfile(object):
                 dalist.append(da)
 
             # combine grid data into single dataset
+            if verbose:
+                print('Merging datasets for', fldname)
             ds = xr.merge(dalist)
             dslist.append(ds)
 
         # combine datasets for all vars
+        if verbose:
+            print('Combining datasets for all vars')
         ds = xr.merge(dslist)
 
         # add attributes
