@@ -178,7 +178,7 @@ class NWPDataset(object):
         self.velocity_3d = np.full((*size_3d, 3), np.nan)
 
     def _set_scalars(self):
-        """Scalars to output on native grid"""
+        """Scalars to output on projected grid"""
         self.scalars = {}
         def add_if_not_nans(name, varn):
             field_3d = getattr(self, varn)
@@ -198,7 +198,7 @@ class NWPDataset(object):
         add_if_not_nans('pressure', 'pressure_3d')
         add_if_not_nans('qsat', 'qsat_3d')
 
-    def write_native_grid(self, output_vtk):
+    def write_projected_grid(self, output_vtk):
         write_binary_vtk_on_native_grid(output_vtk,
                                         self.x_grid, self.y_grid, self.z_grid,
                                         point_data=self.scalars,

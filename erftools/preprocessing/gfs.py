@@ -68,14 +68,16 @@ class GFSDataset(NWPDataset):
         self._set_scalars()
 
     def _create_grids(self, clip=True):
-        """Create native grid with projected coordinates x_grid, y_grid
-        and dimensions nx, ny, nz
+        """Use the defined map projection to transform from geodetic to
+        projected coordinates (x_grid, y_grid). The resulting grid is
+        generally curvilinear with dimensions (nx, ny).
         """
         # Extract unique latitude and longitude values
-        unique_lats = np.unique(self.grib.lats[:, 0])  # Take the first column for unique latitudes
-        unique_lons = np.unique(self.grib.lons[0, :])  # Take the first row for unique longitudes
+        unique_lats = np.unique(self.grib.lats[:, 0])
+        unique_lons = np.unique(self.grib.lons[0, :])
 
-        print("Output grid lat/lon min/max are", unique_lats[0], unique_lats[-1], unique_lons[0], unique_lons[-1])
+        print("Output grid lat/lon min/max are",
+              unique_lats[0], unique_lats[-1], unique_lons[0], unique_lons[-1])
 
         # Assume regular lat-lon grid (equal spacing in both directions)
         lat_resolution = unique_lats[1] - unique_lats[0]
@@ -93,27 +95,31 @@ class GFSDataset(NWPDataset):
         lat_min = self.area[2]
         lon_max = 360.0 + self.area[3]
 
-        print("Requested lat/lon min/max are", lat_min, lat_max, lon_min, lon_max)
+        print("Requested lat/lon min/max are",
+              lat_min, lat_max, lon_min, lon_max)
 
         lat_start = int((lat_min - unique_lats[0]) / lat_resolution)
         lat_end   = int((lat_max - unique_lats[0]) / lat_resolution)
         lon_start = int((lon_min - unique_lons[0]) / lon_resolution)
         lon_end   = int((lon_max - unique_lons[0]) / lon_resolution)
 
-        print("The min max are",(lat_start, lat_end, lon_start, lon_end))
+        print("The lat/lon start/end indices are",
+              lat_start, lat_end, lon_start, lon_end)
 
-        # Create clipped GFS output grid
+        # Create GFS data grid, clipped around the simulation area
         domain_lats = unique_lats[lat_start:lat_end+1]
         domain_lons = unique_lons[lon_start:lon_end+1]
 
-        lon_grid, lat_grid = np.meshgrid(domain_lons, domain_lats)
+        self.lon_grid, self.lat_grid = np.meshgrid(domain_lons, domain_lats)
 
-        # Transform from the clipped GFS output grid to the target CRS
-        transformer = Transformer.from_crs("EPSG:4326", self.proj, always_xy=True)
-        self.x_grid, self.y_grid = transformer.transform(lon_grid, lat_grid)
+        # Map the clipped data grid to the target CRS
+        transformer = Transformer.from_crs("EPSG:4326", self.proj,
+                                           always_xy=True)
+        self.x_grid, self.y_grid = transformer.transform(self.lon_grid,
+                                                         self.lat_grid)
 
-        self.nx, self.ny = lat_grid.shape
-        self.nz = self.grib.u.shape[0] # TODO: better way to get this?
+        self.nx, self.ny = self.lat_grid.shape
+        self.nz = self.grib.u.shape[0] # TODO: better way to get this / calculate this here?
 
         print("nx, ny, nz =", self.nx, self.ny, self.nz)
 
@@ -274,6 +280,6 @@ def gfs_to_erf_ICs(datetime, area, forecast, product, output_dir):
 
     os.makedirs(output_dir, exist_ok=True)
     output_vtk = datetime.strftime(f'{output_dir}/GFS_%Y-%m-%d_%HZ_f{forecast:03d}.vtk')
-    gfs.write_native_grid(output_vtk)
+    gfs.write_projected_grid(output_vtk)
 
     gfs.create_US_map('USMap_LambertProj.vtk') # for visualization
