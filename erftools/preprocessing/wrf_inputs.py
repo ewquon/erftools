@@ -212,6 +212,7 @@ class WRFInputDeck(object):
                 in_box_hi = in_box_lo + child_ext
                 assert (in_box_hi[0] <= parent_ext[0])
                 assert (in_box_hi[1] <= parent_ext[1])
+                inp[f'erf.nest{idom:d}.max_level'] = idom
                 inp[f'erf.nest{idom:d}.in_box_lo'] = in_box_lo
                 inp[f'erf.nest{idom:d}.in_box_hi'] = in_box_hi
 
