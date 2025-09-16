@@ -211,19 +211,38 @@ class WRFInputDeck(object):
 
             inp['amr.ref_ratio_vect'] = ref_ratio_vect
 
-        print('DEBUG dt[0]',dt[0])
-
         restart_interval = self.time_control.restart_interval * 60.0 # [s]
         if restart_interval <= 0:
             inp['erf.check_int'] = -1
         else:
             inp['erf.check_int'] = int(restart_interval / dt[0])
 
+        default_plot_vars = ['density','pressure','theta',
+                             'x_velocity','y_velocity','z_velocity',
+                             'qv','qc','qp']
+
         wrfout_interval = self.time_control.history_interval[0] * 60.0 # [s]
         if wrfout_interval <= 0:
             inp['erf.plot_int_1'] = -1
         else:
-            inp['erf.plot_int_1'] = int(wrfout_interval / dt[0])
+            inp['erf_plot_file_1'] = 'plt'
+            #inp['erf.plot_int_1'] = int(wrfout_interval / dt[0])
+            inp['erf.plot_per_1'] = wrfout_interval
+            inp['erf.plot_vars_1'] = default_plot_vars
+            self.log.info('Setting default plotting vars for history output: '
+                          f'{default_plot_vars}')
+
+        auxhist2_interval = self.time_control.auxhist2_interval[0] * 60.0 # [s]
+        if auxhist2_interval <= 0:
+            inp['erf.plot_int_2'] = -1
+        else:
+            inp['erf.plot_file_2'] = 'aux'
+            #inp['erf.plot_int_2'] = int(auxhist2_interval / dt[0])
+            inp['erf.plot_per_2'] = auxhist2_interval
+            inp['erf.plot_vars_1'] = default_plot_vars
+            self.log.info('Setting default plotting vars for auxhist output: '
+                          f'{default_plot_vars} -- need to manually specify '
+                          'erf.plot_vars_2 to replicate auxhist2 output')
 
         sfclayscheme = self.physics.sf_sfclay_physics[0]
         if sfclayscheme == 'None':

@@ -60,6 +60,8 @@ class TimeControl(WRFNamelist):
         if history_interval_s is not None:
             self.history_interval = [interval / 60. for interval in history_interval_s]
 
+        self.auxhist2_interval = self.getarrayvar('auxhist2_interval',default=[0]) # [min]
+
         self.parse_datetime_range()
 
     def __str__(self):
