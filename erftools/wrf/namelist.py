@@ -120,6 +120,8 @@ class TimeControl(WRFNamelist):
             if spec_run_time != simtime.total_seconds():
                 new_end_datetime = self.start_datetimes[0] \
                                  + timedelta(seconds=spec_run_time)
+                # From WRF user guide: run_days/run_hours takes precedence
+                # over the end times
                 print(f'Specified run time {spec_run_time} s'
                       f' differs from {simtime.total_seconds()} s' \
                       f' (from {self.start_datetimes[0]}'

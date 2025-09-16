@@ -16,6 +16,11 @@ def check_unknown_params(data_dict, dataclass_type):
     provided_params = set(data_dict.keys())
     unknown_params = list(provided_params - known_params)
 
+    # ignore MOST settings
+    unknown_params = [param for param in unknown_params
+                      if not param.startswith('most.')]
+
+    # ignore refinement indicators
     if 'refinement_indicators' in data_dict:
         for box in data_dict['refinement_indicators']:
             unknown_params = [param for param in unknown_params
