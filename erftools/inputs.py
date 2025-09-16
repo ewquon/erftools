@@ -405,7 +405,7 @@ erf.alpha_C           = {self.erf.alpha_C}
             lestypes = self.erf.les_type \
                     if isinstance(self.erf.les_type,list) \
                     else [self.erf.les_type]
-            have_smag = ('Smagorinsky' in lestypes)
+            have_smag = ('Smagorinsky' in lestypes) or ('Smagorinsky2D' in lestypes)
             have_dear = ('Deardorff' in lestypes)
             if have_smag or have_dear:
                 f.write(f'\nerf.les_type  = {strs_to_str(lestypes)}\n')

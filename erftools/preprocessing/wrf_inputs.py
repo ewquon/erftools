@@ -316,10 +316,7 @@ class WRFInputDeck(object):
             inp['erf.num_diff_coeff'] = num_diff_coeff
         
         if any([opt != 'constant' for opt in self.dynamics.km_opt]):
-            # in ERF, Smagorinsky == 2D Smagorinsky
-            les_types = [turb if 'Smagorinsky' not in turb else 'Smagorinsky'
-                         for turb in self.dynamics.km_opt]
-            les_types = les_types[:max_dom]
+            les_types = self.dynamics.km_opt[:max_dom]
             inp['erf.les_type'] = les_types
             smag_Cs = self.dynamics.c_s
             dear_Ck = self.dynamics.c_k

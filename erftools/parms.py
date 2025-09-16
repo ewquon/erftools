@@ -329,7 +329,7 @@ class ERFParms:
 
         les_types = self.les_type if isinstance(self.les_type,list) else [self.les_type]
         for turbmodel in les_types:
-            assert turbmodel in ['None','Smagorinsky','Deardorff'], \
+            assert turbmodel in ['None','Smagorinsky','Smagorinsky2D','Deardorff'], \
                     f'Unexpected erf.les_type={turbmodel}'
         if any([turbmodel == 'Smagorinsky' for turbmodel in les_types]):
             smag_Cs = self.Cs if isinstance(self.Cs,list) else len(les_types)*[self.Cs]

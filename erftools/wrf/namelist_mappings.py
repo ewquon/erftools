@@ -81,9 +81,9 @@ km_opt_mapping = {
     1: 'constant',
     2: 'Deardorff', # 1.5 order TKE closure (3D)
     3: 'Smagorinsky', # Smagorinsky first-order closure (3D)
-    4: '2D Smagorinsky', # horizontal Smagorinsky closure (diagnosed from just
-                         #   horizontal deformation); vertical diffusion from
-                         #   PBL scheme
+    4: 'Smagorinsky2D', # horizontal Smagorinsky closure (diagnosed from just
+                        #   horizontal deformation); vertical diffusion from
+                        #   PBL scheme
 }
 
 damp_opt_mapping = {
