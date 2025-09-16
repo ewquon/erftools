@@ -239,7 +239,7 @@ class WRFInputDeck(object):
         if auxhist2_interval <= 0:
             inp['erf.plot_int_2'] = -1
         else:
-            inp['erf.plot_file_2'] = 'aux'
+            inp['erf.plot_file_2'] = 'plt_aux'
             #inp['erf.plot_int_2'] = int(auxhist2_interval / dt[0])
             inp['erf.plot_per_2'] = auxhist2_interval
             inp['erf.plot_vars_2'] = self.input_dict['erf.plot_vars_1'] # default
