@@ -451,6 +451,12 @@ erf.radiation_model = {self.erf.radiation_model}
 """)
 
             ########################################
+            if self.erf.land_surface_model != 'None':
+                f.write(f"""\n# LAND SURFACE
+erf.land_surface_model = {self.erf.land_surface_model}
+""")
+
+            ########################################
             f.write(f"""\n# FORCING TERMS
 erf.use_gravity = {bool_to_str(self.erf.use_gravity)}
 erf.use_coriolis = {bool_to_str(self.erf.use_coriolis)}

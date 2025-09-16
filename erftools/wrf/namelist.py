@@ -248,6 +248,9 @@ class Physics(WRFNamelist):
                 'Different longwave/shortwave radiation schemes not handled'
         self.ra_physics = [ra_physics_mapping.get(idx,'UNKNOWN') for idx in ra_lw_idx_list]
 
+        lsm_idx_list = self.getarrayvar('sf_surface_physics')
+        self.surface_physics = [surface_physics_mapping.get(idx,'UNKNOWN') for idx in lsm_idx_list]
+
         cu_idx_list = self.getarrayvar('cu_physics')
         self.cu_physics = [cu_physics_mapping.get(idx,'UNKNOWN') for idx in cu_idx_list]
 

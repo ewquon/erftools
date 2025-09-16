@@ -53,6 +53,13 @@ ra_physics_mapping = {
     4: 'RRTMGP',
 }
 
+surface_physics_mapping = {
+    0: 'None',
+    1: 'SLM',       # thermal diffusion scheme (soil temperature only, 5 layers)
+    2: 'NoahMP',    # Unified Noah land-surface model
+    4: 'NoahMP',    # Noah-MP land-surface model
+}
+
 cu_physics_mapping = {
     0: 'None',
 }

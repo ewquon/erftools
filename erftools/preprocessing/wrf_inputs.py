@@ -342,6 +342,15 @@ class WRFInputDeck(object):
                 self.log.warning(f'Applying the {rad_model} radiation scheme on all levels')
             inp['erf.radiation_model'] = rad_model
 
+        if any([opt != 'None' for opt in self.physics.surface_physics]):
+            lsm_model = self.physics.surface_physics[0]
+            if len(set(self.physics.surface_physics)) > 1:
+                self.log.warning(f'Applying the {lsm_model} surface scheme on all levels')
+            if lsm_model == 'NoahMP':
+                self.log.warning(f'&noah_mp was not parsed, additional options'
+                                 ' need to be manually specified')
+            inp['erf.land_surface_model'] = lsm_model
+
         if any([opt != 'None' for opt in self.physics.cu_physics]):
             self.log.warning('ERF currently does not have any cumulus parameterizations')
 
