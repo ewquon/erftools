@@ -177,8 +177,18 @@ class Domains(WRFNamelist):
             assert self.i_parent_start[0] == 1
             assert self.j_parent_start[0] == 1
         for dom in range(1,self.max_dom):
-            assert (self.dx[dom-1]/self.dx[dom] == self.parent_grid_ratio[dom])
-            assert (self.dy[dom-1]/self.dy[dom] == self.parent_grid_ratio[dom])
+            if len(self.dx) >= self.max_dom:
+                assert (self.dx[dom-1]/self.dx[dom] == self.parent_grid_ratio[dom])
+            else:
+                print(f'Note: dx on d{dom+1:02d} not found,'
+                      ' setting from parent_grid_ratio')
+                self.dx.append(self.dx[dom-1] / self.parent_grid_ratio[dom])
+            if len(self.dy) >= self.max_dom:
+                assert (self.dy[dom-1]/self.dy[dom] == self.parent_grid_ratio[dom])
+            else:
+                print(f'Note: dy on d{dom+1:02d} not found'
+                      ' setting from parent_grid_ratio')
+                self.dy.append(self.dy[dom-1] / self.parent_grid_ratio[dom])
         self.eta_levels = self.getarrayvar('eta_levels',optional=True)
         self.etac = self.getvar('etac',default=0.2)
         self.auto_levels_opt = self.getvar('auto_levels_opt',default=2)
