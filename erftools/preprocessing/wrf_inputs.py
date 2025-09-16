@@ -347,8 +347,11 @@ class WRFInputDeck(object):
             if len(set(self.physics.surface_physics)) > 1:
                 self.log.warning(f'Applying the {lsm_model} surface scheme on all levels')
             if lsm_model == 'NoahMP':
-                self.log.warning(f'&noah_mp was not parsed, additional options'
-                                 ' need to be manually specified')
+                #self.log.warning(f'&noah_mp was not parsed, additional options'
+                #                 ' need to be manually specified')
+                self.log.warning('NoahMP verification is ongoing; '
+                                 'reverting to simple land model (SLM) for now')
+                lsm_model = 'SLM'
             inp['erf.land_surface_model'] = lsm_model
 
         if any([opt != 'None' for opt in self.physics.cu_physics]):

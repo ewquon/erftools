@@ -273,7 +273,7 @@ class ERFParms:
     radiation_model: str = 'None'
 
     # Land Surface
-    land_surface_model = str = 'None'
+    land_surface_model: str = 'None'
 
     def __post_init__(self):
         if self.anelastic:
