@@ -518,12 +518,15 @@ erf.init_type           = input_sounding
 erf.init_sounding_ideal = {bool_to_str(self.erf.init_sounding_ideal)}
 """)
             elif self.erf.init_type.lower() == 'wrfinput':
-                f.write(f"""
-erf.init_type      = wrfinput
-erf.use_real_bcs   = {bool_to_str(self.erf.use_real_bcs)}
-erf.nc_init_file_0 = {self.erf.nc_init_file_0}""")
+                f.write('\nerf.init_type      = wrfinput\n')
+                nc_init_files = [
+                    param for param in dir(self.erf)
+                    if param.startswith('nc_init_file_')]
+                for initfile in nc_init_files:
+                    f.write(f'erf.{initfile} = {getattr(self.erf,initfile)}\n')
                 if self.erf.use_real_bcs:
                     f.write(f"""
+erf.use_real_bcs   = {bool_to_str(self.erf.use_real_bcs)}
 erf.nc_bdy_file    = {self.erf.nc_bdy_file}
 erf.real_width     = {self.erf.real_width}
 erf.real_set_width = {self.erf.real_set_width}

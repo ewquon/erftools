@@ -77,7 +77,6 @@ class WRFInputDeck(object):
             'erf.terrain_smoothing': 1,
             'erf.init_type': 'wrfinput',
             'erf.use_real_bcs': True,
-            'erf.nc_init_file_0': 'wrfinput_d01',
             'erf.nc_bdy_file': 'wrfbdy_d01',
             'erf.dycore_horiz_adv_type': 'Upwind_5th',
             'erf.dycore_vert_adv_type': 'Upwind_3rd',
@@ -180,8 +179,12 @@ class WRFInputDeck(object):
         dt = np.array(self.domains.parent_time_step_ratio) * self.domains.time_step
         inp['erf.fixed_dt'] = dt[0]
 
-        # refinements
+        # initial conditions
         max_dom = self.domains.max_dom
+        for i in range(max_dom):
+            inp[f'erf.nc_init_file_{i}'] = f'wrfinput_d{i+1:02d}'
+
+        # refinements
         inp['amr.max_level'] = max_dom - 1 # zero-based indexing
         if max_dom > 1:
             self.log.info('Assuming parent_time_step_ratio == parent_grid_ratio')
