@@ -145,7 +145,7 @@ class Domains(WRFNamelist):
     def parse_time_integration(self):
         self.time_step = self.getvar('time_step') # seconds
         dt_num = self.getvar('time_step_fract_num',optional=True)
-        if dt_num is not None:
+        if dt_num is not None and dt_num > 0:
             dt_den = self.getvar('time_step_fract_den')
             self.time_step = dt_num / dt_den
         self.parent_time_step_ratio = self.getarrayvar(

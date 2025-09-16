@@ -199,8 +199,6 @@ class WRFInputDeck(object):
                 child_dx   = np.array([  dx[idom  ],   dy[idom  ]], dtype=float)
                 parent_ext = np.array([imax[idom-1], jmax[idom-1]]) * parent_dx
                 child_ext  = np.array([imax[idom  ], jmax[idom  ]]) * child_dx
-                print(f'd{idom+1} parent dx,ext :',parent_dx,parent_ext)
-                print(f'd{idom+1} child  dx,ext :',child_dx,child_ext)
                 lo_idx = np.array([
                     self.domains.i_parent_start[idom] - 1,
                     self.domains.j_parent_start[idom] - 1])
@@ -213,11 +211,19 @@ class WRFInputDeck(object):
 
             inp['amr.ref_ratio_vect'] = ref_ratio_vect
 
+        print('DEBUG dt[0]',dt[0])
+
         restart_interval = self.time_control.restart_interval * 60.0 # [s]
-        inp['erf.check_int'] = int(restart_interval / dt[0])
+        if restart_interval <= 0:
+            inp['erf.check_int'] = -1
+        else:
+            inp['erf.check_int'] = int(restart_interval / dt[0])
 
         wrfout_interval = self.time_control.history_interval[0] * 60.0 # [s]
-        inp['erf.plot_int_1'] = int(wrfout_interval / dt[0])
+        if wrfout_interval <= 0:
+            inp['erf.plot_int_1'] = -1
+        else:
+            inp['erf.plot_int_1'] = int(wrfout_interval / dt[0])
 
         sfclayscheme = self.physics.sf_sfclay_physics[0]
         if sfclayscheme == 'None':
