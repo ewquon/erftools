@@ -251,7 +251,7 @@ class WRFInputDeck(object):
         if sfclayscheme == 'None':
             inp['zlo.type'] = 'SlipWall'
         elif sfclayscheme == 'SurfaceLayer':
-            inp['zlo.type'] = 'SurfaceLayer'
+            inp['zlo.type'] = 'surface_layer'
         else:
             self.log.warning(f'Surface layer scheme {sfclayscheme} not implemented in ERF')
             inp['zlo.type'] = sfclayscheme

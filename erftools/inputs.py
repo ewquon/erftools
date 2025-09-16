@@ -128,7 +128,7 @@ class ERFInputs(object):
             assert 'zhi.type' in ppdata.keys()
             self.zlo = parmparse('zlo',ppdata)
             self.zhi = parmparse('zhi',ppdata)
-            if self.zlo['type'] == 'SurfaceLayer':
+            if self.zlo['type'] == 'surface_layer':
                 self.most = parmparse('erf.most',ppdata)
 
     def read_refinement(self,ppdata):
@@ -238,7 +238,7 @@ geometry.is_periodic = {list_to_str(self.geometry.is_periodic)}
             if hasattr(self,'zlo'):
                 f.write('\n')
                 write_bc(f,'zlo',self.zlo)
-                if self.zlo['type'] == 'SurfaceLayer':
+                if self.zlo['type'] == 'surface_layer':
                     for key,val in self.most.items():
                         f.write(f'erf.most.{key} = {val}\n')
                 write_bc(f,'zhi',self.zhi)
