@@ -26,6 +26,10 @@ def check_unknown_params(data_dict, dataclass_type):
             unknown_params = [param for param in unknown_params
                               if not param.startswith(f'{box}.')]
 
+    # ignore nc_init_file_*
+    unknown_params = [param for param in unknown_params
+                      if not param.startswith('nc_init_file_')]
+
     if unknown_params:
         warnings.warn(f'Non-standard {dataclass_type.__name__} ignored: {unknown_params}')
 
