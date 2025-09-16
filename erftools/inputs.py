@@ -411,7 +411,8 @@ erf.alpha_C           = {self.erf.alpha_C}
                 f.write(f'\nerf.les_type  = {strs_to_str(lestypes)}\n')
             if have_smag:
                 Cs_list = self.erf.Cs if isinstance(self.erf.Cs,list) else [self.erf.Cs]
-                f.write(f'erf.Cs        = {list_to_str(Cs_list)}\n')
+                comment = ' # Cs=0.25 is WRF default' if (0.25 in Cs_list) else ''
+                f.write(f'erf.Cs        = {list_to_str(Cs_list)}{comment}\n')
             if have_dear:
                 Ck_list = self.erf.Ck if isinstance(self.erf.Ck,list) else [self.erf.Ck]
                 f.write(f'erf.Ck        = {list_to_str(Ck_list)}\n')
