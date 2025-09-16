@@ -225,6 +225,13 @@ class Physics(WRFNamelist):
         self.bl_pbl_physics = [pbl_mapping.get(idx,'UNKNOWN') for idx in pbl_idx_list]
         for i in range(len(self.bl_pbl_physics)):
             if self.bl_pbl_physics[i] == 'MYNN':
+                if pbl_mynn_closure > 2.5:
+                    pbl_mynn_closure = 2.5
+                    warnings.warn(f'MYNN level {pbl_mynn_closure} selected, but'
+                                  ' it is currently not available in ERF'
+                                  ' -- reverting to MYNN level 2.5.'
+                                  ' Note: A port of MYNN-EDMF is also available'
+                                  ' but it has not been fully verified.')
                 lvlstr = str(pbl_mynn_closure).replace('.','')
                 self.bl_pbl_physics[i] += lvlstr
         self.sf_sfclay_physics = [sfclay_mapping.get(idx,'UNKNOWN') for idx in sfclay_idx_list]

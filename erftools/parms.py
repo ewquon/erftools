@@ -328,7 +328,7 @@ class ERFParms:
 
         pbl_types = self.pbl_type if isinstance(self.pbl_type,list) else [self.pbl_type]
         for pblscheme in pbl_types:
-            assert pblscheme in ['None','MYNN25','YSU'], \
+            assert pblscheme in ['None','MYJ','MYNN25','MRF','YSU'], \
                     f'Unexpected erf.pbl_type={pblscheme}'
 
         assert self.abl_driver_type in \
