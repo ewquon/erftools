@@ -17,8 +17,7 @@ def check_unknown_params(data_dict, dataclass_type):
     unknown_params = list(provided_params - known_params)
 
     if 'refinement_indicators' in data_dict:
-        boxes = data_dict['refinement_indicators'].split()
-        for box in boxes:
+        for box in data_dict['refinement_indicators']:
             unknown_params = [param for param in unknown_params
                               if not param.startswith(f'{box}.')]
 
