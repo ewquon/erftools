@@ -18,9 +18,9 @@ pbl_mapping = {
 
 sfclay_mapping = {
     0: 'None',
-    1: 'MOST', # Revised MM5 Monin-Obukhov scheme (Jimenez, renamed in v3.6)
-    2: 'MOST', # Monin-Obukhov (Janjic) scheme
-    5: 'MOST', # MYNN surface layer
+    1: 'SurfaceLayer', # Revised MM5 Monin-Obukhov scheme (Jimenez, renamed in v3.6)
+    2: 'SurfaceLayer', # Monin-Obukhov (Janjic) scheme
+    5: 'SurfaceLayer', # MYNN surface layer
 }
 valid_sfclay = {
     # for each PBL scheme, based on acceptable WRF inputs
