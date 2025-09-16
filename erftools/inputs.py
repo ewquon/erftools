@@ -337,14 +337,15 @@ erf.terrain_smoothing = {self.erf.terrain_smoothing}
             f.write('\n# PLOTFILES\n')
             if self.erf.plotfile_type != 'amrex':
                 f.write(f'erf.plotfile_type = {self.erf.plotfile_type}\n')
-            if (self.erf.plot_int_1 > 0) or (self.erf.plot_per_1 > 0):
-                f.write(f'erf.plot_file_1 = {self.erf.plot_file_1}\n')
-                if self.erf.plot_per_1 > 0:
-                    f.write(f'erf.plot_per_1  = {self.erf.plot_per_1}\n')
-                else:
-                    f.write(f'erf.plot_int_1  = {self.erf.plot_int_1}\n')
-                f.write('erf.plot_vars_1 = '
-                        f"{strs_to_str(self.erf.plot_vars_1)}\n")
+
+            f.write(f'erf.plot_file_1 = {self.erf.plot_file_1}\n')
+            if self.erf.plot_per_1 > 0:
+                f.write(f'erf.plot_per_1  = {self.erf.plot_per_1}\n')
+            else:
+                f.write(f'erf.plot_int_1  = {self.erf.plot_int_1}\n')
+            f.write('erf.plot_vars_1 = '
+                    f"{strs_to_str(self.erf.plot_vars_1)}\n")
+
             if (self.erf.plot_int_2 > 0) or (self.erf.plot_per_2 > 0):
                 f.write(f'erf.plot_file_2 = {self.erf.plot_file_2}\n')
                 if self.erf.plot_per_2 > 0:

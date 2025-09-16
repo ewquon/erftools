@@ -220,10 +220,6 @@ class WRFInputDeck(object):
         else:
             inp['erf.check_int'] = int(restart_interval / dt[0])
 
-        default_plot_vars = ['density','pressure','theta',
-                             'x_velocity','y_velocity','z_velocity',
-                             'qv','qc','qp']
-
         wrfout_interval = self.time_control.history_interval[0] * 60.0 # [s]
         if wrfout_interval <= 0:
             inp['erf.plot_int_1'] = -1
@@ -242,9 +238,9 @@ class WRFInputDeck(object):
             inp['erf.plot_file_2'] = 'aux'
             #inp['erf.plot_int_2'] = int(auxhist2_interval / dt[0])
             inp['erf.plot_per_2'] = auxhist2_interval
-            inp['erf.plot_vars_1'] = default_plot_vars
+            inp['erf.plot_vars_2'] = self.input_dict['erf.plot_vars_1'] # default
             self.log.info('Setting default plotting vars for auxhist output: '
-                          f'{default_plot_vars} -- need to manually specify '
+                          f'{inp["erf.plot_vars_2"]} -- need to manually specify '
                           'erf.plot_vars_2 to replicate auxhist2 output')
 
         sfclayscheme = self.physics.sf_sfclay_physics[0]
