@@ -178,9 +178,9 @@ class ERFInputs(object):
                               f' will be inactive with'
                               f' amr.max_level={self.amr.max_level}')
             if 'field_name' in refineparams and \
-                    self.amr.regrid_int <= 0:
+                    self.erf.regrid_int <= 0:
                 warnings.warn(f'{box} dynamic refinement will be inactive'
-                              f' with amr.regrid_int={self.amr.regrid_int}')
+                              f' with erf.regrid_int={self.erf.regrid_int}')
 
     def write(self,fpath=None):
         with open_file_or_stdout(fpath) as f:
@@ -271,7 +271,7 @@ erf.sum_interval = {self.erf.sum_interval}  # timesteps between computing mass
             ########################################
             f.write('\n# REFINEMENT / REGRIDDING\n')
             f.write(f'amr.max_level = {self.amr.max_level}\n')
-            f.write(f'amr.regrid_int = {self.amr.regrid_int}\n')
+            f.write(f'erf.regrid_int = {self.erf.regrid_int}\n')
             if len(self.erf.refinement_indicators) > 0:
                 if len(self.amr.ref_ratio_vect) > 0:
                     f.write('amr.ref_ratio_vect = '

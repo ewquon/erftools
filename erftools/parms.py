@@ -41,7 +41,6 @@ class AMRParms:
     max_level: int = 0
     ref_ratio: Union[int,List[int]] = 2
     ref_ratio_vect: List[int] = field(default_factory=list)
-    regrid_int: int = -1
 
     v: int = 0  # verbosity
 
@@ -133,6 +132,7 @@ class ERFParms:
 
     # Refinement
     refinement_indicators: Union[str,List[str]] = field(default_factory=list)
+    regrid_int: int = -1
 
     # Grid Stretching
     grid_stretching_ratio: float = 1.
