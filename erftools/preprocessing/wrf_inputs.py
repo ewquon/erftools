@@ -146,18 +146,9 @@ class WRFInputDeck(object):
                 assert eta_levels[0] == 1
                 assert eta_levels[-1] == 0
 
-            # get geopotential height from base state
-            real = RealInit(eta_stag=eta_levels, ptop=ptop)
-            #phb = real.phb.squeeze().values
-            # better match real.exe output...
-            alb = real.alb.squeeze().values
-            phb = np.zeros_like(eta_levels)
-            psurf = p_0
-            mub = psurf - ptop
-            for k in range(len(eta_levels)-1):
-                phb[k+1] = phb[k] - (eta_levels[k+1]-eta_levels[k]) * mub * alb[k]
-
-            z_levels = phb / CONST_GRAV
+            # get geopotential heights from base state
+            real = RealInit(eta_levels=eta_levels, ptop=ptop)
+            z_levels = real.zlevels.squeeze().values
             self.base_heights = z_levels
             inp['erf.terrain_z_levels'] = z_levels
 
