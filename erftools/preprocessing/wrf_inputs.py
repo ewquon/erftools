@@ -154,6 +154,9 @@ class WRFInputDeck(object):
 
             most_zref = 0.5*(z_levels[0] + z_levels[1])
             inp['erf.most.zref'] = most_zref  # need to specify for terrain
+            self.log.info('Reference height for MOST set to the average of the '
+                          'first two base-state geopotential heights: '
+                          f'{z_levels[0]:g} {z_levels[1]:g}')
 
             ztop = z_levels[-1]
             self.log.info('Estimated domain ztop from domains.p_top_requested'
@@ -272,9 +275,9 @@ class WRFInputDeck(object):
         inp['erf.dryscal_horiz_adv_type'] = h_sca_adv_order
         inp['erf.dryscal_vert_adv_type']  = v_sca_adv_order
         if not all([adv_opt == 'WENO5' for adv_opt in self.dynamics.moist_adv_opt]):
-            self.log.warning('Need to manually specify moist erf.moistscal_*_adv_type'
-                             f' for WRF moist_adv_opt = {self.dynamics.moist_adv_opt}'
-                             ' -- defaulting to 5th-order WENO')
+            self.log.warning(f'WRF moist_adv_opt = {self.dynamics.moist_adv_opt}'
+                             ' not available -- defaulting to 5th-order WENO for'
+                             ' erf.moistscal_*_adv_type')
 
         inp['erf.pbl_type'] = self.physics.bl_pbl_physics
         for idom in range(max_dom):
