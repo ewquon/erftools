@@ -245,7 +245,8 @@ geometry.is_periodic = {list_to_str(self.geometry.is_periodic)}
 
             ########################################
             f.write('\n# TIME STEP CONTROL\n')
-            f.write(f'erf.substepping_type = {self.erf.substepping_type}\n')
+            if self.erf.substepping_type != 'implicit':
+                f.write(f'erf.substepping_type = {self.erf.substepping_type}\n')
             if self.erf.fixed_dt > 0:
                 f.write(f'erf.fixed_dt         = {self.erf.fixed_dt}\n')
             else:
