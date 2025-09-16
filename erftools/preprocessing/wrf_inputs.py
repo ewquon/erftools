@@ -201,10 +201,10 @@ class WRFInputDeck(object):
                 grid_ratio = self.domains.parent_grid_ratio[idom]
                 ref_ratio_vect += [grid_ratio, grid_ratio, 1]
 
-                parent_dx  = np.array([  dx[idom-1],   dy[idom-1]], dtype=float)
-                child_dx   = np.array([  dx[idom  ],   dy[idom  ]], dtype=float)
-                parent_ext = np.array([imax[idom-1], jmax[idom-1]]) * parent_dx
-                child_ext  = np.array([imax[idom  ], jmax[idom  ]]) * child_dx
+                parent_dx  = np.array([  dx[idom-1]  ,   dy[idom-1]  ], dtype=float)
+                child_dx   = np.array([  dx[idom  ]  ,   dy[idom  ]  ], dtype=float)
+                parent_ext = np.array([imax[idom-1]-1, jmax[idom-1]-1]) * parent_dx
+                child_ext  = np.array([imax[idom  ]-1, jmax[idom  ]-1]) * child_dx
                 lo_idx = np.array([
                     self.domains.i_parent_start[idom] - 1,
                     self.domains.j_parent_start[idom] - 1])
