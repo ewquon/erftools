@@ -368,7 +368,7 @@ class WRFInputDeck(object):
                 self.log.warning(f'Damping option {self.dynamics.damp_opt} not supported')
 
         self.input_dict = inp
-        
+
     def process_initial_conditions(self,init_input='wrfinput_d01',
                                    calc_geopotential_heights=False,
                                    landuse_table_path=None,
@@ -428,8 +428,8 @@ class WRFInputDeck(object):
             xyz = np.stack((xg.ravel(order='F'),
                             yg.ravel(order='F'),
                             hgt_nodes.ravel(order='F')),axis=-1)
-            print('Writing out',write_hgt)
-            np.savetxt(write_hgt, xyz, fmt='%.8g')
+
+            write_ascii_table(write_hgt, xyz, names=['x','y','hgt'])
             self.input_dict['erf.terrain_file_name'] = \
                     os.path.split(write_hgt)[1]
 
@@ -490,8 +490,8 @@ class WRFInputDeck(object):
             xyz0 = np.stack((xg.ravel(order='F'),
                              yg.ravel(order='F'),
                              z0_nodes.ravel(order='F')),axis=-1)
-            print('Writing out',write_z0)
-            np.savetxt(write_z0, xyz0, fmt='%.8g')
+
+            write_ascii_table(write_z0, xyz0, names=['x','y','z0'])
             self.input_dict['erf.most.roughness_file_name'] = \
                     os.path.split(write_z0)[1]
         else:
@@ -513,8 +513,8 @@ class WRFInputDeck(object):
             xyz0 = np.stack((xg.ravel(order='F'),
                              yg.ravel(order='F'),
                              al_nodes.ravel(order='F')),axis=-1)
-            print('Writing out',write_albedo)
-            np.savetxt(write_albedo, xyz0, fmt='%.8g')
+
+            write_ascii_table(write_albedo, xyz0, names=['x','y','alb'])
             self.input_dict['erf.rad_albedo_file_name'] = \
                     os.path.split(write_albedo)[1]
 
@@ -534,3 +534,19 @@ class WRFInputDeck(object):
         inp = self.to_erf()
         inp.write(fpath)
         print('Wrote',fpath)
+
+
+def write_ascii_table(fpath, xyz, names=None):
+    print('Writing out',fpath)
+    ext = os.path.splitext(fpath)[1]
+    if ext == '.csv':
+        columns = None
+        if names is not None:
+            columns = names
+        df = pd.DataFrame(xyz, columns=columns)
+        df.to_csv(fpath, index=False)
+    else:
+        header = ''
+        if names is not None:
+            header = ' '.join(names)
+        np.savetxt(fpath, xyz, header=header, fmt='%.8g')
