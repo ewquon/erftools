@@ -1,4 +1,4 @@
-from .wrf_inputs import WRFInputDeck
+from ..wrf.inputdeck import WRFInputDeck
 from .grids import LambertConformalGrid
 
 # ERA5 related funrcions

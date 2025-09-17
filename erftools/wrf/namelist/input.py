@@ -4,7 +4,7 @@ Processing for each namelist within a WRF namelist.input file
 import warnings
 from datetime import datetime, timedelta
 
-from .namelist_mappings import *
+from .mappings import *
 
 class WRFNamelist(object):
     def __init__(self,nmldict):

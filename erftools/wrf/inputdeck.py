@@ -1,5 +1,6 @@
 import logging
 import os
+
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -7,13 +8,18 @@ import f90nml
 import calendar
 from scipy.interpolate import RegularGridInterpolator
 
-from ..wrf.namelist import (TimeControl, Domains, Physics, Dynamics,
-                           BoundaryControl)
-from ..wrf.tslist import TSList
-from ..wrf.landuse import LandUseTable
-from ..wrf.real import RealInit, get_zlevels_auto
+from .namelist.input import (TimeControl,
+                             Domains,
+                             Physics,
+                             Dynamics,
+                             BoundaryControl)
+from .namelist.tslist import TSList
+from .landuse import LandUseTable
+from .real import RealInit, get_zlevels_auto
+
 from ..constants import CONST_GRAV, p_0
 from ..inputs import ERFInputs
+
 
 class WRFInputDeck(object):
     """Class to parse inputs from WRF and convert to inputs for ERF
