@@ -41,10 +41,14 @@ mp_physics_mapping = {
     0: 'None',
     1: 'Kessler',
     2: 'SAM',       # SAM is comparable to Lin et al. scheme
-    3: 'Kessler',   # WRF Single-Moment, 3-class scheme
+    3: 'SAM',       # WRF Single-Moment, 3-class scheme with ice
+    4: 'SAM',       # WRF Single-Moment, 5-class scheme
+    5: 'SAM',       # Ferrier (new Eta), operational High-Resolution Window version
     6: 'SAM',       # WRF Single-Moment, 6-class scheme
     8: 'Morrison',  # Thompson scheme
     10: 'Morrison', # Morrison (double moment) scheme
+    14: 'Morrison', # WRF Double-Moment 5-class scheme
+    16: 'Morrison', # WRF Double-Moment 6-class scheme
     28: 'Morrison', # aerosol-aware Thompson scheme
 }
 
