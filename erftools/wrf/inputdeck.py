@@ -35,6 +35,10 @@ class WRFInputDeck(object):
     occurs. ERFInputs.write() is used to finally output an ERF input file.
     """
 
+    default_plot_vars = ['density','x_velocity','y_velocity','z_velocity',
+                         'pressure','theta','KE',
+                         'Kmh','Kmv','Khh','Khv','qv','qc']
+
     def __init__(self,nmlpath,tslist=None,verbosity=logging.DEBUG):
         # setup logger
         self.log = logging.getLogger(__name__)
@@ -95,9 +99,7 @@ class WRFInputDeck(object):
             'erf.v': 1, # verbosity in ERF.cpp
             'erf.sum_interval': 1, # timesteps between computing mass
             'erf.plot_file_1': 'plt',
-            'erf.plot_vars_1': ['density','x_velocity','y_velocity','z_velocity',
-                                'pressure','theta','KE',
-                                'Kmh','Kmv','Khh','Khv','qv','qc'],
+            'erf.plot_vars_1': self.default_plot_vars,
         }
 
     def generate_inputs(self):
@@ -241,9 +243,9 @@ class WRFInputDeck(object):
             inp['erf_plot_file_1'] = 'plt'
             #inp['erf.plot_int_1'] = int(wrfout_interval / dt[0])
             inp['erf.plot_per_1'] = wrfout_interval
-            inp['erf.plot_vars_1'] = default_plot_vars
+            inp['erf.plot_vars_1'] = self.default_plot_vars
             self.log.info('Setting default plotting vars for history output: '
-                          f'{default_plot_vars}')
+                          f'{self.default_plot_vars}')
 
         auxhist2_interval = self.time_control.auxhist2_interval[0] * 60.0 # [s]
         if auxhist2_interval <= 0:
@@ -252,9 +254,9 @@ class WRFInputDeck(object):
             inp['erf.plot_file_2'] = 'plt_aux'
             #inp['erf.plot_int_2'] = int(auxhist2_interval / dt[0])
             inp['erf.plot_per_2'] = auxhist2_interval
-            inp['erf.plot_vars_2'] = self.input_dict['erf.plot_vars_1'] # default
+            inp['erf.plot_vars_2'] = self.default_plot_vars
             self.log.info('Setting default plotting vars for auxhist output: '
-                          f'{inp["erf.plot_vars_2"]} -- need to manually specify '
+                          f'{self.default_plot_vars} -- need to manually specify '
                           'erf.plot_vars_2 to replicate auxhist2 output')
 
         sfclayscheme = self.physics.sf_sfclay_physics[0]
