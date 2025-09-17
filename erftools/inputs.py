@@ -4,7 +4,7 @@ import contextlib
 import numpy as np
 
 # parameters parsed by AMReX's ParmParse
-from .parms import AMRParms, GeometryParms, ERFParms, check_unknown_params
+from .erfparms import AMRParms, GeometryParms, ERFParms, check_unknown_params
 
 
 def parmparse(prefix, ppdata):
