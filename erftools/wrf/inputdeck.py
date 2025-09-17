@@ -7,6 +7,7 @@ import xarray as xr
 import f90nml
 import calendar
 from scipy.interpolate import RegularGridInterpolator
+import click
 
 from .namelist.input import (TimeControl,
                              Domains,
@@ -570,3 +571,13 @@ def write_ascii_table(fpath, xyz, names=None):
         if names is not None:
             header = ' '.join(names)
         np.savetxt(fpath, xyz, header=header, fmt='%.8g')
+
+
+@click.command()
+@click.argument('namelist_input', type=click.Path(exists=True, readable=True))
+@click.argument('erf_input', type=click.Path(writable=True), required=False,
+                default='input')
+def wrf_namelist_to_erf(namelist_input, erf_input):
+    """Convert a WRF namelist.input to an ERF input file"""
+    wrf = WRFInputDeck(namelist_input)
+    wrf.write_inputfile(erf_input)

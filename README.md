@@ -27,11 +27,18 @@ pip install -e .[all]
 ```python
 from erftools.preprocessing import WRFInputDeck
 wrf = WRFInputDeck('namelist.input')
+wrf.write_inputfile('inputs')
+
+# optional: extract data from wrfinput
 wrf.process_initial_conditions('wrfinput_d01',
                                landuse_table_path='/Users/equon/WRF/run/LANDUSE.TBL',
                                write_hgt='terrain_height.txt',
                                write_z0='roughness_height.txt')
-wrf.write_inputfile('inputs')
+```
+
+The namelist conversion may also be accomplished from the command line:
+```bash
+wrf_namelist_to_erf namelist.input inputs
 ```
 
 ### Postprocessing data logs

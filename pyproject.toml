@@ -60,6 +60,7 @@ packages = ["erftools"]
 
 # Console scripts -- creates command line tools
 [project.scripts]
+wrf_namelist_to_erf = "erftools.wrf.inputdeck:wrf_namelist_to_erf"
 
 [project.urls]
 Homepage = "https://erf.readthedocs.io/en/latest/"
