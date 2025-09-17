@@ -184,10 +184,12 @@ class WRFInputDeck(object):
         for i in range(max_dom):
             inp[f'erf.nc_init_file_{i}'] = f'wrfinput_d{i+1:02d}'
 
-        # refinements
+        # refinements / nests
         inp['amr.max_level'] = max_dom - 1 # zero-based indexing
         if max_dom > 1:
             self.log.info('Assuming parent_time_step_ratio == parent_grid_ratio')
+
+            self.refinement_boxes = []
 
             refine_names = [f'nest{idom:d}' for idom in range(1,max_dom)]
             inp['erf.refinement_indicators'] = refine_names
@@ -215,6 +217,7 @@ class WRFInputDeck(object):
                 inp[f'erf.nest{idom:d}.max_level'] = idom
                 inp[f'erf.nest{idom:d}.in_box_lo'] = in_box_lo
                 inp[f'erf.nest{idom:d}.in_box_hi'] = in_box_hi
+                self.refinement_boxes.append((in_box_lo, in_box_hi))
 
             inp['amr.ref_ratio_vect'] = ref_ratio_vect
 
@@ -377,6 +380,9 @@ class WRFInputDeck(object):
                                    write_albedo=None):
         wrfinp = xr.open_dataset(init_input)
 
+        idx = init_input.index('_d')
+        idom = int(init_input[idx+2:idx+4]) - 1
+
         # Get Coriolis parameters
         period = 4*np.pi / wrfinp['F'] * np.sin(np.radians(wrfinp.coords['XLAT'])) # F: "Coriolis sine latitude term"
         mean_lat = np.mean(wrfinp.coords['XLAT'].values)
@@ -401,14 +407,22 @@ class WRFInputDeck(object):
             inp['erf.most.zref'] = most_zref  # need to specify for terrain
 
         # Grid data needed if hgt or z0 are written
-        dx = self.domains.dx[0]
-        dy = self.domains.dy[0]
+        dx = self.domains.dx[idom]
+        assert dx == wrfinp.attrs['DX']
+        dy = self.domains.dy[idom]
+        assert dy == wrfinp.attrs['DY']
         nx = wrfinp.sizes['west_east']
         ny = wrfinp.sizes['south_north']
-        west_east   = np.arange(0.5,nx) * dx
-        south_north = np.arange(0.5,ny) * dy
-        west_east_stag   = np.arange(nx+1) * dx
-        south_north_stag = np.arange(ny+1) * dy
+
+        x0, y0 = 0.0, 0.0
+        if idom > 0:
+            refine_box_lo, _ = self.refinement_boxes[idom-1]
+            x0, y0 = refine_box_lo[:2]
+
+        west_east   = x0 + np.arange(0.5,nx) * dx
+        south_north = y0 + np.arange(0.5,ny) * dy
+        west_east_stag   = x0 + np.arange(nx+1) * dx
+        south_north_stag = y0 + np.arange(ny+1) * dy
         xg,yg = np.meshgrid(west_east_stag, south_north_stag, indexing='ij')
 
         hgt = wrfinp['HGT'].isel(Time=0) # terrain height
@@ -435,8 +449,8 @@ class WRFInputDeck(object):
 
         # Process land use information
         if landuse_table_path is None:
-            print('Need to specify `landuse_table_path` from your WRF installation'
-                  'land-use indices to estimate z0')
+            print('Need to specify `landuse_table_path` from your WRF '
+                  ' installation to determine z0, alb from land-use indices')
             if write_z0:
                 print('Surface roughness map was not written')
             if write_albedo:
