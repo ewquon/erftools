@@ -1,5 +1,25 @@
-# ERFtools
-A collection of scripts for facilitating the usage of ERF.
+# ERF Tools
+A collection of Python-based modules and scripts for facilitating the usage of
+the Energy Research and Forecasting (ERF) model.
+
+## Installation
+
+Clone and create a conda (or mamba) environment:
+```shell
+git clone https://github.com/erf-model/erftools.git
+cd erftools
+conda create -n erftools python=3.9
+conda activate erftools
+```
+
+Then, install with:
+```shell
+pip install -e . # editable install
+```
+or install with all optional dependencies:
+```shell
+pip install -e .[all]
+```
 
 ## Examples
 
@@ -15,7 +35,9 @@ wrf.write_inputfile('inputs')
 ```
 
 ### Postprocessing data logs
-Data logs are output with the `erf.data_log` param and can include time histories of surface conditions and planar averaged profiles (e.g., for idealized LES simulations)
+Data logs are output with the `erf.data_log` param and can include time
+histories of surface conditions and planar averaged profiles (e.g., for
+idealized LES simulations)
 ```python
 from erftools.postprocessing import DataLog
 log = DataLog(f'{simdir}/surf_hist.dat',
@@ -31,6 +53,8 @@ print(log.ds) # data are stored in an xarray dataset
 
 Some notes and recommendations:
 
-* An aspirational goal is to contribute code that can be used as in the examples above, with clear, intuitive naming and following PEP-8 style as a set of guidelines rather than gospel.
-* To avoid duplication, model constants are defined in `erf.constants`, which should replicate `ERF/Source/ERF_Constants.H`.
-* In the same vein, equation of state evaluations are defined in `erf.EOS`, which should replicate `ERF/Source/Utils/ERF_EOS.H`. 
+* An aspirational goal is to contribute code that can be used as in the examples above, with clear, intuitive naming.
+* To avoid duplication, model constants are defined in `erftools.constants`, which should replicate `ERF/Source/ERF_Constants.H`.
+* In the same vein, equation of state evaluations are defined in `erftools.utils.EOS`, which should replicate `ERF/Source/Utils/ERF_EOS.H`.
+* Other utilities for calculating/deriving/diagnosing quantities of interest are also in `erftools.utils.*`
+* Please follow PEP-8 style--as a set of guidelines rather than gospel--to facilitate code usage and maintenance by the community.
