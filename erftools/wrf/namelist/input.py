@@ -73,14 +73,23 @@ class TimeControl(WRFNamelist):
         start_month  = self.getarrayvar('start_month')
         start_day    = self.getarrayvar('start_day')
         start_hour   = self.getarrayvar('start_hour')
-        start_minute = self.getarrayvar('start_minute')
-        start_second = self.getarrayvar('start_second')
+        start_minute = self.getarrayvar('start_minute', optional=True)
+        start_second = self.getarrayvar('start_second', optional=True)
         end_year     = self.getarrayvar('end_year')
         end_month    = self.getarrayvar('end_month')
         end_day      = self.getarrayvar('end_day')
         end_hour     = self.getarrayvar('end_hour')
-        end_minute   = self.getarrayvar('end_minute')
-        end_second   = self.getarrayvar('end_second')
+        end_minute   = self.getarrayvar('end_minute', optional=True)
+        end_second   = self.getarrayvar('end_second', optional=True)
+        if start_minute is None:
+            start_minute = len(start_year) * [0]
+        if start_second is None:
+            start_second = len(start_year) * [0]
+        if end_minute is None:
+            end_minute = len(start_year) * [0]
+        if end_second is None:
+            end_second = len(start_year) * [0]
+
         self.start_datetimes = []
         self.end_datetimes = []
         for idom in range(len(start_year)):
@@ -107,10 +116,10 @@ class TimeControl(WRFNamelist):
             self.start_datetimes.append(start_date)
             self.end_datetimes.append(end_date)
         
-        run_days = self.getvar('run_days')
-        run_hours = self.getvar('run_hours')
-        run_minutes = self.getvar('run_minutes')
-        run_seconds = self.getvar('run_seconds')
+        run_days = self.getvar('run_days', default=0)
+        run_hours = self.getvar('run_hours', default=0)
+        run_minutes = self.getvar('run_minutes', default=0)
+        run_seconds = self.getvar('run_seconds', default=0)
         spec_run_time = run_days    * 86400 \
                       + run_hours   * 3600 \
                       + run_minutes * 60 \
