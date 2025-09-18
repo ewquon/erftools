@@ -60,6 +60,7 @@ packages = ["erftools"]
 
 # Console scripts -- creates command line tools
 [project.scripts]
+check_erf_input = "erftools.inputs:check_erf_input"
 wrf_namelist_to_erf = "erftools.wrf.inputdeck:wrf_namelist_to_erf"
 
 [project.urls]

@@ -22,7 +22,10 @@ def check_unknown_params(data_dict, dataclass_type):
 
     # ignore refinement indicators
     if 'refinement_indicators' in data_dict:
-        for box in data_dict['refinement_indicators']:
+        refine_names = data_dict['refinement_indicators']
+        if isinstance(refine_names, str):
+            refine_names = [refine_names]
+        for box in refine_names:
             unknown_params = [param for param in unknown_params
                               if not param.startswith(f'{box}.')]
 

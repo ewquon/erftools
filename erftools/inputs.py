@@ -1,5 +1,7 @@
 import sys
 import warnings
+
+import click
 import contextlib
 import numpy as np
 
@@ -587,3 +589,10 @@ def write_bc(f, bcname, bcdict):
         else:
             assert isinstance(val, list)
             f.write(f"{bcname}.{key} = {list_to_str(val,float)}\n")
+
+
+@click.command()
+@click.argument('input_file', type=click.Path(exists=True, readable=True))
+def check_erf_input(input_file):
+    """Validate ERF input file"""
+    ERFInputs(input_file)
