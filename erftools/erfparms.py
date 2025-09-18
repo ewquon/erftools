@@ -271,6 +271,24 @@ class ERFParms:
 
     # Radiation
     radiation_model: str = 'None'
+    rad_freq_in_steps: int = 1
+    rad_write_fluxes: bool = False
+    #nswbands: int = 14
+    #nlwbands: int = 16
+    #nswgpts: int = 224
+    #nlwgpts: int = 256
+    co2vmr: float = 0.00036 # from DevTests/Radiation
+    o3vmr: float = 1.887e-7 # default
+    n2ovmr: float = 3.2e-7 # from DevTests/Radiation
+    covmr: float = 1.5e-7 # from DevTests/Radiation
+    ch4vmr: float = 1.7e-6 # from DevTests/Radiation
+    o2vmr: float = 0.209 # default
+    n2vmr: float = 0.7906 # default
+    rrtmgp_file_path: str = './'
+    #rrtmgp_coeffs_sw: str = 'rrtmgp-data-sw-g224-2018-12-04.nc'
+    #rrtmgp_coeffs_lw: str = 'rrtmgp-data-lw-g256-2018-12-04.nc'
+    #rrtmgp_cloud_optics_sw: str = 'rrtmgp-cloud-optics-coeffs-sw.nc'
+    #rrtmgp_cloud_optics_lw: str = 'rrtmgp-cloud-optics-coeffs-lw.nc'
 
     # Land Surface
     land_surface_model: str = 'None'

@@ -448,7 +448,17 @@ erf.moisture_model = {self.erf.moisture_model}
             ########################################
             if self.erf.radiation_model != 'None':
                 f.write(f"""\n# RADIATION
-erf.radiation_model = {self.erf.radiation_model}
+erf.radiation_model   = {self.erf.radiation_model}
+erf.rad_freq_in_steps = {self.erf.rad_freq_in_steps}
+erf.rad_write_fluxes  = {bool_to_str(self.erf.rad_write_fluxes)}
+erf.co2vmr            = {self.erf.co2vmr}
+erf.o3vmr             = {self.erf.o3vmr}
+erf.n2ovmr            = {self.erf.n2ovmr}
+erf.covmr             = {self.erf.covmr}
+erf.ch4vmr            = {self.erf.ch4vmr}
+erf.o2vmr             = {self.erf.o2vmr}
+erf.n2vmr             = {self.erf.n2vmr}
+erf.rrtmgp_file_path  = {self.erf.rrtmgp_file_path}
 """)
 
             ########################################

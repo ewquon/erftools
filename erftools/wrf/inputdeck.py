@@ -30,7 +30,7 @@ class WRFInputDeck(object):
 
     This will instantiate WRFNamelist objects from a given namelist, with WRF
     defaults included. From the WRFNamelists, a WRFInputDeck.input_dict will be
-    populated with ERF input parameters. When WRFInputDec.write() is called, an
+    populated with ERF input parameters. When WRFInputDeck.write() is called, an
     ERFInputs object is instantiated--inside ERFInputs is where error checking
     occurs. ERFInputs.write() is used to finally output an ERF input file.
     """
@@ -100,6 +100,7 @@ class WRFInputDeck(object):
             'erf.sum_interval': 1, # timesteps between computing mass
             'erf.plot_file_1': 'plt',
             'erf.plot_vars_1': self.default_plot_vars,
+            'erf.rad_freq_in_steps': -1,
         }
 
     def generate_inputs(self):
@@ -353,6 +354,18 @@ class WRFInputDeck(object):
             if len(set(self.physics.ra_physics)) > 1:
                 self.log.warning(f'Applying the {rad_model} radiation scheme on all levels')
             inp['erf.radiation_model'] = rad_model
+
+            inp['erf.rad_freq_in_steps'] = self.physics.radt[0]
+            if inp['erf.rad_freq_in_steps'] < 0:
+                # rule of thumb: rad freq is "1 min per km of dx"
+                dx_km = self.domains.dx[0] / 1000.
+                radt = dx_km * 60. # [s]
+                rad_freq = int(radt / dt[0])
+                inp['erf.rad_freq_in_steps'] = rad_freq
+                self.log.info('Calculated radiation update frequency to be '
+                              f'every {rad_freq} steps, corresponding to an '
+                              f'interval of {rad_freq * dt[0] / 60:g} min on '
+                              'domain d01')
 
         if any([opt != 'None' for opt in self.physics.surface_physics]):
             lsm_model = self.physics.surface_physics[0]
