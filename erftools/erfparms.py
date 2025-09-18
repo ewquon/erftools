@@ -248,9 +248,6 @@ class ERFParms:
     rayleigh_dampcoef: float = 0.2
     rayleigh_zdamp: float = 500.
 
-    # BCs
-    use_explicit_most: bool = False
-
     # Initialization
     init_type: str = 'None'
     init_sounding_ideal: bool = False
