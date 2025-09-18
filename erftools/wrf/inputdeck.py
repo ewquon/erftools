@@ -592,7 +592,11 @@ def write_ascii_table(fpath, xyz, names=None):
 @click.argument('namelist_input', type=click.Path(exists=True, readable=True))
 @click.argument('erf_input', type=click.Path(writable=True), required=False,
                 default='input')
-def wrf_namelist_to_erf(namelist_input, erf_input):
+@click.option('--tslist',
+              type=click.Path(exists=True, readable=True),
+              help='tslist file to convert to line sampling inputs for ERF (optional)',
+              required=False)
+def wrf_namelist_to_erf(namelist_input, erf_input, tslist=None):
     """Convert a WRF namelist.input to an ERF input file"""
-    wrf = WRFInputDeck(namelist_input)
+    wrf = WRFInputDeck(namelist_input, tslist=tslist)
     wrf.write_inputfile(erf_input)
