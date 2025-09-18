@@ -182,6 +182,9 @@ class ERFInputs(object):
                 warnings.warn(f'{box} dynamic refinement will be inactive'
                               f' with erf.regrid_int={self.erf.regrid_int}')
 
+        if isinstance(self.erf.o3vmr, list):
+            assert len(self.erf.o3vmr) == self.amr.n_cell[2]
+
     def write(self,fpath=None):
         with open_file_or_stdout(fpath) as f:
             f.write('# ------------------------------- INPUTS TO ERF -------------------------------\n')
@@ -452,7 +455,12 @@ erf.radiation_model   = {self.erf.radiation_model}
 erf.rad_freq_in_steps = {self.erf.rad_freq_in_steps}
 erf.rad_write_fluxes  = {bool_to_str(self.erf.rad_write_fluxes)}
 erf.co2vmr            = {self.erf.co2vmr}
-erf.o3vmr             = {self.erf.o3vmr}
+""")
+                if isinstance(self.erf.o3vmr, list):
+                    f.write(f'erf.o3vmr             = {list_to_str(self.erf.o3vmr)}')
+                else:
+                    f.write(f'erf.o3vmr             = {self.erf.o3vmr}')
+                f.write(f"""
 erf.n2ovmr            = {self.erf.n2ovmr}
 erf.covmr             = {self.erf.covmr}
 erf.ch4vmr            = {self.erf.ch4vmr}

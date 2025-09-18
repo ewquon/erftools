@@ -275,7 +275,7 @@ class ERFParms:
     #nswgpts: int = 224
     #nlwgpts: int = 256
     co2vmr: float = 0.00036 # from DevTests/Radiation
-    o3vmr: float = 1.887e-7 # default
+    o3vmr: Union[float,List[float]] = 1.887e-7 # default
     n2ovmr: float = 3.2e-7 # from DevTests/Radiation
     covmr: float = 1.5e-7 # from DevTests/Radiation
     ch4vmr: float = 1.7e-6 # from DevTests/Radiation
