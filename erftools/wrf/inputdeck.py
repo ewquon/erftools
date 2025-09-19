@@ -585,8 +585,13 @@ class WRFInputDeck(object):
     def to_erf(self):
         inp = ERFInputs(**self.input_dict)
 
-        if self.cen_lat:
-            inp.erf.o3vmr = interp_ozone(inp, self.cen_lat)
+        if inp.erf.radiation_model != 'None':
+            if self.cen_lat:
+                inp.erf.o3vmr = interp_ozone(inp, self.cen_lat)
+            else:
+                self.log.warning('Using a radiation model with a constant for '
+                                 'the entire column; need to set `cen_lat`, '
+                                 'e.g. by providing a wrfinput file')
 
         if self.tslist:
             if self.tslist.have_ij:
@@ -625,12 +630,18 @@ def write_ascii_table(fpath, xyz, names=None):
 @click.command()
 @click.argument('namelist_input', type=click.Path(exists=True, readable=True))
 @click.argument('erf_input', type=click.Path(writable=True), required=False,
-                default='input')
+                default='inputs')
+@click.option('--init',
+              type=click.Path(exists=True, readable=True),
+              help='Path to a wrfinput_d01 file to provide additional '
+                   'information about the simulation setup (optional)',
+              required=False)
 @click.option('--tslist',
               type=click.Path(exists=True, readable=True),
-              help='tslist file to convert to line sampling inputs for ERF (optional)',
+              help='Path to a tslist file to convert into line sampling '
+                   'inputs for ERF (optional)',
               required=False)
-def wrf_namelist_to_erf(namelist_input, erf_input, tslist=None):
-    """Convert a WRF namelist.input to an ERF input file"""
-    wrf = WRFInputDeck(namelist_input, tslist=tslist)
+def wrf_namelist_to_erf(namelist_input, erf_input, init=None, tslist=None):
+    """Convert a WRF namelist.input into an ERF input file"""
+    wrf = WRFInputDeck(namelist_input, wrfinput=init, tslist=tslist)
     wrf.write_inputfile(erf_input)
