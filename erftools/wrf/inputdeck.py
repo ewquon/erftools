@@ -17,6 +17,7 @@ from .namelist.input import (TimeControl,
 from .namelist.tslist import TSList
 from .landuse import LandUseTable
 from .real import RealInit, get_zlevels_auto
+from .rad import interp_ozone
 
 from ..constants import CONST_GRAV, p_0
 from ..inputs import ERFInputs
@@ -582,16 +583,22 @@ class WRFInputDeck(object):
                     os.path.split(write_albedo)[1]
 
     def to_erf(self):
+        inp = ERFInputs(**self.input_dict)
+
+        if self.cen_lat:
+            inp.erf.o3vmr = interp_ozone(inp, self.cen_lat)
+
         if self.tslist:
             if self.tslist.have_ij:
                 nz = self.input_dict['amr.n_cell'][2]
                 lo_ijk, hi_ijk = self.tslist.get_ijk_lists(nz)
-                self.input_dict['erf.sample_line_lo'] = lo_ijk
-                self.input_dict['erf.sample_line_hi'] = hi_ijk
+                inp.erf.sample_line_lo = lo_ijk
+                inp.erf.sample_line_hi = hi_ijk
             else:
                 self.log.info('A tslist was provided but lat,lon were not '
                               'converted to i,j')
-        return ERFInputs(**self.input_dict)
+
+        return inp
 
     def write_inputfile(self,fpath):
         inp = self.to_erf()

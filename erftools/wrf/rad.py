@@ -78,6 +78,40 @@ def interp_from_monthly_to_date_heights(xdata,dt,heights,**kwargs):
     return interp_data
 
 
+def interp_ozone(inp, latitude, dataset='CAM', verbose=False):
+    """Interpolate from climatological O3 data to the starting datetime
+    and height levels from the ERF inputfile.
+
+    `inp` may be an input file or an ERFInputs object
+
+    Ozone datasets are stored in erftools/data/ozone_*.nc
+    """
+    dataname = f'ozone_{dataset}.nc'
+    with resources.files('erftools.data').joinpath(dataname) as fpath:
+        ds = xr.load_dataset(fpath)
+
+    date = inp.start_datetime
+    if date is None:
+        raise ValueError(f'start_date not found in {inputfile}')
+    if verbose:
+        print('Interpolating to',date)
+
+    heights = get_zcc(inp)
+    if verbose:
+        print('Model heights:',heights)
+
+    plevels = est_p(heights)
+    if verbose:
+        print('Standard pressure levels:',plevels)
+
+    ds = ds.interp(lat=latitude)
+    interpdata = interp_from_monthly_to_date_heights(ds, date, heights)
+    if verbose:
+        print('O3 [ppbv]: ', interpdata['o3vmr'].values / 1e-9)
+
+    return interpdata['o3vmr'].values
+
+
 @click.command()
 @click.argument('inputfile', type=click.Path(writable=True))
 @click.option('--latitude', type=click.FloatRange(-90,90),
@@ -90,27 +124,9 @@ def generate_ozone_profile(inputfile, latitude, dataset):
 
     Ozone datasets are stored in erftools/data/ozone_*.nc
     """
-    dataname = f'ozone_{dataset}.nc'
-    with resources.files('erftools.data').joinpath(dataname) as fpath:
-        ds = xr.load_dataset(fpath)
-
     inp = ERFInputs(inputfile)
-    date = inp.start_datetime
-    if date is None:
-        raise ValueError(f'start_date not found in {inputfile}')
-    print('Interpolating to',date)
-
-    heights = get_zcc(inp)
-    print('Model heights:',heights)
-
-    plevels = est_p(heights)
-    print('Standard pressure levels:',plevels)
-
-    ds = ds.interp(lat=latitude)
-    interpdata = interp_from_monthly_to_date_heights(ds, date, heights)
-    print('O3 [ppbv]: ', interpdata['o3vmr'].values / 1e-9)
-
-    erfstr = str(interpdata['o3vmr'].values).lstrip('[').rstrip(']')
+    o3vmr = interp_ozone(inp, latitude, dataset, verbose=True)
+    erfstr = str(o3vmr).lstrip('[').rstrip(']')
     print('erf.o3vmr = ', erfstr)
 
 '''

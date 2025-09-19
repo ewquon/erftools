@@ -475,7 +475,7 @@ erf.rad_freq_in_steps = {self.erf.rad_freq_in_steps}
 erf.rad_write_fluxes  = {bool_to_str(self.erf.rad_write_fluxes)}
 erf.co2vmr            = {self.erf.co2vmr}
 """)
-                if isinstance(self.erf.o3vmr, list):
+                if isinstance(self.erf.o3vmr, (list,np.ndarray)):
                     f.write(f'erf.o3vmr             = {list_to_str(self.erf.o3vmr)}')
                 else:
                     f.write(f'erf.o3vmr             = {self.erf.o3vmr}')
