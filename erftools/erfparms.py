@@ -16,11 +16,22 @@ def check_unknown_params(data_dict, dataclass_type):
     provided_params = set(data_dict.keys())
     unknown_params = list(provided_params - known_params)
 
+    # ignore MOST settings
+    unknown_params = [param for param in unknown_params
+                      if not param.startswith('most.')]
+
+    # ignore refinement indicators
     if 'refinement_indicators' in data_dict:
-        boxes = data_dict['refinement_indicators'].split()
-        for box in boxes:
+        refine_names = data_dict['refinement_indicators']
+        if isinstance(refine_names, str):
+            refine_names = [refine_names]
+        for box in refine_names:
             unknown_params = [param for param in unknown_params
                               if not param.startswith(f'{box}.')]
+
+    # ignore nc_init_file_*
+    unknown_params = [param for param in unknown_params
+                      if not param.startswith('nc_init_file_')]
 
     if unknown_params:
         warnings.warn(f'Non-standard {dataclass_type.__name__} ignored: {unknown_params}')
@@ -33,7 +44,6 @@ class AMRParms:
     max_level: int = 0
     ref_ratio: Union[int,List[int]] = 2
     ref_ratio_vect: List[int] = field(default_factory=list)
-    regrid_int: int = -1
 
     v: int = 0  # verbosity
 
@@ -125,6 +135,7 @@ class ERFParms:
 
     # Refinement
     refinement_indicators: Union[str,List[str]] = field(default_factory=list)
+    regrid_int: int = -1
 
     # Grid Stretching
     grid_stretching_ratio: float = 1.
@@ -240,9 +251,6 @@ class ERFParms:
     rayleigh_dampcoef: float = 0.2
     rayleigh_zdamp: float = 500.
 
-    # BCs
-    use_explicit_most: bool = False
-
     # Initialization
     init_type: str = 'None'
     init_sounding_ideal: bool = False
@@ -263,6 +271,27 @@ class ERFParms:
 
     # Radiation
     radiation_model: str = 'None'
+    rad_freq_in_steps: int = 1
+    rad_write_fluxes: bool = False
+    #nswbands: int = 14
+    #nlwbands: int = 16
+    #nswgpts: int = 224
+    #nlwgpts: int = 256
+    co2vmr: float = 0.00036 # from DevTests/Radiation
+    o3vmr: Union[float,List[float]] = 1.887e-7 # default
+    n2ovmr: float = 3.2e-7 # from DevTests/Radiation
+    covmr: float = 1.5e-7 # from DevTests/Radiation
+    ch4vmr: float = 1.7e-6 # from DevTests/Radiation
+    o2vmr: float = 0.209 # default
+    n2vmr: float = 0.7906 # default
+    rrtmgp_file_path: str = './'
+    #rrtmgp_coeffs_sw: str = 'rrtmgp-data-sw-g224-2018-12-04.nc'
+    #rrtmgp_coeffs_lw: str = 'rrtmgp-data-lw-g256-2018-12-04.nc'
+    #rrtmgp_cloud_optics_sw: str = 'rrtmgp-cloud-optics-coeffs-sw.nc'
+    #rrtmgp_cloud_optics_lw: str = 'rrtmgp-cloud-optics-coeffs-lw.nc'
+
+    # Land Surface
+    land_surface_model: str = 'None'
 
     def __post_init__(self):
         if self.anelastic:
@@ -321,7 +350,7 @@ class ERFParms:
 
         les_types = self.les_type if isinstance(self.les_type,list) else [self.les_type]
         for turbmodel in les_types:
-            assert turbmodel in ['None','Smagorinsky','Deardorff'], \
+            assert turbmodel in ['None','Smagorinsky','Smagorinsky2D','Deardorff'], \
                     f'Unexpected erf.les_type={turbmodel}'
         if any([turbmodel == 'Smagorinsky' for turbmodel in les_types]):
             smag_Cs = self.Cs if isinstance(self.Cs,list) else len(les_types)*[self.Cs]
@@ -329,7 +358,7 @@ class ERFParms:
 
         pbl_types = self.pbl_type if isinstance(self.pbl_type,list) else [self.pbl_type]
         for pblscheme in pbl_types:
-            assert pblscheme in ['None','MYNN25','YSU'], \
+            assert pblscheme in ['None','MYJ','MYNN25','MRF','YSU'], \
                     f'Unexpected erf.pbl_type={pblscheme}'
 
         assert self.abl_driver_type in \

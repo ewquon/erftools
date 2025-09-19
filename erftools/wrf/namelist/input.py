@@ -4,7 +4,7 @@ Processing for each namelist within a WRF namelist.input file
 import warnings
 from datetime import datetime, timedelta
 
-from .namelist_mappings import *
+from .mappings import *
 
 class WRFNamelist(object):
     def __init__(self,nmldict):
@@ -60,6 +60,8 @@ class TimeControl(WRFNamelist):
         if history_interval_s is not None:
             self.history_interval = [interval / 60. for interval in history_interval_s]
 
+        self.auxhist2_interval = self.getarrayvar('auxhist2_interval',default=[0]) # [min]
+
         self.parse_datetime_range()
 
     def __str__(self):
@@ -71,14 +73,23 @@ class TimeControl(WRFNamelist):
         start_month  = self.getarrayvar('start_month')
         start_day    = self.getarrayvar('start_day')
         start_hour   = self.getarrayvar('start_hour')
-        start_minute = self.getarrayvar('start_minute')
-        start_second = self.getarrayvar('start_second')
+        start_minute = self.getarrayvar('start_minute', optional=True)
+        start_second = self.getarrayvar('start_second', optional=True)
         end_year     = self.getarrayvar('end_year')
         end_month    = self.getarrayvar('end_month')
         end_day      = self.getarrayvar('end_day')
         end_hour     = self.getarrayvar('end_hour')
-        end_minute   = self.getarrayvar('end_minute')
-        end_second   = self.getarrayvar('end_second')
+        end_minute   = self.getarrayvar('end_minute', optional=True)
+        end_second   = self.getarrayvar('end_second', optional=True)
+        if start_minute is None:
+            start_minute = len(start_year) * [0]
+        if start_second is None:
+            start_second = len(start_year) * [0]
+        if end_minute is None:
+            end_minute = len(start_year) * [0]
+        if end_second is None:
+            end_second = len(start_year) * [0]
+
         self.start_datetimes = []
         self.end_datetimes = []
         for idom in range(len(start_year)):
@@ -105,10 +116,10 @@ class TimeControl(WRFNamelist):
             self.start_datetimes.append(start_date)
             self.end_datetimes.append(end_date)
         
-        run_days = self.getvar('run_days')
-        run_hours = self.getvar('run_hours')
-        run_minutes = self.getvar('run_minutes')
-        run_seconds = self.getvar('run_seconds')
+        run_days = self.getvar('run_days', default=0)
+        run_hours = self.getvar('run_hours', default=0)
+        run_minutes = self.getvar('run_minutes', default=0)
+        run_seconds = self.getvar('run_seconds', default=0)
         spec_run_time = run_days    * 86400 \
                       + run_hours   * 3600 \
                       + run_minutes * 60 \
@@ -118,6 +129,8 @@ class TimeControl(WRFNamelist):
             if spec_run_time != simtime.total_seconds():
                 new_end_datetime = self.start_datetimes[0] \
                                  + timedelta(seconds=spec_run_time)
+                # From WRF user guide: run_days/run_hours takes precedence
+                # over the end times
                 print(f'Specified run time {spec_run_time} s'
                       f' differs from {simtime.total_seconds()} s' \
                       f' (from {self.start_datetimes[0]}'
@@ -145,7 +158,7 @@ class Domains(WRFNamelist):
     def parse_time_integration(self):
         self.time_step = self.getvar('time_step') # seconds
         dt_num = self.getvar('time_step_fract_num',optional=True)
-        if dt_num is not None:
+        if dt_num is not None and dt_num > 0:
             dt_den = self.getvar('time_step_fract_den')
             self.time_step = dt_num / dt_den
         self.parent_time_step_ratio = self.getarrayvar(
@@ -177,8 +190,18 @@ class Domains(WRFNamelist):
             assert self.i_parent_start[0] == 1
             assert self.j_parent_start[0] == 1
         for dom in range(1,self.max_dom):
-            assert (self.dx[dom-1]/self.dx[dom] == self.parent_grid_ratio[dom])
-            assert (self.dy[dom-1]/self.dy[dom] == self.parent_grid_ratio[dom])
+            if len(self.dx) >= self.max_dom:
+                assert (self.dx[dom-1]/self.dx[dom] == self.parent_grid_ratio[dom])
+            else:
+                print(f'Note: dx on d{dom+1:02d} not found,'
+                      ' setting from parent_grid_ratio')
+                self.dx.append(self.dx[dom-1] / self.parent_grid_ratio[dom])
+            if len(self.dy) >= self.max_dom:
+                assert (self.dy[dom-1]/self.dy[dom] == self.parent_grid_ratio[dom])
+            else:
+                print(f'Note: dy on d{dom+1:02d} not found'
+                      ' setting from parent_grid_ratio')
+                self.dy.append(self.dy[dom-1] / self.parent_grid_ratio[dom])
         self.eta_levels = self.getarrayvar('eta_levels',optional=True)
         self.etac = self.getvar('etac',default=0.2)
         self.auto_levels_opt = self.getvar('auto_levels_opt',default=2)
@@ -213,6 +236,13 @@ class Physics(WRFNamelist):
         self.bl_pbl_physics = [pbl_mapping.get(idx,'UNKNOWN') for idx in pbl_idx_list]
         for i in range(len(self.bl_pbl_physics)):
             if self.bl_pbl_physics[i] == 'MYNN':
+                if pbl_mynn_closure > 2.5:
+                    pbl_mynn_closure = 2.5
+                    warnings.warn(f'MYNN level {pbl_mynn_closure} selected, but'
+                                  ' it is currently not available in ERF'
+                                  ' -- reverting to MYNN level 2.5.'
+                                  ' Note: A port of MYNN-EDMF is also available'
+                                  ' but it has not been fully verified.')
                 lvlstr = str(pbl_mynn_closure).replace('.','')
                 self.bl_pbl_physics[i] += lvlstr
         self.sf_sfclay_physics = [sfclay_mapping.get(idx,'UNKNOWN') for idx in sfclay_idx_list]
@@ -226,6 +256,13 @@ class Physics(WRFNamelist):
         assert all([lw==sw for lw,sw in zip(ra_lw_idx_list,ra_sw_idx_list)]), \
                 'Different longwave/shortwave radiation schemes not handled'
         self.ra_physics = [ra_physics_mapping.get(idx,'UNKNOWN') for idx in ra_lw_idx_list]
+
+        self.radt = self.getarrayvar('radt', default=-1)
+        assert all([t==self.radt[0] for t in self.radt]), \
+                'Different radiation call intervals not handled'
+
+        lsm_idx_list = self.getarrayvar('sf_surface_physics')
+        self.surface_physics = [surface_physics_mapping.get(idx,'UNKNOWN') for idx in lsm_idx_list]
 
         cu_idx_list = self.getarrayvar('cu_physics')
         self.cu_physics = [cu_physics_mapping.get(idx,'UNKNOWN') for idx in cu_idx_list]

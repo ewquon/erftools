@@ -1,10 +1,14 @@
 import sys
 import warnings
+from datetime import datetime
+from dateutil import parser
+
+import click
 import contextlib
 import numpy as np
 
 # parameters parsed by AMReX's ParmParse
-from .parms import AMRParms, GeometryParms, ERFParms, check_unknown_params
+from .erfparms import AMRParms, GeometryParms, ERFParms, check_unknown_params
 
 
 def parmparse(prefix, ppdata):
@@ -37,6 +41,14 @@ def list_to_str(mylist,dtype=None):
 def strs_to_str(mylist):
     return ' '.join([s.strip('"').strip("'") for s in mylist])
 
+def to_datetime(dt):
+    # ensure that we have a datetime object, parse if needed
+    if isinstance(dt, datetime):
+        return dt
+    elif isinstance(dt, list):
+        assert len(dt) == 2, 'expected date string + time string'
+        dt = ' '.join(dt)
+    return parser.parse(dt)
 
 class ERFInputs(object):
     """Input data container with validation and output"""
@@ -50,8 +62,13 @@ class ERFInputs(object):
         self.max_step = int(ppdata.get('max_step',-1))
         self.start_time = float(ppdata.get('start_time',0.))
         self.stop_time = float(ppdata.get('stop_time',1e34))
-        self.start_date = ppdata.get('start_date',None)
-        self.stop_date = ppdata.get('stop_date',None)
+
+        self.start_datetime = ppdata.get('start_datetime',None)
+        if self.start_datetime is not None:
+            self.start_datetime = to_datetime(self.start_datetime)
+        self.stop_datetime = ppdata.get('stop_datetime',None)
+        if self.stop_datetime is not None:
+            self.stop_datetime = to_datetime(self.stop_datetime)
 
         # read amr, geometry, and erf inputs
         amrparms = parmparse('amr',ppdata)
@@ -128,7 +145,7 @@ class ERFInputs(object):
             assert 'zhi.type' in ppdata.keys()
             self.zlo = parmparse('zlo',ppdata)
             self.zhi = parmparse('zhi',ppdata)
-            if self.zlo['type'] == 'MOST':
+            if self.zlo['type'] == 'surface_layer':
                 self.most = parmparse('erf.most',ppdata)
 
     def read_refinement(self,ppdata):
@@ -164,7 +181,9 @@ class ERFInputs(object):
                     self.refine[box][test] = thresh
 
     def validate(self):
-        # additional validation that depends on different parmparse types
+        """Additional validation (outside of what is performed in
+        erfparms.*) that depends on different parmparse tables
+        """
         if self.erf.terrain_type.lower() != 'none':
             if self.erf.terrain_z_levels:
                 nz = self.amr.n_cell[2]
@@ -178,19 +197,22 @@ class ERFInputs(object):
                               f' will be inactive with'
                               f' amr.max_level={self.amr.max_level}')
             if 'field_name' in refineparams and \
-                    self.amr.regrid_int <= 0:
+                    self.erf.regrid_int <= 0:
                 warnings.warn(f'{box} dynamic refinement will be inactive'
-                              f' with amr.regrid_int={self.amr.regrid_int}')
+                              f' with erf.regrid_int={self.erf.regrid_int}')
+
+        if isinstance(self.erf.o3vmr, list):
+            assert len(self.erf.o3vmr) == self.amr.n_cell[2]
 
     def write(self,fpath=None):
         with open_file_or_stdout(fpath) as f:
             f.write('# ------------------------------- INPUTS TO ERF -------------------------------\n')
             f.write('# written by erftools.inputs (https://github.com/erf-model/erftools)\n')
-            if self.start_date and self.stop_date:
+            if self.start_datetime and self.stop_datetime:
                 f.write(f"""
 max_step       = {self.max_step}
-start_datetime = {self.start_date}  # epoch time: {self.start_time} s
-stop_datetime  = {self.stop_date}  # epoch time: {self.stop_time} s
+start_datetime = {self.start_datetime}  # epoch time: {self.start_time} s
+stop_datetime  = {self.stop_datetime}  # epoch time: {self.stop_time} s
 """)
             else:
                 f.write(f"""
@@ -238,14 +260,15 @@ geometry.is_periodic = {list_to_str(self.geometry.is_periodic)}
             if hasattr(self,'zlo'):
                 f.write('\n')
                 write_bc(f,'zlo',self.zlo)
-                if self.zlo['type'] == 'MOST':
+                if self.zlo['type'] == 'surface_layer':
                     for key,val in self.most.items():
                         f.write(f'erf.most.{key} = {val}\n')
                 write_bc(f,'zhi',self.zhi)
 
             ########################################
             f.write('\n# TIME STEP CONTROL\n')
-            f.write(f'erf.substepping_type = {self.erf.substepping_type}\n')
+            if self.erf.substepping_type != 'implicit':
+                f.write(f'erf.substepping_type = {self.erf.substepping_type}\n')
             if self.erf.fixed_dt > 0:
                 f.write(f'erf.fixed_dt         = {self.erf.fixed_dt}\n')
             else:
@@ -270,7 +293,7 @@ erf.sum_interval = {self.erf.sum_interval}  # timesteps between computing mass
             ########################################
             f.write('\n# REFINEMENT / REGRIDDING\n')
             f.write(f'amr.max_level = {self.amr.max_level}\n')
-            f.write(f'amr.regrid_int = {self.amr.regrid_int}\n')
+            f.write(f'erf.regrid_int = {self.erf.regrid_int}\n')
             if len(self.erf.refinement_indicators) > 0:
                 if len(self.amr.ref_ratio_vect) > 0:
                     f.write('amr.ref_ratio_vect = '
@@ -337,14 +360,15 @@ erf.terrain_smoothing = {self.erf.terrain_smoothing}
             f.write('\n# PLOTFILES\n')
             if self.erf.plotfile_type != 'amrex':
                 f.write(f'erf.plotfile_type = {self.erf.plotfile_type}\n')
-            if (self.erf.plot_int_1 > 0) or (self.erf.plot_per_1 > 0):
-                f.write(f'erf.plot_file_1 = {self.erf.plot_file_1}\n')
-                if self.erf.plot_per_1 > 0:
-                    f.write(f'erf.plot_per_1  = {self.erf.plot_per_1}\n')
-                else:
-                    f.write(f'erf.plot_int_1  = {self.erf.plot_int_1}\n')
-                f.write('erf.plot_vars_1 = '
-                        f"{strs_to_str(self.erf.plot_vars_1)}\n")
+
+            f.write(f'erf.plot_file_1 = {self.erf.plot_file_1}\n')
+            if self.erf.plot_per_1 > 0:
+                f.write(f'erf.plot_per_1  = {self.erf.plot_per_1}\n')
+            else:
+                f.write(f'erf.plot_int_1  = {self.erf.plot_int_1}\n')
+            f.write('erf.plot_vars_1 = '
+                    f"{strs_to_str(self.erf.plot_vars_1)}\n")
+
             if (self.erf.plot_int_2 > 0) or (self.erf.plot_per_2 > 0):
                 f.write(f'erf.plot_file_2 = {self.erf.plot_file_2}\n')
                 if self.erf.plot_per_2 > 0:
@@ -404,13 +428,14 @@ erf.alpha_C           = {self.erf.alpha_C}
             lestypes = self.erf.les_type \
                     if isinstance(self.erf.les_type,list) \
                     else [self.erf.les_type]
-            have_smag = ('Smagorinsky' in lestypes)
+            have_smag = ('Smagorinsky' in lestypes) or ('Smagorinsky2D' in lestypes)
             have_dear = ('Deardorff' in lestypes)
             if have_smag or have_dear:
                 f.write(f'\nerf.les_type  = {strs_to_str(lestypes)}\n')
             if have_smag:
                 Cs_list = self.erf.Cs if isinstance(self.erf.Cs,list) else [self.erf.Cs]
-                f.write(f'erf.Cs        = {list_to_str(Cs_list)}\n')
+                comment = ' # Cs=0.25 is WRF default' if (0.25 in Cs_list) else ''
+                f.write(f'erf.Cs        = {list_to_str(Cs_list)}{comment}\n')
             if have_dear:
                 Ck_list = self.erf.Ck if isinstance(self.erf.Ck,list) else [self.erf.Ck]
                 f.write(f'erf.Ck        = {list_to_str(Ck_list)}\n')
@@ -445,7 +470,28 @@ erf.moisture_model = {self.erf.moisture_model}
             ########################################
             if self.erf.radiation_model != 'None':
                 f.write(f"""\n# RADIATION
-erf.radiation_model = {self.erf.radiation_model}
+erf.radiation_model   = {self.erf.radiation_model}
+erf.rad_freq_in_steps = {self.erf.rad_freq_in_steps}
+erf.rad_write_fluxes  = {bool_to_str(self.erf.rad_write_fluxes)}
+erf.co2vmr            = {self.erf.co2vmr}
+""")
+                if isinstance(self.erf.o3vmr, (list,np.ndarray)):
+                    f.write(f'erf.o3vmr             = {list_to_str(self.erf.o3vmr)}')
+                else:
+                    f.write(f'erf.o3vmr             = {self.erf.o3vmr}')
+                f.write(f"""
+erf.n2ovmr            = {self.erf.n2ovmr}
+erf.covmr             = {self.erf.covmr}
+erf.ch4vmr            = {self.erf.ch4vmr}
+erf.o2vmr             = {self.erf.o2vmr}
+erf.n2vmr             = {self.erf.n2vmr}
+erf.rrtmgp_file_path  = {self.erf.rrtmgp_file_path}
+""")
+
+            ########################################
+            if self.erf.land_surface_model != 'None':
+                f.write(f"""\n# LAND SURFACE
+erf.land_surface_model = {self.erf.land_surface_model}
 """)
 
             ########################################
@@ -516,12 +562,15 @@ erf.init_type           = input_sounding
 erf.init_sounding_ideal = {bool_to_str(self.erf.init_sounding_ideal)}
 """)
             elif self.erf.init_type.lower() == 'wrfinput':
-                f.write(f"""
-erf.init_type      = wrfinput
-erf.use_real_bcs   = {bool_to_str(self.erf.use_real_bcs)}
-erf.nc_init_file_0 = {self.erf.nc_init_file_0}""")
+                f.write('\nerf.init_type      = wrfinput\n')
+                nc_init_files = [
+                    param for param in dir(self.erf)
+                    if param.startswith('nc_init_file_')]
+                for initfile in nc_init_files:
+                    f.write(f'erf.{initfile} = {getattr(self.erf,initfile)}\n')
                 if self.erf.use_real_bcs:
                     f.write(f"""
+erf.use_real_bcs   = {bool_to_str(self.erf.use_real_bcs)}
 erf.nc_bdy_file    = {self.erf.nc_bdy_file}
 erf.real_width     = {self.erf.real_width}
 erf.real_set_width = {self.erf.real_set_width}
@@ -557,3 +606,10 @@ def write_bc(f, bcname, bcdict):
         else:
             assert isinstance(val, list)
             f.write(f"{bcname}.{key} = {list_to_str(val,float)}\n")
+
+
+@click.command()
+@click.argument('input_file', type=click.Path(exists=True, readable=True))
+def check_erf_input(input_file):
+    """Validate ERF input file"""
+    ERFInputs(input_file)

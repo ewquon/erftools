@@ -1,3 +1,5 @@
+# for reference, see WRF/run/README.namelist
+
 pbl_mapping = {
     0:  'None',
     1:  'YSU', # YSU scheme
@@ -16,9 +18,9 @@ pbl_mapping = {
 
 sfclay_mapping = {
     0: 'None',
-    1: 'MOST', # Revised MM5 Monin-Obukhov scheme (Jimenez, renamed in v3.6)
-    2: 'MOST', # Monin-Obukhov (Janjic) scheme
-    5: 'MOST', # MYNN surface layer
+    1: 'SurfaceLayer', # Revised MM5 Monin-Obukhov scheme (Jimenez, renamed in v3.6)
+    2: 'SurfaceLayer', # Monin-Obukhov (Janjic) scheme
+    5: 'SurfaceLayer', # MYNN surface layer
 }
 valid_sfclay = {
     # for each PBL scheme, based on acceptable WRF inputs
@@ -39,14 +41,27 @@ mp_physics_mapping = {
     0: 'None',
     1: 'Kessler',
     2: 'SAM',       # SAM is comparable to Lin et al. scheme
-    3: 'Kessler',   # WRF Single-Moment, 3-class scheme
+    3: 'SAM',       # WRF Single-Moment, 3-class scheme with ice
+    4: 'SAM',       # WRF Single-Moment, 5-class scheme
+    5: 'SAM',       # Ferrier (new Eta), operational High-Resolution Window version
     6: 'SAM',       # WRF Single-Moment, 6-class scheme
-    28: 'SAM',      # aerosol-aware Thompson scheme
+    8: 'Morrison',  # Thompson scheme
+    10: 'Morrison', # Morrison (double moment) scheme
+    14: 'Morrison', # WRF Double-Moment 5-class scheme
+    16: 'Morrison', # WRF Double-Moment 6-class scheme
+    28: 'Morrison', # aerosol-aware Thompson scheme
 }
 
 ra_physics_mapping = {
     0: 'None',
     4: 'RRTMGP',
+}
+
+surface_physics_mapping = {
+    0: 'None',
+    1: 'SLM',       # thermal diffusion scheme (soil temperature only, 5 layers)
+    2: 'NoahMP',    # Unified Noah land-surface model
+    4: 'NoahMP',    # Noah-MP land-surface model
 }
 
 cu_physics_mapping = {
@@ -77,9 +92,9 @@ km_opt_mapping = {
     1: 'constant',
     2: 'Deardorff', # 1.5 order TKE closure (3D)
     3: 'Smagorinsky', # Smagorinsky first-order closure (3D)
-    4: '2D Smagorinsky', # horizontal Smagorinsky closure (diagnosed from just
-                         #   horizontal deformation); vertical diffusion from
-                         #   PBL scheme
+    4: 'Smagorinsky2D', # horizontal Smagorinsky closure (diagnosed from just
+                        #   horizontal deformation); vertical diffusion from
+                        #   PBL scheme
 }
 
 damp_opt_mapping = {

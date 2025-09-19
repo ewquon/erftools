@@ -1,19 +1,27 @@
 import logging
 import os
+
 import numpy as np
 import pandas as pd
 import xarray as xr
 import f90nml
 import calendar
 from scipy.interpolate import RegularGridInterpolator
+import click
 
-from ..wrf.namelist import (TimeControl, Domains, Physics, Dynamics,
-                           BoundaryControl)
-from ..wrf.tslist import TSList
-from ..wrf.landuse import LandUseTable
-from ..wrf.real import RealInit, get_zlevels_auto
+from .namelist.input import (TimeControl,
+                             Domains,
+                             Physics,
+                             Dynamics,
+                             BoundaryControl)
+from .namelist.tslist import TSList
+from .landuse import LandUseTable
+from .real import RealInit, get_zlevels_auto
+from .rad import interp_ozone
+
 from ..constants import CONST_GRAV, p_0
 from ..inputs import ERFInputs
+
 
 class WRFInputDeck(object):
     """Class to parse inputs from WRF and convert to inputs for ERF
@@ -23,12 +31,16 @@ class WRFInputDeck(object):
 
     This will instantiate WRFNamelist objects from a given namelist, with WRF
     defaults included. From the WRFNamelists, a WRFInputDeck.input_dict will be
-    populated with ERF input parameters. When WRFInputDec.write() is called, an
+    populated with ERF input parameters. When WRFInputDeck.write() is called, an
     ERFInputs object is instantiated--inside ERFInputs is where error checking
     occurs. ERFInputs.write() is used to finally output an ERF input file.
     """
 
-    def __init__(self,nmlpath,tslist=None,verbosity=logging.DEBUG):
+    default_plot_vars = ['density','x_velocity','y_velocity','z_velocity',
+                         'pressure','theta','KE',
+                         'Kmh','Kmv','Khh','Khv','qv','qc']
+
+    def __init__(self,nmlpath,wrfinput=None,tslist=None,verbosity=logging.DEBUG):
         # setup logger
         self.log = logging.getLogger(__name__)
         if not self.log.hasHandlers():
@@ -50,6 +62,9 @@ class WRFInputDeck(object):
         # calculate ERF equivalents
         self.set_defaults()
         self.generate_inputs()
+
+        self.wrfinput = wrfinput
+        self.get_map_info()
 
         if tslist is not None:
             self.tslist = TSList(tslist)
@@ -74,10 +89,9 @@ class WRFInputDeck(object):
             'yhi.type': 'Outflow',
             'zhi.type': 'SlipWall',
             'erf.terrain_type': 'StaticFittedMesh',
-            'erf.terrain_smoothing': 1,
+            'erf.terrain_smoothing': 0,  # only valid option with multilievel
             'erf.init_type': 'wrfinput',
             'erf.use_real_bcs': True,
-            'erf.nc_init_file_0': 'wrfinput_d01',
             'erf.nc_bdy_file': 'wrfbdy_d01',
             'erf.dycore_horiz_adv_type': 'Upwind_5th',
             'erf.dycore_vert_adv_type': 'Upwind_3rd',
@@ -89,9 +103,8 @@ class WRFInputDeck(object):
             'erf.v': 1, # verbosity in ERF.cpp
             'erf.sum_interval': 1, # timesteps between computing mass
             'erf.plot_file_1': 'plt',
-            'erf.plot_vars_1': ['density','x_velocity','y_velocity','z_velocity',
-                                'pressure','theta','KE',
-                                'Kmh','Kmv','Khh','Khv','qv','qc'],
+            'erf.plot_vars_1': self.default_plot_vars,
+            'erf.rad_freq_in_steps': -1,
         }
 
     def generate_inputs(self):
@@ -111,9 +124,9 @@ class WRFInputDeck(object):
         startdate = self.time_control.start_datetimes[0]
         enddate = self.time_control.end_datetimes[0]
         tsim = (enddate - startdate).total_seconds()
-        inp['start_date'] = startdate
-        inp['stop_date'] = enddate
-        inp['start_time'] = calendar.timegm(startdate.timetuple())
+        inp['start_datetime'] = startdate
+        inp['stop_datetime'] = enddate
+        inp['start_time'] = calendar.timegm(startdate.timetuple()) # epoch time
         inp['stop_time'] = calendar.timegm(enddate.timetuple())
         self.log.info(f'Total simulation time: {tsim}')
         self.log.info(f"Start from {startdate.strftime('%Y-%m-%d %H:%M:%S')}"
@@ -146,23 +159,17 @@ class WRFInputDeck(object):
                 assert eta_levels[0] == 1
                 assert eta_levels[-1] == 0
 
-            # get geopotential height from base state
-            real = RealInit(eta_stag=eta_levels, ptop=ptop)
-            #phb = real.phb.squeeze().values
-            # better match real.exe output...
-            alb = real.alb.squeeze().values
-            phb = np.zeros_like(eta_levels)
-            psurf = p_0
-            mub = psurf - ptop
-            for k in range(len(eta_levels)-1):
-                phb[k+1] = phb[k] - (eta_levels[k+1]-eta_levels[k]) * mub * alb[k]
-
-            z_levels = phb / CONST_GRAV
+            # get geopotential heights from base state
+            real = RealInit(eta_levels=eta_levels, ptop=ptop)
+            z_levels = real.zlevels.squeeze().values
             self.base_heights = z_levels
             inp['erf.terrain_z_levels'] = z_levels
 
             most_zref = 0.5*(z_levels[0] + z_levels[1])
             inp['erf.most.zref'] = most_zref  # need to specify for terrain
+            self.log.info('Reference height for MOST set to the average of the '
+                          'first two base-state geopotential heights: '
+                          f'{z_levels[0]:g} {z_levels[1]:g}')
 
             ztop = z_levels[-1]
             self.log.info('Estimated domain ztop from domains.p_top_requested'
@@ -186,11 +193,17 @@ class WRFInputDeck(object):
         dt = np.array(self.domains.parent_time_step_ratio) * self.domains.time_step
         inp['erf.fixed_dt'] = dt[0]
 
-        # refinements
+        # initial conditions
         max_dom = self.domains.max_dom
+        for i in range(max_dom):
+            inp[f'erf.nc_init_file_{i}'] = f'wrfinput_d{i+1:02d}'
+
+        # refinements / nests
         inp['amr.max_level'] = max_dom - 1 # zero-based indexing
         if max_dom > 1:
             self.log.info('Assuming parent_time_step_ratio == parent_grid_ratio')
+
+            self.refinement_boxes = []
 
             refine_names = [f'nest{idom:d}' for idom in range(1,max_dom)]
             inp['erf.refinement_indicators'] = refine_names
@@ -204,33 +217,58 @@ class WRFInputDeck(object):
                 grid_ratio = self.domains.parent_grid_ratio[idom]
                 ref_ratio_vect += [grid_ratio, grid_ratio, 1]
 
-                parent_ds  = np.array([  dx[idom-1],   dy[idom-1]], dtype=float)
-                child_ds   = np.array([  dx[idom  ],   dy[idom  ]], dtype=float)
-                parent_ext = np.array([imax[idom-1], jmax[idom-1]]) * parent_ds
-                child_ext  = np.array([imax[idom  ], jmax[idom  ]]) * child_ds
+                parent_dx  = np.array([  dx[idom-1]  ,   dy[idom-1]  ], dtype=float)
+                child_dx   = np.array([  dx[idom  ]  ,   dy[idom  ]  ], dtype=float)
+                parent_ext = np.array([imax[idom-1]-1, jmax[idom-1]-1]) * parent_dx
+                child_ext  = np.array([imax[idom  ]-1, jmax[idom  ]-1]) * child_dx
                 lo_idx = np.array([
                     self.domains.i_parent_start[idom] - 1,
                     self.domains.j_parent_start[idom] - 1])
-                in_box_lo = lo_idx * parent_ds
+                in_box_lo = lo_idx * parent_dx
                 in_box_hi = in_box_lo + child_ext
                 assert (in_box_hi[0] <= parent_ext[0])
                 assert (in_box_hi[1] <= parent_ext[1])
+                inp[f'erf.nest{idom:d}.max_level'] = idom
                 inp[f'erf.nest{idom:d}.in_box_lo'] = in_box_lo
                 inp[f'erf.nest{idom:d}.in_box_hi'] = in_box_hi
+                self.refinement_boxes.append((in_box_lo, in_box_hi))
 
             inp['amr.ref_ratio_vect'] = ref_ratio_vect
 
         restart_interval = self.time_control.restart_interval * 60.0 # [s]
-        inp['erf.check_int'] = int(restart_interval / dt[0])
+        if restart_interval <= 0:
+            inp['erf.check_int'] = -1
+        else:
+            inp['erf.check_int'] = int(restart_interval / dt[0])
 
         wrfout_interval = self.time_control.history_interval[0] * 60.0 # [s]
-        inp['erf.plot_int_1'] = int(wrfout_interval / dt[0])
+        if wrfout_interval <= 0:
+            inp['erf.plot_int_1'] = -1
+        else:
+            inp['erf_plot_file_1'] = 'plt'
+            #inp['erf.plot_int_1'] = int(wrfout_interval / dt[0])
+            inp['erf.plot_per_1'] = wrfout_interval
+            inp['erf.plot_vars_1'] = self.default_plot_vars
+            self.log.info('Setting default plotting vars for history output: '
+                          f'{self.default_plot_vars}')
+
+        auxhist2_interval = self.time_control.auxhist2_interval[0] * 60.0 # [s]
+        if auxhist2_interval <= 0:
+            inp['erf.plot_int_2'] = -1
+        else:
+            inp['erf.plot_file_2'] = 'plt_aux'
+            #inp['erf.plot_int_2'] = int(auxhist2_interval / dt[0])
+            inp['erf.plot_per_2'] = auxhist2_interval
+            inp['erf.plot_vars_2'] = self.default_plot_vars
+            self.log.info('Setting default plotting vars for auxhist output: '
+                          f'{self.default_plot_vars} -- need to manually specify '
+                          'erf.plot_vars_2 to replicate auxhist2 output')
 
         sfclayscheme = self.physics.sf_sfclay_physics[0]
         if sfclayscheme == 'None':
             inp['zlo.type'] = 'SlipWall'
-        elif sfclayscheme == 'MOST':
-            inp['zlo.type'] = 'MOST'
+        elif sfclayscheme == 'SurfaceLayer':
+            inp['zlo.type'] = 'surface_layer'
         else:
             self.log.warning(f'Surface layer scheme {sfclayscheme} not implemented in ERF')
             inp['zlo.type'] = sfclayscheme
@@ -254,9 +292,9 @@ class WRFInputDeck(object):
         inp['erf.dryscal_horiz_adv_type'] = h_sca_adv_order
         inp['erf.dryscal_vert_adv_type']  = v_sca_adv_order
         if not all([adv_opt == 'WENO5' for adv_opt in self.dynamics.moist_adv_opt]):
-            self.log.warning('Need to manually specify moist erf.moistscal_*_adv_type'
-                             f' for WRF moist_adv_opt = {self.dynamics.moist_adv_opt}'
-                             ' -- defaulting to 5th-order WENO')
+            self.log.warning(f'WRF moist_adv_opt = {self.dynamics.moist_adv_opt}'
+                             ' not available -- defaulting to 5th-order WENO for'
+                             ' erf.moistscal_*_adv_type')
 
         inp['erf.pbl_type'] = self.physics.bl_pbl_physics
         for idom in range(max_dom):
@@ -296,10 +334,7 @@ class WRFInputDeck(object):
             inp['erf.num_diff_coeff'] = num_diff_coeff
         
         if any([opt != 'constant' for opt in self.dynamics.km_opt]):
-            # in ERF, Smagorinsky == 2D Smagorinsky
-            les_types = [turb if 'Smagorinsky' not in turb else 'Smagorinsky'
-                         for turb in self.dynamics.km_opt]
-            les_types = les_types[:max_dom]
+            les_types = self.dynamics.km_opt[:max_dom]
             inp['erf.les_type'] = les_types
             smag_Cs = self.dynamics.c_s
             dear_Ck = self.dynamics.c_k
@@ -324,6 +359,30 @@ class WRFInputDeck(object):
                 self.log.warning(f'Applying the {rad_model} radiation scheme on all levels')
             inp['erf.radiation_model'] = rad_model
 
+            inp['erf.rad_freq_in_steps'] = self.physics.radt[0]
+            if inp['erf.rad_freq_in_steps'] < 0:
+                # rule of thumb: rad freq is "1 min per km of dx"
+                dx_km = self.domains.dx[0] / 1000.
+                radt = dx_km * 60. # [s]
+                rad_freq = int(radt / dt[0])
+                inp['erf.rad_freq_in_steps'] = rad_freq
+                self.log.info('Calculated radiation update frequency to be '
+                              f'every {rad_freq} steps, corresponding to an '
+                              f'interval of {rad_freq * dt[0] / 60:g} min on '
+                              'domain d01')
+
+        if any([opt != 'None' for opt in self.physics.surface_physics]):
+            lsm_model = self.physics.surface_physics[0]
+            if len(set(self.physics.surface_physics)) > 1:
+                self.log.warning(f'Applying the {lsm_model} surface scheme on all levels')
+            if lsm_model == 'NoahMP':
+                #self.log.warning(f'&noah_mp was not parsed, additional options'
+                #                 ' need to be manually specified')
+                self.log.warning('NoahMP verification is ongoing; '
+                                 'reverting to simple land model (SLM) for now')
+                lsm_model = 'SLM'
+            inp['erf.land_surface_model'] = lsm_model
+
         if any([opt != 'None' for opt in self.physics.cu_physics]):
             self.log.warning('ERF currently does not have any cumulus parameterizations')
 
@@ -338,14 +397,41 @@ class WRFInputDeck(object):
                 self.log.warning(f'Damping option {self.dynamics.damp_opt} not supported')
 
         self.input_dict = inp
-        
-    def process_initial_conditions(self,init_input='wrfinput_d01',
+
+    def get_map_info(self,init_input=None):
+        if init_input is None:
+            init_input = self.wrfinput
+        if init_input is None:
+            self.cen_lat = None
+            self.cen_lon = None
+            self.truelat1 = None
+            self.truelat2 = None
+            self.moad_cen_lat = None
+            self.stand_lon = None
+            self.map_proj = None
+            return
+
+        inp = xr.open_dataset(init_input)
+        self.cen_lat = inp.attrs['CEN_LAT']
+        self.cen_lon = inp.attrs['CEN_LON']
+        self.truelat1 = inp.attrs['TRUELAT1'] # standard parallels
+        self.truelat2 = inp.attrs['TRUELAT2']
+        self.moad_cen_lat = inp.attrs['MOAD_CEN_LAT'] # "mother of all domains"
+        self.stand_lon = inp.attrs['STAND_LON']
+        self.map_proj = inp.attrs['MAP_PROJ_CHAR']
+
+    def process_initial_conditions(self,init_input=None,
                                    calc_geopotential_heights=False,
                                    landuse_table_path=None,
                                    write_hgt=None,
                                    write_z0=None,
                                    write_albedo=None):
+        if init_input is None:
+            init_input = self.wrfinput
         wrfinp = xr.open_dataset(init_input)
+
+        idx = init_input.index('_d')
+        idom = int(init_input[idx+2:idx+4]) - 1
 
         # Get Coriolis parameters
         period = 4*np.pi / wrfinp['F'] * np.sin(np.radians(wrfinp.coords['XLAT'])) # F: "Coriolis sine latitude term"
@@ -371,14 +457,22 @@ class WRFInputDeck(object):
             inp['erf.most.zref'] = most_zref  # need to specify for terrain
 
         # Grid data needed if hgt or z0 are written
-        dx = self.domains.dx[0]
-        dy = self.domains.dy[0]
+        dx = self.domains.dx[idom]
+        assert dx == wrfinp.attrs['DX']
+        dy = self.domains.dy[idom]
+        assert dy == wrfinp.attrs['DY']
         nx = wrfinp.sizes['west_east']
         ny = wrfinp.sizes['south_north']
-        west_east   = np.arange(0.5,nx) * dx
-        south_north = np.arange(0.5,ny) * dy
-        west_east_stag   = np.arange(nx+1) * dx
-        south_north_stag = np.arange(ny+1) * dy
+
+        x0, y0 = 0.0, 0.0
+        if idom > 0:
+            refine_box_lo, _ = self.refinement_boxes[idom-1]
+            x0, y0 = refine_box_lo[:2]
+
+        west_east   = x0 + np.arange(0.5,nx) * dx
+        south_north = y0 + np.arange(0.5,ny) * dy
+        west_east_stag   = x0 + np.arange(nx+1) * dx
+        south_north_stag = y0 + np.arange(ny+1) * dy
         xg,yg = np.meshgrid(west_east_stag, south_north_stag, indexing='ij')
 
         hgt = wrfinp['HGT'].isel(Time=0) # terrain height
@@ -398,15 +492,15 @@ class WRFInputDeck(object):
             xyz = np.stack((xg.ravel(order='F'),
                             yg.ravel(order='F'),
                             hgt_nodes.ravel(order='F')),axis=-1)
-            print('Writing out',write_hgt)
-            np.savetxt(write_hgt, xyz, fmt='%.8g')
+
+            write_ascii_table(write_hgt, xyz, names=['x','y','hgt'])
             self.input_dict['erf.terrain_file_name'] = \
                     os.path.split(write_hgt)[1]
 
         # Process land use information
         if landuse_table_path is None:
-            print('Need to specify `landuse_table_path` from your WRF installation'
-                  'land-use indices to estimate z0')
+            print('Need to specify `landuse_table_path` from your WRF '
+                  ' installation to determine z0, alb from land-use indices')
             if write_z0:
                 print('Surface roughness map was not written')
             if write_albedo:
@@ -460,8 +554,8 @@ class WRFInputDeck(object):
             xyz0 = np.stack((xg.ravel(order='F'),
                              yg.ravel(order='F'),
                              z0_nodes.ravel(order='F')),axis=-1)
-            print('Writing out',write_z0)
-            np.savetxt(write_z0, xyz0, fmt='%.8g')
+
+            write_ascii_table(write_z0, xyz0, names=['x','y','z0'])
             self.input_dict['erf.most.roughness_file_name'] = \
                     os.path.split(write_z0)[1]
         else:
@@ -483,24 +577,71 @@ class WRFInputDeck(object):
             xyz0 = np.stack((xg.ravel(order='F'),
                              yg.ravel(order='F'),
                              al_nodes.ravel(order='F')),axis=-1)
-            print('Writing out',write_albedo)
-            np.savetxt(write_albedo, xyz0, fmt='%.8g')
+
+            write_ascii_table(write_albedo, xyz0, names=['x','y','alb'])
             self.input_dict['erf.rad_albedo_file_name'] = \
                     os.path.split(write_albedo)[1]
 
     def to_erf(self):
+        inp = ERFInputs(**self.input_dict)
+
+        if inp.erf.radiation_model != 'None':
+            if self.cen_lat:
+                inp.erf.o3vmr = interp_ozone(inp, self.cen_lat)
+            else:
+                self.log.warning('Using a radiation model with a constant for '
+                                 'the entire column; need to set `cen_lat`, '
+                                 'e.g. by providing a wrfinput file')
+
         if self.tslist:
             if self.tslist.have_ij:
                 nz = self.input_dict['amr.n_cell'][2]
                 lo_ijk, hi_ijk = self.tslist.get_ijk_lists(nz)
-                self.input_dict['erf.sample_line_lo'] = lo_ijk
-                self.input_dict['erf.sample_line_hi'] = hi_ijk
+                inp.erf.sample_line_lo = lo_ijk
+                inp.erf.sample_line_hi = hi_ijk
             else:
                 self.log.info('A tslist was provided but lat,lon were not '
                               'converted to i,j')
-        return ERFInputs(**self.input_dict)
+
+        return inp
 
     def write_inputfile(self,fpath):
         inp = self.to_erf()
         inp.write(fpath)
         print('Wrote',fpath)
+
+
+def write_ascii_table(fpath, xyz, names=None):
+    print('Writing out',fpath)
+    ext = os.path.splitext(fpath)[1]
+    if ext == '.csv':
+        columns = None
+        if names is not None:
+            columns = names
+        df = pd.DataFrame(xyz, columns=columns)
+        df.to_csv(fpath, index=False)
+    else:
+        header = ''
+        if names is not None:
+            header = ' '.join(names)
+        np.savetxt(fpath, xyz, header=header, fmt='%.8g')
+
+
+@click.command()
+@click.argument('namelist_input', type=click.Path(exists=True, readable=True))
+@click.argument('erf_input', type=click.Path(writable=True), required=False,
+                default='inputs')
+@click.option('--init',
+              type=click.Path(exists=True, readable=True),
+              help='Path to a wrfinput_d01 file to provide additional '
+                   'information about the simulation setup (optional)',
+              required=False)
+@click.option('--tslist',
+              type=click.Path(exists=True, readable=True),
+              help='Path to a tslist file to convert into line sampling '
+                   'inputs for ERF (optional)',
+              required=False)
+def wrf_namelist_to_erf(namelist_input, erf_input, init=None, tslist=None):
+    """Convert a WRF namelist.input into an ERF input file"""
+    wrf = WRFInputDeck(namelist_input, wrfinput=init, tslist=tslist)
+    wrf.write_inputfile(erf_input)
