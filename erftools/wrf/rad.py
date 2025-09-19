@@ -1,0 +1,113 @@
+from datetime import datetime
+import numpy as np
+import xarray as xr
+
+# wrap Jan/Dec for a 365 day year
+my_date_oz = np.array(
+    [-15,
+     16, 45, 75, 105, 136, 166, 197, 228, 258, 289, 319, 350,
+     381]
+)
+
+def monthly_interp_weights_from_date(dt):
+    """Get interpolation weights to be applied to monthly data centered
+    on specific days of the year (hardcoded).
+    """
+    # get decimal day of year (1-based)
+    jan1 = datetime(dt.year, 1, 1)
+    decimal_day = (dt - jan1).total_seconds() / 86400. + 1.0
+
+    # find months to interpolate between
+    idx_r = np.where(my_date_oz > decimal_day)[0][0]
+    idx_l = idx_r - 1
+
+    # calculate interpolation weights
+    tdelta = my_date_oz[idx_r] - my_date_oz[idx_l]
+    fac_l = (my_date_oz[idx_r] - decimal_day) / tdelta
+    fac_r = (decimal_day - my_date_oz[idx_l]) / tdelta
+
+    # fill full array of monthly weights
+    weights = np.zeros(12)
+    if idx_l == 0 or idx_r == 13:
+        weights[-1] = fac_l
+        weights[0] = fac_r
+    else:
+        weights[idx_l-1] = fac_l
+        weights[idx_r-1] = fac_r
+
+    return xr.DataArray(weights, dims='month')
+
+'''
+For verifying interpolator behavior
+
+date_oz = [16, 45, 75, 105, 136, 166, 197, 228, 258, 289, 319, 350]
+daysperyear = 365
+
+def ozn_time_int(julday, julian, ozmixm=None):
+    """Interpolate ozone concentration profile
+
+    Port of ozn_time_int subroutine from WRF
+    phys/module_radiation_driver.F
+
+    Parameters
+    ----------
+    julday: int
+        Day of year
+    julian: float
+        Day of year, 0.0 at 0Z on 1 Jan
+    ozmixm: np.array
+        Ozone concentration (nlon, nlev, nlat, nmonth)
+    """
+    ozncyc = True
+    intjulian = julian + 1.0
+    # Jan 1st 00Z is julian=1.0 here
+    ijul = int(intjulian)
+    intjulian = intjulian - ijul
+    ijul = ijul % 365
+    if ijul==0:
+        ijul = 365
+    intjulian = intjulian + ijul
+
+    np1 = 0
+    datefound = False
+    for m in range(12):
+        if (date_oz[m] > intjulian) and not datefound:
+            np1 = m
+            datefound = True
+    cdayozp = date_oz[np1]
+
+    if np1 > 0:
+        cdayozm = date_oz[np1-1]
+        np = np1
+        nm = np - 1
+    else:
+        cdayozm = date_oz[11]
+        np = np1 # ==0, jan
+        nm = 11 # dec
+
+    if ozncyc and np1 == 0:
+        # Dec-Jan interpolation
+        deltat = cdayozp + daysperyear - cdayozm
+        if intjulian > cdayozp:
+            print('interp in dec',cdayozm,cdayozp)
+            # We are in December
+            fact1 = (cdayozp + daysperyear - intjulian) / deltat
+            fact2 = (intjulian - cdayozm) / deltat
+        else:
+            print('interp in jan',cdayozm,cdayozp)
+            # We are in January
+            fact1 = (cdayozp - intjulian) / deltat
+            fact2 = (intjulian + daysperyear - cdayozm) / deltat
+    else:
+        print('interp in general',cdayozm,cdayozp)
+        deltat = cdayozp - cdayozm
+        fact1 = (cdayozp - intjulian) / deltat
+        fact2 = (intjulian - cdayozm) / deltat
+
+    if ozmixm is not None:
+        # WRF source has indices nm+1, np+1, which should be to account for
+        # module_ra_cam_suopport:oznini filling ozmixm starting from m=2...
+        return ozmixm[:,:,:,nm]*fact1 + ozmixm[:,:,:,np]*fact2
+    else:
+        return fact1, fact2
+'''
