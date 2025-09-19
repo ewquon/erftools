@@ -39,7 +39,7 @@ class WRFInputDeck(object):
                          'pressure','theta','KE',
                          'Kmh','Kmv','Khh','Khv','qv','qc']
 
-    def __init__(self,nmlpath,tslist=None,verbosity=logging.DEBUG):
+    def __init__(self,nmlpath,wrfinput=None,tslist=None,verbosity=logging.DEBUG):
         # setup logger
         self.log = logging.getLogger(__name__)
         if not self.log.hasHandlers():
@@ -61,6 +61,9 @@ class WRFInputDeck(object):
         # calculate ERF equivalents
         self.set_defaults()
         self.generate_inputs()
+
+        self.wrfinput = wrfinput
+        self.get_map_info()
 
         if tslist is not None:
             self.tslist = TSList(tslist)
@@ -394,12 +397,36 @@ class WRFInputDeck(object):
 
         self.input_dict = inp
 
-    def process_initial_conditions(self,init_input='wrfinput_d01',
+    def get_map_info(self,init_input=None):
+        if init_input is None:
+            init_input = self.wrfinput
+        if init_input is None:
+            self.cen_lat = None
+            self.cen_lon = None
+            self.truelat1 = None
+            self.truelat2 = None
+            self.moad_cen_lat = None
+            self.stand_lon = None
+            self.map_proj = None
+            return
+
+        inp = xr.open_dataset(init_input)
+        self.cen_lat = inp.attrs['CEN_LAT']
+        self.cen_lon = inp.attrs['CEN_LON']
+        self.truelat1 = inp.attrs['TRUELAT1'] # standard parallels
+        self.truelat2 = inp.attrs['TRUELAT2']
+        self.moad_cen_lat = inp.attrs['MOAD_CEN_LAT'] # "mother of all domains"
+        self.stand_lon = inp.attrs['STAND_LON']
+        self.map_proj = inp.attrs['MAP_PROJ_CHAR']
+
+    def process_initial_conditions(self,init_input=None,
                                    calc_geopotential_heights=False,
                                    landuse_table_path=None,
                                    write_hgt=None,
                                    write_z0=None,
                                    write_albedo=None):
+        if init_input is None:
+            init_input = self.wrfinput
         wrfinp = xr.open_dataset(init_input)
 
         idx = init_input.index('_d')
