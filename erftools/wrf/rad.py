@@ -1,8 +1,12 @@
 from datetime import datetime
+from importlib import resources
+
 import numpy as np
 import xarray as xr
+import click
 
 from erftools.utils import get_zcc, est_p
+from erftools.inputs import ERFInputs
 
 
 # wrap Jan/Dec for a 365 day year
@@ -73,6 +77,41 @@ def interp_from_monthly_to_date_heights(xdata,dt,heights,**kwargs):
 
     return interp_data
 
+
+@click.command()
+@click.argument('inputfile', type=click.Path(writable=True))
+@click.option('--latitude', type=click.FloatRange(-90,90),
+              required=True)
+@click.option('--dataset', default='CAM',
+              help='Name of O3 dataset [default=CAM]')
+def generate_ozone_profile(inputfile, latitude, dataset):
+    """Interpolate from climatological O3 data to the starting datetime
+    and height levels from the ERF inputfile.
+
+    Ozone datasets are stored in erftools/data/ozone_*.nc
+    """
+    dataname = f'ozone_{dataset}.nc'
+    with resources.files('erftools.data').joinpath(dataname) as fpath:
+        ds = xr.load_dataset(fpath)
+
+    inp = ERFInputs(inputfile)
+    date = inp.start_datetime
+    if date is None:
+        raise ValueError(f'start_date not found in {inputfile}')
+    print('Interpolating to',date)
+
+    heights = get_zcc(inp)
+    print('Model heights:',heights)
+
+    plevels = est_p(heights)
+    print('Standard pressure levels:',plevels)
+
+    ds = ds.interp(lat=latitude)
+    interpdata = interp_from_monthly_to_date_heights(ds, date, heights)
+    print('O3 [ppbv]: ', interpdata['o3vmr'].values / 1e-9)
+
+    erfstr = str(interpdata['o3vmr'].values).lstrip('[').rstrip(']')
+    print('erf.o3vmr = ', erfstr)
 
 '''
 For verifying interpolator behavior

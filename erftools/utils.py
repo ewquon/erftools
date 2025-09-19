@@ -45,12 +45,15 @@ def get_w_from_omega(omega_cc, rho_cc, stag_dims=None):
     return da
 
 
-def get_zcc(inputfile) -> np.array:
+def get_zcc(inp) -> np.array:
     """Automatically get modeled heights at cell centers, which is exact
     for const dz or stretched grids and approximate for general,
     variable dz grids over terrain.
+
+    `inp` may be an ERF input file path or an instance of ERFInputs.
     """
-    inp = ERFInputs(inputfile)
+    if not isinstance(inp, ERFInputs):
+        inp = ERFInputs(inp)
     if len(inp.erf.terrain_z_levels) > 0:
         zstag = np.array(inp.erf.terrain_z_levels)
         zcc = 0.5 * (zstag[1:] + zstag[:-1])
