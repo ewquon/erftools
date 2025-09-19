@@ -1,5 +1,7 @@
 import sys
 import warnings
+from datetime import datetime
+from dateutil import parser
 
 import click
 import contextlib
@@ -39,6 +41,14 @@ def list_to_str(mylist,dtype=None):
 def strs_to_str(mylist):
     return ' '.join([s.strip('"').strip("'") for s in mylist])
 
+def to_datetime(dt):
+    # ensure that we have a datetime object, parse if needed
+    if isinstance(dt, datetime):
+        return dt
+    elif isinstance(dt, list):
+        assert len(dt) == 2, 'expected date string + time string'
+        dt = ' '.join(dt)
+    return parser.parse(dt)
 
 class ERFInputs(object):
     """Input data container with validation and output"""
@@ -52,8 +62,13 @@ class ERFInputs(object):
         self.max_step = int(ppdata.get('max_step',-1))
         self.start_time = float(ppdata.get('start_time',0.))
         self.stop_time = float(ppdata.get('stop_time',1e34))
+
         self.start_datetime = ppdata.get('start_datetime',None)
+        if self.start_datetime is not None:
+            self.start_datetime = to_datetime(self.start_datetime)
         self.stop_datetime = ppdata.get('stop_datetime',None)
+        if self.stop_datetime is not None:
+            self.stop_datetime = to_datetime(self.stop_datetime)
 
         # read amr, geometry, and erf inputs
         amrparms = parmparse('amr',ppdata)
@@ -166,7 +181,9 @@ class ERFInputs(object):
                     self.refine[box][test] = thresh
 
     def validate(self):
-        # additional validation that depends on different parmparse types
+        """Additional validation (outside of what is performed in
+        erfparms.*) that depends on different parmparse tables
+        """
         if self.erf.terrain_type.lower() != 'none':
             if self.erf.terrain_z_levels:
                 nz = self.amr.n_cell[2]
