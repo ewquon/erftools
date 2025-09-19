@@ -2,6 +2,9 @@ from datetime import datetime
 import numpy as np
 import xarray as xr
 
+from erftools.utils import get_zcc, est_p
+
+
 # wrap Jan/Dec for a 365 day year
 my_date_oz = np.array(
     [-15,
@@ -36,6 +39,40 @@ def monthly_interp_weights_from_date(dt):
         weights[idx_r-1] = fac_r
 
     return xr.DataArray(weights, dims='month')
+
+def interp_from_monthly_to_date(xdata,dt):
+    """Interpolate from monthly data `xdata` (an xarray Dataset or
+    DataArray) to a specific datetime `dt`
+
+    The data should have the dimension 'month'
+    """
+    weightedvals = monthly_interp_weights_from_date(dt) * xdata
+    return weightedvals.sum('month')
+
+def interp_from_monthly_to_date_heights(xdata,dt,heights,**kwargs):
+    """Interpolate from monthly data `xdata` (an xarray Dataset or
+    DataArray) to a specific datetime `dt` and an array of model heights
+
+    The data should have the dimensions 'month' and 'plev' and the
+    pressure levels are in hPa.
+    """
+    # get pressure levels from a standard atmosphere
+    plev = est_p(heights,**kwargs) / 100 # hPa
+
+    # interpolate to pressure levels
+    plev_data = interp_from_monthly_to_date(xdata, dt)
+    interp_data = plev_data.interp(plev=plev)
+
+    # create new dimension coordinate
+    interp_data = interp_data.rename(plev='height')
+    interp_data = interp_data.assign_coords(height=heights,
+                                            plev=('height',plev))
+
+    # fill in near-surface values
+    interp_data = interp_data.bfill('height')
+
+    return interp_data
+
 
 '''
 For verifying interpolator behavior

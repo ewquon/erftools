@@ -31,6 +31,7 @@ dependencies = [
     "xarray>=2024.7.0",
     "netcdf4>=1.7.2",
     "h5netcdf>=1.6.4",
+    "bottleneck>=1.5.0",
     "pydantic",
     "f90nml",
     "click",
