@@ -120,9 +120,9 @@ class WRFInputDeck(object):
         startdate = self.time_control.start_datetimes[0]
         enddate = self.time_control.end_datetimes[0]
         tsim = (enddate - startdate).total_seconds()
-        inp['start_date'] = startdate
-        inp['stop_date'] = enddate
-        inp['start_time'] = calendar.timegm(startdate.timetuple())
+        inp['start_datetime'] = startdate
+        inp['stop_datetime'] = enddate
+        inp['start_time'] = calendar.timegm(startdate.timetuple()) # epoch time
         inp['stop_time'] = calendar.timegm(enddate.timetuple())
         self.log.info(f'Total simulation time: {tsim}')
         self.log.info(f"Start from {startdate.strftime('%Y-%m-%d %H:%M:%S')}"

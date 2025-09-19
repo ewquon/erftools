@@ -52,8 +52,8 @@ class ERFInputs(object):
         self.max_step = int(ppdata.get('max_step',-1))
         self.start_time = float(ppdata.get('start_time',0.))
         self.stop_time = float(ppdata.get('stop_time',1e34))
-        self.start_date = ppdata.get('start_date',None)
-        self.stop_date = ppdata.get('stop_date',None)
+        self.start_datetime = ppdata.get('start_datetime',None)
+        self.stop_datetime = ppdata.get('stop_datetime',None)
 
         # read amr, geometry, and erf inputs
         amrparms = parmparse('amr',ppdata)
@@ -191,11 +191,11 @@ class ERFInputs(object):
         with open_file_or_stdout(fpath) as f:
             f.write('# ------------------------------- INPUTS TO ERF -------------------------------\n')
             f.write('# written by erftools.inputs (https://github.com/erf-model/erftools)\n')
-            if self.start_date and self.stop_date:
+            if self.start_datetime and self.stop_datetime:
                 f.write(f"""
 max_step       = {self.max_step}
-start_datetime = {self.start_date}  # epoch time: {self.start_time} s
-stop_datetime  = {self.stop_date}  # epoch time: {self.stop_time} s
+start_datetime = {self.start_datetime}  # epoch time: {self.start_time} s
+stop_datetime  = {self.stop_datetime}  # epoch time: {self.stop_time} s
 """)
             else:
                 f.write(f"""
