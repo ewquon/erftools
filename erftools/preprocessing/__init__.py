@@ -1,5 +1,5 @@
 from ..wrf.inputdeck import WRFInputDeck
-from .grids import LambertConformalGrid
+from .hrrr import get_hrrr_grid, hrrr_projection
 
 try:
     import cdsapi
@@ -42,4 +42,4 @@ try:
 except ModuleNotFoundError:
     print('Note: Need to install herbie to work with HRRR data')
 else:
-    from .hrrr import NativeHRRR, hrrr_projection
+    from .hrrr import NativeHRRR

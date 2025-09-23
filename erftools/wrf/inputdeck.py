@@ -21,6 +21,7 @@ from .rad import interp_ozone
 
 from ..constants import CONST_GRAV, p_0
 from ..inputs import ERFInputs
+from ..grids import LambertConformalGrid
 
 
 class WRFInputDeck(object):
@@ -59,12 +60,17 @@ class WRFInputDeck(object):
         self.physics = Physics(self.nml['physics'])
         self.dynamics = Dynamics(self.nml['dynamics'])
         self.bdy_control = BoundaryControl(self.nml['bdy_control'])
+
         # calculate ERF equivalents
         self.set_defaults()
         self.generate_inputs()
 
+        # get attributes from wrfinput if available
         self.wrfinput = wrfinput
         self.get_map_info()
+
+        # create a NestedGrids instance if we have map info
+        self.create_grids()
 
         if tslist is not None:
             self.tslist = TSList(tslist)
@@ -292,9 +298,9 @@ class WRFInputDeck(object):
         inp['erf.dryscal_horiz_adv_type'] = h_sca_adv_order
         inp['erf.dryscal_vert_adv_type']  = v_sca_adv_order
         if not all([adv_opt == 'WENO5' for adv_opt in self.dynamics.moist_adv_opt]):
-            self.log.warning(f'WRF moist_adv_opt = {self.dynamics.moist_adv_opt}'
-                             ' not available -- defaulting to 5th-order WENO for'
-                             ' erf.moistscal_*_adv_type')
+            self.log.info(f'WRF moist_adv_opt = {self.dynamics.moist_adv_opt}'
+                          ' not available -- defaulting to 5th-order WENO for'
+                          ' erf.moistscal_*_adv_type')
 
         inp['erf.pbl_type'] = self.physics.bl_pbl_physics
         for idom in range(max_dom):
@@ -349,14 +355,14 @@ class WRFInputDeck(object):
         if any([opt != 'None' for opt in self.physics.mp_physics]):
             moisture_model = self.physics.mp_physics[0]
             if len(set(self.physics.mp_physics)) > 1:
-                self.log.warning(f'Applying the {moisture_model} microphysics'
-                                 ' model on all levels')
+                self.log.info(f'Applying the {moisture_model} microphysics'
+                              ' model on all levels')
             inp['erf.moisture_model'] = moisture_model
 
         if any([opt != 'None' for opt in self.physics.ra_physics]):
             rad_model = self.physics.ra_physics[0]
             if len(set(self.physics.ra_physics)) > 1:
-                self.log.warning(f'Applying the {rad_model} radiation scheme on all levels')
+                self.log.info(f'Applying the {rad_model} radiation scheme on all levels')
             inp['erf.radiation_model'] = rad_model
 
             inp['erf.rad_freq_in_steps'] = self.physics.radt[0]
@@ -374,7 +380,7 @@ class WRFInputDeck(object):
         if any([opt != 'None' for opt in self.physics.surface_physics]):
             lsm_model = self.physics.surface_physics[0]
             if len(set(self.physics.surface_physics)) > 1:
-                self.log.warning(f'Applying the {lsm_model} surface scheme on all levels')
+                self.log.info(f'Applying the {lsm_model} surface scheme on all levels')
             if lsm_model == 'NoahMP':
                 #self.log.warning(f'&noah_mp was not parsed, additional options'
                 #                 ' need to be manually specified')
@@ -419,6 +425,39 @@ class WRFInputDeck(object):
         self.moad_cen_lat = inp.attrs['MOAD_CEN_LAT'] # "mother of all domains"
         self.stand_lon = inp.attrs['STAND_LON']
         self.map_proj = inp.attrs['MAP_PROJ_CHAR']
+
+    def create_grids(self):
+        if self.cen_lat is None:
+            self.grids = None
+            return
+
+        assert self.map_proj == 'Lambert Conformal'
+        ndom = self.domains.max_dom
+        dxlist = self.domains.dx[:ndom]
+        dylist = self.domains.dy[:ndom]
+        iminlist = self.domains.s_we[:ndom]
+        jminlist = self.domains.s_sn[:ndom]
+        imaxlist = self.domains.e_we[:ndom]
+        jmaxlist = self.domains.e_sn[:ndom]
+        iparentlist = self.domains.i_parent_start[1:ndom]
+        jparentlist = self.domains.j_parent_start[1:ndom]
+        # note: WRF input start/end indices are staggered but
+        #       one-based; so nstag = i1 - i0 + 1; n = i1 - i0
+        nxlist = [i1 - i0 for (i0,i1) in zip(iminlist,imaxlist)]
+        nylist = [j1 - j0 for (j0,j1) in zip(jminlist,jmaxlist)]
+        ll_ij = [(i-1,j-1) for (i,j) in zip(iparentlist,jparentlist)]
+
+        self.grids = LambertConformalGrid(
+            ref_lat=self.cen_lat,
+            ref_lon=self.cen_lon,
+            truelat1=self.truelat1, # standard parallel
+            truelat2=self.truelat2, # standard parallel
+            stand_lon=self.stand_lon, # standard longitude
+            dx=dxlist,
+            dy=dylist,
+            nx=nxlist,
+            ny=nylist,
+            ll_ij=ll_ij)
 
     def process_initial_conditions(self,init_input=None,
                                    calc_geopotential_heights=False,
@@ -583,8 +622,10 @@ class WRFInputDeck(object):
                     os.path.split(write_albedo)[1]
 
     def to_erf(self):
+        # instantiate ERFInputs for writing
         inp = ERFInputs(**self.input_dict)
 
+        # additional settings
         if inp.erf.radiation_model != 'None':
             if self.cen_lat:
                 inp.erf.o3vmr = interp_ozone(inp, self.cen_lat)
@@ -593,12 +634,18 @@ class WRFInputDeck(object):
                                  'the entire column; need to set `cen_lat`, '
                                  'e.g. by providing a wrfinput file')
 
+        # setup sampling
         if self.tslist:
+            if not self.tslist.have_ij and self.grids is not None:
+                # need to map lat,lon to i,j
+                self.tslist.convert_latlon(self.grids)
+
             if self.tslist.have_ij:
                 nz = self.input_dict['amr.n_cell'][2]
                 lo_ijk, hi_ijk = self.tslist.get_ijk_lists(nz)
                 inp.erf.sample_line_lo = lo_ijk
                 inp.erf.sample_line_hi = hi_ijk
+                inp.erf.sample_line_dir = self.tslist.ntowers * [2]
             else:
                 self.log.info('A tslist was provided but lat,lon were not '
                               'converted to i,j')
