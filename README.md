@@ -2,28 +2,16 @@
 A collection of Python-based modules and scripts for facilitating the usage of
 the Energy Research and Forecasting (ERF) model.
 
-## Installation
-
-Clone and create a conda (or mamba) environment:
-```shell
-git clone https://github.com/erf-model/erftools.git
-cd erftools
-conda create -n erftools python=3.9
-conda activate erftools
-```
-
-Then, install with:
-```shell
-pip install -e . # editable install
-```
-or install with all optional dependencies:
-```shell
-pip install -e .[all]
-```
-
 ## Examples
 
-Some short snippets are provided below.
+Some short snippets are provided below with commonly used workflows also having
+command line analogues to facilitate execution. These console scripts are immediately
+available in your environment after you [install](#sec-installation) the erftools
+package. Note that each script includes a `--help` option, e.g.,
+```shell
+wrf_namelist_to_erf --help
+```
+
 Please see the notebooks folder for more detailed examples.
 
 ### Converting a WRF namelist into ERF inputs
@@ -45,7 +33,7 @@ The namelist conversion may also be accomplished from the command line:
 wrf_namelist_to_erf namelist.input inputs
 ```
 
-### Plotting a Domain Configuration
+### Plotting a Nested Grid Configuration
 ```python
 from erftools.grids import LambertConformalGrid
 
@@ -63,14 +51,12 @@ now23 = LambertConformalGrid(
 fig, ax = now23.plot_grids()
 ```
 
-Grid geometry can be read from an ERF input file and plotting may be
-done from the command line as well.
+From the command line, the grid geometry can be read from an ERF input file and plotted:
 ```shell
 plotgrids inputs --latlon0 35.85 -123.72 --truelat1 36.05 --standlon -65.0
 ```
 
-
-### Postprocessing data logs
+### Postprocessing Data Logs
 Data logs are output with the `erf.data_log` param and can include time
 histories of surface conditions and planar averaged profiles (e.g., for
 idealized LES simulations)
@@ -88,6 +74,28 @@ log.est_abl_height('max_theta_grad')
 
 print(log.ds) # data are stored in an xarray dataset
 ```
+
+
+<a name="sec-installation"></a>
+## Installation
+
+Clone and create a conda (or mamba) environment:
+```shell
+git clone https://github.com/erf-model/erftools.git
+cd erftools
+conda create -n erftools python=3.9
+conda activate erftools
+```
+
+Then, install with:
+```shell
+pip install -e . # editable install
+```
+or install with all optional dependencies:
+```shell
+pip install -e .[all]
+```
+
 
 ## Contributing
 
