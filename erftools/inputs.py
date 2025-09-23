@@ -48,7 +48,9 @@ def to_datetime(dt):
     elif isinstance(dt, list):
         assert len(dt) == 2, 'expected date string + time string'
         dt = ' '.join(dt)
+        dt = dt.strip('"')
     return parser.parse(dt)
+
 
 class ERFInputs(object):
     """Input data container with validation and output"""
@@ -231,7 +233,7 @@ erf.restart = {self.erf.restart}
 
             if self.erf.anelastic:
                 f.write(f"""
-erf.anelastic = {bool_to_str(self.erf.anelastic)}
+erf.anelastic = {list_to_str(self.erf.anelastic)}
 erf.use_fft   = {bool_to_str(self.erf.use_fft)}
 erf.mg_v      = {bool_to_str(self.erf.mg_v)}
 """)
@@ -581,6 +583,8 @@ erf.real_set_width = {self.erf.real_set_width}
 """)
                 else:
                     f.write('\n')
+                if self.erf.nc_low_file:
+                    f.write('erf.nc_low_file    = {self.erf.nc_low_file}')
             elif self.erf.init_type.lower() == 'metgrid':
                 f.write(f"""
 erf.init_type      = metgrid

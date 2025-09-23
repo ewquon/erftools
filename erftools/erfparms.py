@@ -87,6 +87,7 @@ class GeometryParms:
 
 
 dycore_adv_schemes = [
+    # from WRF
     'Centered_2nd',
     'Upwind_3rd',
     'Blended_3rd4th',
@@ -94,15 +95,18 @@ dycore_adv_schemes = [
     'Upwind_5th',
     'Blended_5th6th',
     'Centered_6th',
+    # WENO-JS
+    'WENO3',
+    'WENO5',
+    'WENO7'
+    # WENO-Z
+    'WENOZ3',
+    'WENOZ5',
+    'WENOZ7'
 ]
 extra_scalar_adv_schemes = [
-    'WENO3',
-    'WENOZ3',
+    'Upwind_3rd_SL' # slope-limited
     'WENOMZQ3',
-    'WENO5',
-    'WENOZ5',
-    'WENO7'
-    'WENOZ7'
 ]
 
 # corresponding to ERF InitType
@@ -129,7 +133,7 @@ class ERFParms:
     """erf.* parameters"""
 
     # Governing Equations
-    anelastic: bool = False  # solv anelastic eqns instead of compressible
+    anelastic: Union[int,List[int]] = field(default_factory=list)  # solve anelastic eqns instead of compressible
     use_fft: bool = False  # use FFT rather than multigrid to solve Poisson eqns
     mg_v: int = 0  # multigrid solver verbosiy when solving Poisson
 
@@ -183,7 +187,7 @@ class ERFParms:
     sampler_interval: int = -1
     sample_line_lo: List[float] = field(default_factory=list)
     sample_line_hi: List[float] = field(default_factory=list)
-    sample_line_dir: List[int] = field(default_factory=list)
+    sample_line_dir: Union[int,List[int]] = field(default_factory=list)
 
     # Advection Schemes
     dycore_horiz_adv_type: str = 'Upwind_3rd'
@@ -256,6 +260,7 @@ class ERFParms:
     init_sounding_ideal: bool = False
     nc_init_file_0: Union[str,List[str]] = ''
     nc_bdy_file: str = ''
+    nc_low_file: str = ''
     project_initial_velocity: bool = False
     use_real_bcs: bool = False
     real_width: int = 5
@@ -294,9 +299,12 @@ class ERFParms:
     land_surface_model: str = 'None'
 
     def __post_init__(self):
-        if self.anelastic:
-            assert self.use_fft
-            assert self.project_initial_velocity
+        if isinstance(self.anelastic, int):
+            self.anelastic = [self.anelastic]
+        if len(self.anelastic) > 0:
+            if not self.use_fft:
+                warnings.warn('erf.use_fft = true is recommended for anelastic')
+            self.project_initial_velocity = True
             if self.substepping_type == 'DEFAULT':
                 self.substepping_type = 'none'
         else:
@@ -324,10 +332,16 @@ class ERFParms:
             assert len(self.sample_line_hi) == len(self.sample_line_lo)
             assert len(self.sample_line_lo) == 3*nlines, \
                     'Unexpected number of ijk values in sampling indices'
-            if len(self.sample_line_dir) > 0:
+            if isinstance(self.sample_line_dir, list):
                 assert len(self.sample_line_dir) == nlines
+            elif isinstance(self.sample_line_dir, int):
+                self.sample_line_dir = [self.sample_line_dir]
             else:
+                # default to vertical line samples
                 self.sample_line_dir = nlines*[2]
+            # convert to numeric
+            self.sample_line_lo = list(map(int, self.sample_line_lo))
+            self.sample_line_hi = list(map(int, self.sample_line_hi))
         assert len(self.sample_line_lo) == len(self.sample_line_hi)
 
         for vartype in ['dycore','dryscal','moistscal']:
