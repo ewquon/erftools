@@ -102,6 +102,9 @@ class NestedGrids(object):
             self.y_destag = self.level[0].y_destag
 
     def latlon(self,level=0,stagger=None):
+        """Helper function to return lat, lon at the requested level
+        with/without u or v staggering
+        """
         assert level < self.nlev
         if stagger is None and hasattr(self,'lat'):
             return self.lat[level], self.lon[level]
@@ -111,11 +114,14 @@ class NestedGrids(object):
             return self.lat_v[level], self.lon_v[level]
         else:
             lat, lon = self.calc_lat_lon(stagger=stagger)
-            return lat[0], lon[0]
+            return lat[level], lon[level]
 
     def calc_lat_lon(self,stagger=None):
         """Calculate latitude and longitude at cell centers or u/v
         staggered locations (i.e., staggered in x/y)
+
+        Note that this will initialize 2D grids, which may be large
+        depending on your problem.
         """
         lat_levels = []
         lon_levels = []
@@ -153,6 +159,21 @@ class NestedGrids(object):
             self.lat_v = lat_levels
             self.lon_v = lon_levels
         return lat_levels, lon_levels
+
+    def create_latlon_grid(self,level=0,stag_x=True,stag_y=True,indexing='xy'):
+        """Create a regular grid with projected coordinates in lat/lon
+        space. This returns a curvilinear 2-D grid.
+        """
+        x1 = self.level[level].x if stag_x else self.level[level].x_destag
+        y1 = self.level[level].y if stag_y else self.level[level].y_destag
+        xx,yy = np.meshgrid(x1,y1,indexing=indexing)
+        transformer = pyproj.Transformer.from_proj(
+            self.proj,
+            "EPSG:4326",  # WGS84 geographic coordinates (equivalent to ccrs.Geodetic())
+            always_xy=True
+        )
+        lon2d, lat2d = transformer.transform(xx, yy)
+        return lat2d, lon2d
 
     def find_ij_from_latlon(self,lat,lon,level=None,stagger=None):
         """Find i,j indices (corresponding to x,y) for given lat,lon
@@ -225,8 +246,8 @@ class NestedGrids(object):
 
 
 class LambertConformalGrid(NestedGrids):
-    """Given WRF projection parameters, setup a projection and calculate
-    map scale factors
+    """Given projection parameters, setup a map projection and
+    initialize the corresponding Cartesian grid
     """
     def __init__(self,
                  ref_lat, ref_lon,
