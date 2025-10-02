@@ -587,6 +587,7 @@ class WRFInputDeck(object):
             z0 = z0.transpose('west_east','south_north')
             interpfun = RegularGridInterpolator(
                     (west_east,south_north), z0.values,
+                    method='nearest',
                     bounds_error=False,
                     fill_value=None)
             z0_nodes = interpfun((xg,yg))
@@ -669,8 +670,8 @@ def write_ascii_table(fpath, xyz, names=None):
         df.to_csv(fpath, index=False)
     else:
         header = ''
-        if names is not None:
-            header = ' '.join(names)
+        #if names is not None:
+        #    header = ' '.join(names)
         np.savetxt(fpath, xyz, header=header, fmt='%.8g')
 
 
