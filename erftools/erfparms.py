@@ -61,8 +61,8 @@ class AMRParms:
             assert self.ref_ratio in [2,3,4], 'Invalid amr.ref_ratio'
         assert len(self.ref_ratio_vect) % 3 == 0, \
                 'Need to specify ref ratios for each direction'
-        assert all([ival in [1,2,3,4] for ival in self.ref_ratio_vect]), \
-                'Invalid directional refinement ratio(s)'
+        #assert all([ival in [1,2,3,4] for ival in self.ref_ratio_vect]), \
+        #        'Invalid directional refinement ratio(s)'
 
     
 @dataclass(config=ConfigDict(extra='allow'))
@@ -254,6 +254,10 @@ class ERFParms:
     rayleigh_damp_T: bool = False
     rayleigh_dampcoef: float = 0.2
     rayleigh_zdamp: float = 500.
+
+    w_damping: bool = False
+
+    beta_s: float = 0.1
 
     # Initialization
     init_type: str = 'None'

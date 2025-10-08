@@ -258,8 +258,6 @@ class Physics(WRFNamelist):
         self.ra_physics = [ra_physics_mapping.get(idx,'UNKNOWN') for idx in ra_lw_idx_list]
 
         self.radt = self.getarrayvar('radt', default=-1)
-        assert all([t==self.radt[0] for t in self.radt]), \
-                'Different radiation call intervals not handled'
 
         lsm_idx_list = self.getarrayvar('sf_surface_physics')
         self.surface_physics = [surface_physics_mapping.get(idx,'UNKNOWN') for idx in lsm_idx_list]
@@ -322,10 +320,11 @@ class Dynamics(WRFNamelist):
 
     def parse_damping(self):
         self.damp_opt = damp_opt_mapping[self.getvar('damp_opt')]
-        self.w_damping = bool(self.getvar('w_damping', default=0))
         ndamp = len(self.damp_opt)
         self.zdamp = self.getarrayvar('zdamp', default=ndamp*[5000.])
         self.dampcoef = self.getarrayvar('dampcoef', default=ndamp*[0.2])
+        self.w_damping = bool(self.getvar('w_damping', default=0))
+        self.epssm = self.getarrayvar('epssm', default=ndamp*[0.1])
 
 
 class BoundaryControl(WRFNamelist):

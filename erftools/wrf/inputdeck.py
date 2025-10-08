@@ -219,6 +219,7 @@ class WRFInputDeck(object):
             imax = self.domains.e_we
             jmax = self.domains.e_sn
             ref_ratio_vect = []
+            in_box_lo = np.array([0.0, 0.0])  # parent domain lower-left corner
             for idom in range(1,max_dom):
                 grid_ratio = self.domains.parent_grid_ratio[idom]
                 ref_ratio_vect += [grid_ratio, grid_ratio, 1]
@@ -227,13 +228,13 @@ class WRFInputDeck(object):
                 child_dx   = np.array([  dx[idom  ]  ,   dy[idom  ]  ], dtype=float)
                 parent_ext = np.array([imax[idom-1]-1, jmax[idom-1]-1]) * parent_dx
                 child_ext  = np.array([imax[idom  ]-1, jmax[idom  ]-1]) * child_dx
+                assert (child_ext[0] <= parent_ext[0])
+                assert (child_ext[1] <= parent_ext[1])
                 lo_idx = np.array([
                     self.domains.i_parent_start[idom] - 1,
                     self.domains.j_parent_start[idom] - 1])
-                in_box_lo = lo_idx * parent_dx
+                in_box_lo = in_box_lo + lo_idx * parent_dx
                 in_box_hi = in_box_lo + child_ext
-                assert (in_box_hi[0] <= parent_ext[0])
-                assert (in_box_hi[1] <= parent_ext[1])
                 inp[f'erf.nest{idom:d}.max_level'] = idom
                 inp[f'erf.nest{idom:d}.in_box_lo'] = in_box_lo
                 inp[f'erf.nest{idom:d}.in_box_hi'] = in_box_hi
@@ -365,9 +366,18 @@ class WRFInputDeck(object):
                 self.log.info(f'Applying the {rad_model} radiation scheme on all levels')
             inp['erf.radiation_model'] = rad_model
 
-            inp['erf.rad_freq_in_steps'] = self.physics.radt[0]
-            if inp['erf.rad_freq_in_steps'] < 0:
-                # rule of thumb: rad freq is "1 min per km of dx"
+            if not all([interval==self.physics.radt[0]
+                        for interval in self.physics.radt]):
+                self.log.warning('Different radiation call intervals not handled, '
+                                f'using {self.physics.radt[0]} min')
+
+            assert self.physics.radt[0] != 0
+            if self.physics.radt[0] > 0:
+                # convert from minutes to steps
+                inp['erf.rad_freq_in_steps'] = int(self.physics.radt[0]*60 /
+                                                   dt[0])
+            else:
+                # calculate with rule of thumb: rad freq is "1 min per km of dx"
                 dx_km = self.domains.dx[0] / 1000.
                 radt = dx_km * 60. # [s]
                 rad_freq = int(radt / dt[0])
@@ -401,6 +411,13 @@ class WRFInputDeck(object):
                 inp['erf.rayleigh_zdamp'] = self.dynamics.zdamp[0]
             else:
                 self.log.warning(f'Damping option {self.dynamics.damp_opt} not supported')
+
+        inp['erf.w_damping'] = self.dynamics.w_damping
+
+        if not all([epssm==self.dynamics.epssm[0] for epssm in self.dynamics.epssm]):
+            self.log.warning('Different off-centering coefficients not supported, '
+                             f'using {self.dynamics.epssm[0]}')
+        inp['erf.beta_s'] = self.dynamics.epssm[0]
 
         self.input_dict = inp
 
