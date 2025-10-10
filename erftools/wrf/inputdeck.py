@@ -720,6 +720,11 @@ def write_ascii_table(fpath, xyz, names=None):
 @click.argument('namelist_input', type=click.Path(exists=True, readable=True))
 @click.argument('erf_input', type=click.Path(writable=True), required=False,
                 default='inputs')
+@click.option('--wps',
+              type=click.Path(exists=True, readable=True),
+              help='Path to a namelist.wps file to provide additional '
+                   'information about the simulation setup (optional)',
+              required=False)
 @click.option('--init',
               type=click.Path(exists=True, readable=True),
               help='Path to a wrfinput_d01 file to provide additional '
@@ -730,7 +735,11 @@ def write_ascii_table(fpath, xyz, names=None):
               help='Path to a tslist file to convert into line sampling '
                    'inputs for ERF (optional)',
               required=False)
-def wrf_namelist_to_erf(namelist_input, erf_input, init=None, tslist=None):
-    """Convert a WRF namelist.input into an ERF input file"""
-    wrf = WRFInputDeck(namelist_input, wrfinput=init, tslist=tslist)
+def wrf_namelist_to_erf(namelist_input, erf_input, wps=None, init=None, tslist=None):
+    """Convert a WRF namelist.input into an ERF input file
+
+    If a tslist file with lat,lon sampling locations is provided, then
+    either --wps or --init must be specified.
+    """
+    wrf = WRFInputDeck(namelist_input, wpsinput=wps, wrfinput=init, tslist=tslist)
     wrf.write_inputfile(erf_input)
