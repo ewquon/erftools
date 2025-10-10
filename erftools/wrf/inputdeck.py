@@ -382,7 +382,7 @@ class WRFInputDeck(object):
             if not all([interval==self.physics.radt[0]
                         for interval in self.physics.radt]):
                 self.log.warning('Different radiation call intervals not handled, '
-                                f'using {self.physics.radt[0]} min')
+                                f'using {self.physics.radt[0]} min from d01')
 
             assert self.physics.radt[0] != 0
             if self.physics.radt[0] > 0:
@@ -429,7 +429,7 @@ class WRFInputDeck(object):
 
         if not all([epssm==self.dynamics.epssm[0] for epssm in self.dynamics.epssm]):
             self.log.warning('Different off-centering coefficients not supported, '
-                             f'using {self.dynamics.epssm[0]}')
+                             f'using {self.dynamics.epssm[0]} from d01')
         inp['erf.beta_s'] = self.dynamics.epssm[0]
 
         self.input_dict = inp

@@ -193,14 +193,14 @@ class Domains(WRFNamelist):
             if len(self.dx) >= self.max_dom:
                 assert (self.dx[dom-1]/self.dx[dom] == self.parent_grid_ratio[dom])
             else:
-                print(f'Note: dx on d{dom+1:02d} not found,'
-                      ' setting from parent_grid_ratio')
+                #print(f'Note: dx on d{dom+1:02d} not found,'
+                #      ' setting from parent_grid_ratio')
                 self.dx.append(self.dx[dom-1] / self.parent_grid_ratio[dom])
             if len(self.dy) >= self.max_dom:
                 assert (self.dy[dom-1]/self.dy[dom] == self.parent_grid_ratio[dom])
             else:
-                print(f'Note: dy on d{dom+1:02d} not found'
-                      ' setting from parent_grid_ratio')
+                #print(f'Note: dy on d{dom+1:02d} not found'
+                #      ' setting from parent_grid_ratio')
                 self.dy.append(self.dy[dom-1] / self.parent_grid_ratio[dom])
         self.eta_levels = self.getarrayvar('eta_levels',optional=True)
         self.etac = self.getvar('etac',default=0.2)
