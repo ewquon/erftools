@@ -523,13 +523,17 @@ class WRFInputDeck(object):
 
         # Get Coriolis parameters
         period = 4*np.pi / wrfinp['F'] * np.sin(np.radians(wrfinp.coords['XLAT'])) # F: "Coriolis sine latitude term"
-        mean_lat = np.mean(wrfinp.coords['XLAT'].values)
-        self.log.info(f"Using mean XLAT={mean_lat}"
-                      f" (projection CEN_LAT={wrfinp.attrs['CEN_LAT']})")
+        #mean_lat = np.mean(wrfinp.coords['XLAT'].values)
+        #self.log.info(f"Using mean XLAT={mean_lat}"
+        #              f" (projection CEN_LAT={wrfinp.attrs['CEN_LAT']})")
+        cen_lat = wrfinp.attrs['CEN_LAT']
+        if self.cen_lat is not None:
+            assert np.allclose(self.cen_lat, cen_lat)
+            cen_lat = self.cen_lat
         mean_period = np.mean(period.values)
         self.log.info(f"Earth rotational period from Coriolis param :"
                       f" {mean_period/3600} h")
-        self.input_dict['erf.latitude'] = mean_lat
+        self.input_dict['erf.latitude'] = cen_lat
         self.input_dict['erf.rotational_time_period'] = mean_period
 
         if calc_geopotential_heights:
