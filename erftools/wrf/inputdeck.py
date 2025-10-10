@@ -586,8 +586,8 @@ class WRFInputDeck(object):
                             hgt_nodes.ravel(order='F')),axis=-1)
 
             write_ascii_table(write_hgt, xyz, names=['x','y','hgt'])
-            self.input_dict['erf.terrain_file_name'] = \
-                    os.path.split(write_hgt)[1]
+            fname = os.path.split(write_hgt)[1]
+            #self.input_dict['erf.terrain_file_name'] = fname
 
         # Process land use information
         LUtype =  wrfinp.attrs['MMINLU']
@@ -615,6 +615,7 @@ class WRFInputDeck(object):
             return z0dict[idx]
         z0 = xr.apply_ufunc(np.vectorize(z0fun), LU)
         self.z0 = z0
+
         z0mean = z0.mean().item()
         self.input_dict['erf.most.z0'] = z0mean
         if np.allclose(z0,z0mean):
@@ -641,8 +642,11 @@ class WRFInputDeck(object):
                              z0_nodes.ravel(order='F')),axis=-1)
 
             write_ascii_table(write_z0, xyz0, names=['x','y','z0'])
-            self.input_dict['erf.most.roughness_file_name'] = \
-                    os.path.split(write_z0)[1]
+            fname = os.path.split(write_z0)[1]
+            if hasattr(self, 'roughness_files'):
+                self.roughness_files.append(fname)
+            else:
+                self.roughness_files = [fname]
         else:
             self.log.info('Roughness map not written,'
                           ' using mean roughness for MOST')
@@ -699,6 +703,11 @@ class WRFInputDeck(object):
         return inp
 
     def write_inputfile(self,fpath):
+        # these were read in through one or more calls to process_initial_conditions
+        if hasattr(self,'roughness_files'):
+            self.input_dict['erf.most.roughness_file_name'] = \
+                ' '.join(self.roughness_files)
+            self.input_dict.pop('erf.most.z0', None)
         inp = self.to_erf()
         inp.write(fpath)
         print('Wrote',fpath)
