@@ -13,7 +13,8 @@ from .namelist.input import (TimeControl,
                              Domains,
                              Physics,
                              Dynamics,
-                             BoundaryControl)
+                             BoundaryControl,
+                             Geogrid)
 from .namelist.tslist import TSList
 from .landuse import LandUseTable
 from .real import RealInit, get_zlevels_auto
@@ -40,19 +41,28 @@ class WRFInputDeck(object):
                          'pressure','theta','KE',
                          'Kmh','Kmv','Khh','Khv','qv','qc']
 
-    def __init__(self,nmlpath,wrfinput=None,tslist=None,verbosity=logging.DEBUG):
+    def __init__(self,
+                 nmlpath,
+                 wpsinput=None,
+                 wrfinput=None,
+                 tslist=None,
+                 verbosity=logging.DEBUG):
         """Process WRF input files
 
         Parameters
         ----------
         nmlpath : str
             Path to WRF namelist.input
-        wrfinput : str
+        wpsinput : str, optional
+            Path to WPS namelist.wps from which to extract map
+            projection information
+        wrfinput : str, optional
             Path to a real.exe generated wrfinput_d0* file from which
-            to extract map projection information
-        tslist : str
+            to extract map projection information, as an alternative to
+            providing a namelist.wps
+        tslist : str, optional
             Path to a tslist file for sampling
-        verbosity: int
+        verbosity: int, optional
             Logging level
         """
         # setup logger
@@ -79,6 +89,7 @@ class WRFInputDeck(object):
         self.generate_inputs()
 
         # get attributes from wrfinput if available
+        self.wpsinput = wpsinput
         self.wrfinput = wrfinput
         self.get_map_info()
 
@@ -434,34 +445,42 @@ class WRFInputDeck(object):
 
         self.input_dict = inp
 
-    def get_map_info(self,init_input=None):
-        if init_input is None:
-            init_input = self.wrfinput
-        if init_input is None:
+    def get_map_info(self):
+        if self.wpsinput is not None:
+            with open(self.wpsinput,'r') as f:
+                wps = f90nml.read(f)
+            geo = Geogrid(wps['geogrid'])
+            self.cen_lat = geo.ref_lat
+            self.cen_lon = geo.ref_lon
+            self.truelat1 = geo.truelat1 # standard parallels
+            self.truelat2 = geo.truelat2
+            #self.moad_cen_lat = None
+            self.stand_lon = geo.stand_lon
+            self.map_proj = geo.map_proj
+        elif self.wrfinput is not None:
+            inp = xr.open_dataset(self.wrfinput)
+            self.cen_lat = inp.attrs['CEN_LAT']
+            self.cen_lon = inp.attrs['CEN_LON']
+            self.truelat1 = inp.attrs['TRUELAT1'] # standard parallels
+            self.truelat2 = inp.attrs['TRUELAT2']
+            #self.moad_cen_lat = inp.attrs['MOAD_CEN_LAT'] # "mother of all domains"
+            self.stand_lon = inp.attrs['STAND_LON']
+            self.map_proj = inp.attrs['MAP_PROJ_CHAR']
+        else:
             self.cen_lat = None
             self.cen_lon = None
             self.truelat1 = None
             self.truelat2 = None
-            self.moad_cen_lat = None
+            #self.moad_cen_lat = None
             self.stand_lon = None
             self.map_proj = None
-            return
-
-        inp = xr.open_dataset(init_input)
-        self.cen_lat = inp.attrs['CEN_LAT']
-        self.cen_lon = inp.attrs['CEN_LON']
-        self.truelat1 = inp.attrs['TRUELAT1'] # standard parallels
-        self.truelat2 = inp.attrs['TRUELAT2']
-        self.moad_cen_lat = inp.attrs['MOAD_CEN_LAT'] # "mother of all domains"
-        self.stand_lon = inp.attrs['STAND_LON']
-        self.map_proj = inp.attrs['MAP_PROJ_CHAR']
 
     def create_grids(self):
         if self.cen_lat is None:
             self.grids = None
             return
 
-        assert self.map_proj == 'Lambert Conformal'
+        assert self.map_proj.lower() in ['lambert', 'lambert conformal']
         ndom = self.domains.max_dom
         dxlist = self.domains.dx[:ndom]
         dylist = self.domains.dy[:ndom]
