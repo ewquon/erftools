@@ -26,15 +26,14 @@ from ..grids import LambertConformalGrid
 
 class WRFInputDeck(object):
     """Class to parse inputs from WRF and convert to inputs for ERF
-    WRF inputs include:
-    * namelist.input
-    * wrfinput_d01[, wrfinput_d02, ...]
 
-    This will instantiate WRFNamelist objects from a given namelist, with WRF
-    defaults included. From the WRFNamelists, a WRFInputDeck.input_dict will be
-    populated with ERF input parameters. When WRFInputDeck.write() is called, an
-    ERFInputs object is instantiated--inside ERFInputs is where error checking
-    occurs. ERFInputs.write() is used to finally output an ERF input file.
+    This will instantiate WRFNamelist objects from the given namelist
+    with WRF defaults included. From the WRFNamelists, an input_dict
+    will be populated with ERF input parameters.
+
+    When WRFInputDeck.write_inputfile() is called, an ERFInputs object
+    is instantiated--this is where error checking occurs.
+    ERFInputs.write() is finally used to write out an ERF input file.
     """
 
     default_plot_vars = ['density','x_velocity','y_velocity','z_velocity',
@@ -42,6 +41,20 @@ class WRFInputDeck(object):
                          'Kmh','Kmv','Khh','Khv','qv','qc']
 
     def __init__(self,nmlpath,wrfinput=None,tslist=None,verbosity=logging.DEBUG):
+        """Process WRF input files
+
+        Parameters
+        ----------
+        nmlpath : str
+            Path to WRF namelist.input
+        wrfinput : str
+            Path to a real.exe generated wrfinput_d0* file from which
+            to extract map projection information
+        tslist : str
+            Path to a tslist file for sampling
+        verbosity: int
+            Logging level
+        """
         # setup logger
         self.log = logging.getLogger(__name__)
         if not self.log.hasHandlers():
