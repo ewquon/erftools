@@ -613,26 +613,32 @@ class WRFInputDeck(object):
         z0dict = tab['roughness_length'].to_dict()
         def z0fun(idx):
             return z0dict[idx]
-        z0 = xr.apply_ufunc(np.vectorize(z0fun), LU)
-        self.z0 = z0
+        z0_lev = xr.apply_ufunc(np.vectorize(z0fun), LU)
+        if hasattr(self, 'z0'):
+            self.z0.append(z0_lev)
+        else:
+            self.z0 = [z0_lev]
 
-        z0mean = z0.mean().item()
+        z0mean = z0_lev.mean().item()
         self.input_dict['erf.most.z0'] = z0mean
-        if np.allclose(z0,z0mean):
+        if np.allclose(z0_lev, z0mean):
             self.log.info(f'Uniform terrain roughness z0={z0mean}')
 
         aldict = tab['albedo'].to_dict()
         def alfun(idx):
             return aldict[idx]
-        albedo = xr.apply_ufunc(np.vectorize(alfun), LU)
-        self.albedo = albedo
+        albedo_lev = xr.apply_ufunc(np.vectorize(alfun), LU)
+        if hasattr(self, 'albedo'):
+            self.albedo.append(albedo_lev)
+        else:
+            self.albedo = [albedo_lev]
 
         # Write out surface roughness map
         if write_z0:
             # interpolate to nodes
-            z0 = z0.transpose('west_east','south_north')
+            z0_lev = z0_lev.transpose('west_east','south_north')
             interpfun = RegularGridInterpolator(
-                    (west_east,south_north), z0.values,
+                    (west_east,south_north), z0_lev.values,
                     method='nearest',
                     bounds_error=False,
                     fill_value=None)
@@ -652,14 +658,14 @@ class WRFInputDeck(object):
                           ' using mean roughness for MOST')
             print('Distribution of roughness heights')
             print('z0\tcount')
-            for roughval in np.unique(z0):
+            for roughval in np.unique(z0_lev):
                 print(f'{roughval:g}\t{np.count_nonzero(z0==roughval)}')
 
         if write_albedo:
             # interpolate to nodes
-            albedo = albedo.transpose('west_east','south_north')
+            albedo_lev = albedo_lev.transpose('west_east','south_north')
             interpfun = RegularGridInterpolator(
-                    (west_east,south_north), albedo.values,
+                    (west_east,south_north), albedo_lev.values,
                     bounds_error=False,
                     fill_value=None)
             al_nodes = interpfun((xg,yg))
