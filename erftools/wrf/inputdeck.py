@@ -586,14 +586,6 @@ class WRFInputDeck(object):
                     os.path.split(write_hgt)[1]
 
         # Process land use information
-        if landuse_table_path is None:
-            print('Need to specify `landuse_table_path` from your WRF '
-                  ' installation to determine z0, alb from land-use indices')
-            if write_z0:
-                print('Surface roughness map was not written')
-            if write_albedo:
-                print('Surface albedo map was not written')
-            return
         LUtype =  wrfinp.attrs['MMINLU']
         self.log.info('Retrieving static surface properties for land use'
                       f' category {LUtype}')
