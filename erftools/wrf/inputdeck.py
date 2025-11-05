@@ -754,11 +754,24 @@ def write_ascii_table(fpath, xyz, names=None):
               help='Path to a tslist file to convert into line sampling '
                    'inputs for ERF (optional)',
               required=False)
-def wrf_namelist_to_erf(namelist_input, erf_input, wps=None, init=None, tslist=None):
+@click.option('--write_z0',
+              type=click.Path(writable=True),
+              help='Output path for surface roughnes map derived from the '
+                   'wrfinput_d01 LU_INDEX field')
+
+def wrf_namelist_to_erf(namelist_input, erf_input,
+                        wps=None, init=None,
+                        tslist=None,
+                        write_z0=None):
     """Convert a WRF namelist.input into an ERF input file
 
     If a tslist file with lat,lon sampling locations is provided, then
     either --wps or --init must be specified.
     """
     wrf = WRFInputDeck(namelist_input, wpsinput=wps, wrfinput=init, tslist=tslist)
+    if write_z0 is not None:
+        if init is None:
+            print('*** No roughness map written, need to specify --init ***')
+        else:
+            wrf.process_initial_conditions(write_z0=write_z0)
     wrf.write_inputfile(erf_input)
