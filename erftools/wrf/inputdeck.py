@@ -13,7 +13,8 @@ from .namelist.input import (TimeControl,
                              Domains,
                              Physics,
                              Dynamics,
-                             BoundaryControl)
+                             BoundaryControl,
+                             Geogrid)
 from .namelist.tslist import TSList
 from .landuse import LandUseTable
 from .real import RealInit, get_zlevels_auto
@@ -26,22 +27,44 @@ from ..grids import LambertConformalGrid
 
 class WRFInputDeck(object):
     """Class to parse inputs from WRF and convert to inputs for ERF
-    WRF inputs include:
-    * namelist.input
-    * wrfinput_d01[, wrfinput_d02, ...]
 
-    This will instantiate WRFNamelist objects from a given namelist, with WRF
-    defaults included. From the WRFNamelists, a WRFInputDeck.input_dict will be
-    populated with ERF input parameters. When WRFInputDeck.write() is called, an
-    ERFInputs object is instantiated--inside ERFInputs is where error checking
-    occurs. ERFInputs.write() is used to finally output an ERF input file.
+    This will instantiate WRFNamelist objects from the given namelist
+    with WRF defaults included. From the WRFNamelists, an input_dict
+    will be populated with ERF input parameters.
+
+    When WRFInputDeck.write_inputfile() is called, an ERFInputs object
+    is instantiated--this is where error checking occurs.
+    ERFInputs.write() is finally used to write out an ERF input file.
     """
 
     default_plot_vars = ['density','x_velocity','y_velocity','z_velocity',
                          'pressure','theta','KE',
                          'Kmh','Kmv','Khh','Khv','qv','qc']
 
-    def __init__(self,nmlpath,wrfinput=None,tslist=None,verbosity=logging.DEBUG):
+    def __init__(self,
+                 nmlpath,
+                 wpsinput=None,
+                 wrfinput=None,
+                 tslist=None,
+                 verbosity=logging.DEBUG):
+        """Process WRF input files
+
+        Parameters
+        ----------
+        nmlpath : str
+            Path to WRF namelist.input
+        wpsinput : str, optional
+            Path to WPS namelist.wps from which to extract map
+            projection information
+        wrfinput : str, optional
+            Path to a real.exe generated wrfinput_d0* file from which
+            to extract map projection information, as an alternative to
+            providing a namelist.wps
+        tslist : str, optional
+            Path to a tslist file for sampling
+        verbosity: int, optional
+            Logging level
+        """
         # setup logger
         self.log = logging.getLogger(__name__)
         if not self.log.hasHandlers():
@@ -66,6 +89,7 @@ class WRFInputDeck(object):
         self.generate_inputs()
 
         # get attributes from wrfinput if available
+        self.wpsinput = wpsinput
         self.wrfinput = wrfinput
         self.get_map_info()
 
@@ -369,7 +393,7 @@ class WRFInputDeck(object):
             if not all([interval==self.physics.radt[0]
                         for interval in self.physics.radt]):
                 self.log.warning('Different radiation call intervals not handled, '
-                                f'using {self.physics.radt[0]} min')
+                                f'using {self.physics.radt[0]} min from d01')
 
             assert self.physics.radt[0] != 0
             if self.physics.radt[0] > 0:
@@ -416,39 +440,47 @@ class WRFInputDeck(object):
 
         if not all([epssm==self.dynamics.epssm[0] for epssm in self.dynamics.epssm]):
             self.log.warning('Different off-centering coefficients not supported, '
-                             f'using {self.dynamics.epssm[0]}')
+                             f'using {self.dynamics.epssm[0]} from d01')
         inp['erf.beta_s'] = self.dynamics.epssm[0]
 
         self.input_dict = inp
 
-    def get_map_info(self,init_input=None):
-        if init_input is None:
-            init_input = self.wrfinput
-        if init_input is None:
+    def get_map_info(self):
+        if self.wpsinput is not None:
+            with open(self.wpsinput,'r') as f:
+                wps = f90nml.read(f)
+            geo = Geogrid(wps['geogrid'])
+            self.cen_lat = geo.ref_lat
+            self.cen_lon = geo.ref_lon
+            self.truelat1 = geo.truelat1 # standard parallels
+            self.truelat2 = geo.truelat2
+            #self.moad_cen_lat = None
+            self.stand_lon = geo.stand_lon
+            self.map_proj = geo.map_proj
+        elif self.wrfinput is not None:
+            inp = xr.open_dataset(self.wrfinput)
+            self.cen_lat = inp.attrs['CEN_LAT']
+            self.cen_lon = inp.attrs['CEN_LON']
+            self.truelat1 = inp.attrs['TRUELAT1'] # standard parallels
+            self.truelat2 = inp.attrs['TRUELAT2']
+            #self.moad_cen_lat = inp.attrs['MOAD_CEN_LAT'] # "mother of all domains"
+            self.stand_lon = inp.attrs['STAND_LON']
+            self.map_proj = inp.attrs['MAP_PROJ_CHAR']
+        else:
             self.cen_lat = None
             self.cen_lon = None
             self.truelat1 = None
             self.truelat2 = None
-            self.moad_cen_lat = None
+            #self.moad_cen_lat = None
             self.stand_lon = None
             self.map_proj = None
-            return
-
-        inp = xr.open_dataset(init_input)
-        self.cen_lat = inp.attrs['CEN_LAT']
-        self.cen_lon = inp.attrs['CEN_LON']
-        self.truelat1 = inp.attrs['TRUELAT1'] # standard parallels
-        self.truelat2 = inp.attrs['TRUELAT2']
-        self.moad_cen_lat = inp.attrs['MOAD_CEN_LAT'] # "mother of all domains"
-        self.stand_lon = inp.attrs['STAND_LON']
-        self.map_proj = inp.attrs['MAP_PROJ_CHAR']
 
     def create_grids(self):
         if self.cen_lat is None:
             self.grids = None
             return
 
-        assert self.map_proj == 'Lambert Conformal'
+        assert self.map_proj.lower() in ['lambert', 'lambert conformal']
         ndom = self.domains.max_dom
         dxlist = self.domains.dx[:ndom]
         dylist = self.domains.dy[:ndom]
@@ -491,13 +523,17 @@ class WRFInputDeck(object):
 
         # Get Coriolis parameters
         period = 4*np.pi / wrfinp['F'] * np.sin(np.radians(wrfinp.coords['XLAT'])) # F: "Coriolis sine latitude term"
-        mean_lat = np.mean(wrfinp.coords['XLAT'].values)
-        self.log.info(f"Using mean XLAT={mean_lat}"
-                      f" (projection CEN_LAT={wrfinp.attrs['CEN_LAT']})")
+        #mean_lat = np.mean(wrfinp.coords['XLAT'].values)
+        #self.log.info(f"Using mean XLAT={mean_lat}"
+        #              f" (projection CEN_LAT={wrfinp.attrs['CEN_LAT']})")
+        cen_lat = wrfinp.attrs['CEN_LAT']
+        if self.cen_lat is not None:
+            assert np.allclose(self.cen_lat, cen_lat)
+            cen_lat = self.cen_lat
         mean_period = np.mean(period.values)
         self.log.info(f"Earth rotational period from Coriolis param :"
                       f" {mean_period/3600} h")
-        self.input_dict['erf.latitude'] = mean_lat
+        self.input_dict['erf.latitude'] = cen_lat
         self.input_dict['erf.rotational_time_period'] = mean_period
 
         if calc_geopotential_heights:
@@ -550,18 +586,10 @@ class WRFInputDeck(object):
                             hgt_nodes.ravel(order='F')),axis=-1)
 
             write_ascii_table(write_hgt, xyz, names=['x','y','hgt'])
-            self.input_dict['erf.terrain_file_name'] = \
-                    os.path.split(write_hgt)[1]
+            fname = os.path.split(write_hgt)[1]
+            #self.input_dict['erf.terrain_file_name'] = fname
 
         # Process land use information
-        if landuse_table_path is None:
-            print('Need to specify `landuse_table_path` from your WRF '
-                  ' installation to determine z0, alb from land-use indices')
-            if write_z0:
-                print('Surface roughness map was not written')
-            if write_albedo:
-                print('Surface albedo map was not written')
-            return
         LUtype =  wrfinp.attrs['MMINLU']
         self.log.info('Retrieving static surface properties for land use'
                       f' category {LUtype}')
@@ -585,25 +613,32 @@ class WRFInputDeck(object):
         z0dict = tab['roughness_length'].to_dict()
         def z0fun(idx):
             return z0dict[idx]
-        z0 = xr.apply_ufunc(np.vectorize(z0fun), LU)
-        self.z0 = z0
-        z0mean = z0.mean().item()
+        z0_lev = xr.apply_ufunc(np.vectorize(z0fun), LU)
+        if hasattr(self, 'z0'):
+            self.z0.append(z0_lev)
+        else:
+            self.z0 = [z0_lev]
+
+        z0mean = z0_lev.mean().item()
         self.input_dict['erf.most.z0'] = z0mean
-        if np.allclose(z0,z0mean):
+        if np.allclose(z0_lev, z0mean):
             self.log.info(f'Uniform terrain roughness z0={z0mean}')
 
         aldict = tab['albedo'].to_dict()
         def alfun(idx):
             return aldict[idx]
-        albedo = xr.apply_ufunc(np.vectorize(alfun), LU)
-        self.albedo = albedo
+        albedo_lev = xr.apply_ufunc(np.vectorize(alfun), LU)
+        if hasattr(self, 'albedo'):
+            self.albedo.append(albedo_lev)
+        else:
+            self.albedo = [albedo_lev]
 
         # Write out surface roughness map
         if write_z0:
             # interpolate to nodes
-            z0 = z0.transpose('west_east','south_north')
+            z0_lev = z0_lev.transpose('west_east','south_north')
             interpfun = RegularGridInterpolator(
-                    (west_east,south_north), z0.values,
+                    (west_east,south_north), z0_lev.values,
                     method='nearest',
                     bounds_error=False,
                     fill_value=None)
@@ -613,21 +648,24 @@ class WRFInputDeck(object):
                              z0_nodes.ravel(order='F')),axis=-1)
 
             write_ascii_table(write_z0, xyz0, names=['x','y','z0'])
-            self.input_dict['erf.most.roughness_file_name'] = \
-                    os.path.split(write_z0)[1]
+            fname = os.path.split(write_z0)[1]
+            if hasattr(self, 'roughness_files'):
+                self.roughness_files.append(fname)
+            else:
+                self.roughness_files = [fname]
         else:
             self.log.info('Roughness map not written,'
                           ' using mean roughness for MOST')
             print('Distribution of roughness heights')
             print('z0\tcount')
-            for roughval in np.unique(z0):
+            for roughval in np.unique(z0_lev):
                 print(f'{roughval:g}\t{np.count_nonzero(z0==roughval)}')
 
         if write_albedo:
             # interpolate to nodes
-            albedo = albedo.transpose('west_east','south_north')
+            albedo_lev = albedo_lev.transpose('west_east','south_north')
             interpfun = RegularGridInterpolator(
-                    (west_east,south_north), albedo.values,
+                    (west_east,south_north), albedo_lev.values,
                     bounds_error=False,
                     fill_value=None)
             al_nodes = interpfun((xg,yg))
@@ -671,6 +709,11 @@ class WRFInputDeck(object):
         return inp
 
     def write_inputfile(self,fpath):
+        # these were read in through one or more calls to process_initial_conditions
+        if hasattr(self,'roughness_files'):
+            self.input_dict['erf.most.roughness_file_name'] = \
+                ' '.join(self.roughness_files)
+            self.input_dict.pop('erf.most.z0', None)
         inp = self.to_erf()
         inp.write(fpath)
         print('Wrote',fpath)
@@ -696,6 +739,11 @@ def write_ascii_table(fpath, xyz, names=None):
 @click.argument('namelist_input', type=click.Path(exists=True, readable=True))
 @click.argument('erf_input', type=click.Path(writable=True), required=False,
                 default='inputs')
+@click.option('--wps',
+              type=click.Path(exists=True, readable=True),
+              help='Path to a namelist.wps file to provide additional '
+                   'information about the simulation setup (optional)',
+              required=False)
 @click.option('--init',
               type=click.Path(exists=True, readable=True),
               help='Path to a wrfinput_d01 file to provide additional '
@@ -706,7 +754,24 @@ def write_ascii_table(fpath, xyz, names=None):
               help='Path to a tslist file to convert into line sampling '
                    'inputs for ERF (optional)',
               required=False)
-def wrf_namelist_to_erf(namelist_input, erf_input, init=None, tslist=None):
-    """Convert a WRF namelist.input into an ERF input file"""
-    wrf = WRFInputDeck(namelist_input, wrfinput=init, tslist=tslist)
+@click.option('--write_z0',
+              type=click.Path(writable=True),
+              help='Output path for surface roughnes map derived from the '
+                   'wrfinput_d01 LU_INDEX field')
+
+def wrf_namelist_to_erf(namelist_input, erf_input,
+                        wps=None, init=None,
+                        tslist=None,
+                        write_z0=None):
+    """Convert a WRF namelist.input into an ERF input file
+
+    If a tslist file with lat,lon sampling locations is provided, then
+    either --wps or --init must be specified.
+    """
+    wrf = WRFInputDeck(namelist_input, wpsinput=wps, wrfinput=init, tslist=tslist)
+    if write_z0 is not None:
+        if init is None:
+            print('*** No roughness map written, need to specify --init ***')
+        else:
+            wrf.process_initial_conditions(write_z0=write_z0)
     wrf.write_inputfile(erf_input)

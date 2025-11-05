@@ -20,8 +20,9 @@ class WRFNamelist(object):
                 return default
             else:
                 raise KeyError(varname)
-        assert not hasattr(val,'__iter__')
-        assert isinstance(val, (int, float, bool))
+        assert isinstance(val, (int, float, bool, str))
+        if not isinstance(val, str):
+            assert not hasattr(val,'__iter__')
         return val
 
     def getarrayvar(self,varname,optional=False,default=None):
@@ -193,14 +194,14 @@ class Domains(WRFNamelist):
             if len(self.dx) >= self.max_dom:
                 assert (self.dx[dom-1]/self.dx[dom] == self.parent_grid_ratio[dom])
             else:
-                print(f'Note: dx on d{dom+1:02d} not found,'
-                      ' setting from parent_grid_ratio')
+                #print(f'Note: dx on d{dom+1:02d} not found,'
+                #      ' setting from parent_grid_ratio')
                 self.dx.append(self.dx[dom-1] / self.parent_grid_ratio[dom])
             if len(self.dy) >= self.max_dom:
                 assert (self.dy[dom-1]/self.dy[dom] == self.parent_grid_ratio[dom])
             else:
-                print(f'Note: dy on d{dom+1:02d} not found'
-                      ' setting from parent_grid_ratio')
+                #print(f'Note: dy on d{dom+1:02d} not found'
+                #      ' setting from parent_grid_ratio')
                 self.dy.append(self.dy[dom-1] / self.parent_grid_ratio[dom])
         self.eta_levels = self.getarrayvar('eta_levels',optional=True)
         self.etac = self.getvar('etac',default=0.2)
@@ -342,3 +343,48 @@ class BoundaryControl(WRFNamelist):
 
         self.periodic_x = bool(self.getvar('periodic_x', default=False))
         self.periodic_y = bool(self.getvar('periodic_y', default=False))
+
+
+class Geogrid(WRFNamelist):
+    """&geogrid namelist"""
+
+    def __init__(self,nmldict):
+        super().__init__(nmldict)
+        self.parse_grid()
+        self.parse_map_projection()
+
+    def __str__(self):
+        s = 'WRF `domains` parameters\n'
+        for dom in range(self.max_dom):
+            s += f'  d{dom+1:02d}:' \
+                 f' [(1,{self.e_we[dom]:d}),(1,{self.e_sn[dom]:d}),(1,{self.e_vert[dom]:d})]' \
+                 f' ds=[{self.dx[dom]},{self.dy[dom]}]\n'
+        return s.rstrip()
+
+    def parse_grid(self):
+        self.s_we = self.getarrayvar('s_we', default=1)
+        self.s_sn = self.getarrayvar('s_sn', default=1)
+        self.e_we = self.getarrayvar('e_we')
+        self.e_sn = self.getarrayvar('e_sn')
+        self.dx = self.getarrayvar('dx')
+        self.dy = self.getarrayvar('dy')
+        self.i_parent_start = self.getarrayvar('i_parent_start', default=0)
+        self.j_parent_start = self.getarrayvar('j_parent_start', default=0)
+        self.parent_grid_ratio = self.getarrayvar('parent_grid_ratio', default=1)
+        for dom in range(1,len(self.s_we)):
+            if len(self.dx) > 1:
+                assert (self.dx[dom-1]/self.dx[dom] == self.parent_grid_ratio[dom])
+            else:
+                self.dx.append(self.dx[dom-1] / self.parent_grid_ratio[dom])
+            if len(self.dy) > 1:
+                assert (self.dy[dom-1]/self.dy[dom] == self.parent_grid_ratio[dom])
+            else:
+                self.dy.append(self.dy[dom-1] / self.parent_grid_ratio[dom])
+
+    def parse_map_projection(self):
+         self.map_proj  = self.getvar('map_proj')
+         self.ref_lat   = self.getvar('ref_lat')
+         self.ref_lon   = self.getvar('ref_lon')
+         self.truelat1  = self.getvar('truelat1')
+         self.truelat2  = self.getvar('truelat2')
+         self.stand_lon = self.getvar('stand_lon')

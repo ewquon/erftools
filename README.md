@@ -23,7 +23,6 @@ wrf.write_inputfile('inputs')
 
 # optional: extract data from wrfinput
 wrf.process_initial_conditions('wrfinput_d01',
-                               landuse_table_path='/Users/equon/WRF/run/LANDUSE.TBL',
                                write_hgt='terrain_height.txt',
                                write_z0='roughness_height.txt')
 ```

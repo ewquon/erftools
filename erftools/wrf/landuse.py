@@ -4,9 +4,10 @@
 #   summer is from April 15 to October 15
 #   winter is from October 16 to April 14
 #
+from importlib import resources
+
 import numpy as np
 import pandas as pd
-
 
 # names/units in LANDUSE.TBL
 abbrev = {
@@ -31,8 +32,10 @@ class LandUseTable(dict):
     summer_start_day = 105
     winter_start_day = 289
 
-    def __init__(self,fpath='LANDUSE.TBL',verbose=True):
+    def __init__(self,fpath=None,verbose=True):
         """Read specified LANDUSE.TBL file"""
+        if fpath is None:
+            fpath = resources.files('erftools.data').joinpath('LANDUSE.TBL')
         with open(fpath,'r') as f:
             name = f.readline().strip()
             while not name == '':
