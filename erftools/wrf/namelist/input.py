@@ -192,13 +192,19 @@ class Domains(WRFNamelist):
             assert self.j_parent_start[0] == 1
         for dom in range(1,self.max_dom):
             if len(self.dx) >= self.max_dom:
-                assert (self.dx[dom-1]/self.dx[dom] == self.parent_grid_ratio[dom])
+                dx_ratio = self.dx[dom-1] / self.dx[dom]
+                assert abs(dx_ratio - self.parent_grid_ratio[dom]) < 1e-8, \
+                        'Calculated, input dx ratio: ' \
+                        f'{dx_ratio} {self.parent_grid_ratio[dom]}'
             else:
                 #print(f'Note: dx on d{dom+1:02d} not found,'
                 #      ' setting from parent_grid_ratio')
                 self.dx.append(self.dx[dom-1] / self.parent_grid_ratio[dom])
             if len(self.dy) >= self.max_dom:
-                assert (self.dy[dom-1]/self.dy[dom] == self.parent_grid_ratio[dom])
+                dy_ratio = self.dy[dom-1] / self.dy[dom]
+                assert abs(dy_ratio - self.parent_grid_ratio[dom]) < 1e-8, \
+                        'Calculated, input dy ratio: ' \
+                        f'{dy_ratio} {self.parent_grid_ratio[dom]}'
             else:
                 #print(f'Note: dy on d{dom+1:02d} not found'
                 #      ' setting from parent_grid_ratio')
