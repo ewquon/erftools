@@ -378,11 +378,12 @@ class Geogrid(WRFNamelist):
         self.j_parent_start = self.getarrayvar('j_parent_start', default=0)
         self.parent_grid_ratio = self.getarrayvar('parent_grid_ratio', default=1)
         for dom in range(1,len(self.s_we)):
-            if len(self.dx) > 1:
+            # grow self.dx,dy as needed to match the length of parent_grid_ratio
+            if len(self.dx) > dom:
                 assert (self.dx[dom-1]/self.dx[dom] == self.parent_grid_ratio[dom])
             else:
                 self.dx.append(self.dx[dom-1] / self.parent_grid_ratio[dom])
-            if len(self.dy) > 1:
+            if len(self.dy) > dom:
                 assert (self.dy[dom-1]/self.dy[dom] == self.parent_grid_ratio[dom])
             else:
                 self.dy.append(self.dy[dom-1] / self.parent_grid_ratio[dom])
