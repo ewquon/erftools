@@ -330,7 +330,13 @@ class WRFInputDeck(object):
         inp['erf.pbl_type'] = self.physics.bl_pbl_physics
         for idom in range(max_dom):
             if self.physics.bl_pbl_physics[idom] != 'None':
-                km_opt = self.dynamics.km_opt[idom]
+                try:
+                    km_opt = self.dynamics.km_opt[idom]
+                except IndexError:
+                    km_opt = self.dynamics.km_opt[-1]
+                    self.log.warning(f'len(km_opt) < {max_dom}, '
+                                     f'selected km_opt={km_opt} on d{idom+1:02d}'
+                                     ' -- should double check this!')
                 if km_opt in ['Deardorff','Smagorinsky']:
                     self.log.warning(f'erf.pbl_type[{idom}]={self.physics.bl_pbl_physics[idom]}'
                                      f' selected with 3D diffusion'
