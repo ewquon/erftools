@@ -120,6 +120,49 @@ class TestHindcastConfig:
             cfg = HindcastConfig.from_file(p)
         assert any("BAD_LINE" in m for m in caplog.messages)
 
+    # ------------------------------------------------------------------
+    # from_datetime tests
+    # ------------------------------------------------------------------
+
+    def test_from_datetime_string(self):
+        cfg = HindcastConfig.from_datetime("2020-08-26 00:00", [50, -130, 10, -50])
+        assert cfg.year == 2020
+        assert cfg.month == 8
+        assert cfg.day == 26
+        assert cfg.time == "00:00"
+        assert cfg.area == [50.0, -130.0, 10.0, -50.0]
+
+    def test_from_datetime_string_date_only(self):
+        """Date-only string should default to midnight (00:00)."""
+        cfg = HindcastConfig.from_datetime("2021-03-15", (45, -110, 30, -90))
+        assert cfg.year == 2021
+        assert cfg.month == 3
+        assert cfg.day == 15
+        assert cfg.time == "00:00"
+
+    def test_from_datetime_datetime_object(self):
+        import datetime
+
+        dt = datetime.datetime(2020, 8, 26, 6, 0)
+        cfg = HindcastConfig.from_datetime(dt, [50, -130, 10, -50])
+        assert cfg.year == 2020
+        assert cfg.time == "06:00"
+
+    def test_from_datetime_pandas_timestamp(self):
+        pd = pytest.importorskip("pandas")
+        ts = pd.Timestamp("2020-08-26 12:00")
+        cfg = HindcastConfig.from_datetime(ts, [50, -130, 10, -50])
+        assert cfg.year == 2020
+        assert cfg.time == "12:00"
+
+    def test_from_datetime_area_as_tuple(self):
+        cfg = HindcastConfig.from_datetime("2020-01-01", (50, -130, 10, -50))
+        assert cfg.area == [50.0, -130.0, 10.0, -50.0]
+
+    def test_from_datetime_invalid_type_raises(self):
+        with pytest.raises(TypeError, match="str, datetime"):
+            HindcastConfig.from_datetime(20200826, [50, -130, 10, -50])
+
 
 # ---------------------------------------------------------------------------
 # HindcastBase tests
@@ -157,6 +200,49 @@ class TestHindcastBase:
         h._setup_output_dirs("a/b/c", "d/e")
         assert (tmp_path / "a" / "b" / "c").is_dir()
         assert (tmp_path / "d" / "e").is_dir()
+
+    # ------------------------------------------------------------------
+    # datetime/area alternative construction
+    # ------------------------------------------------------------------
+
+    def test_init_from_datetime_string(self):
+        h = ConcreteHindcast(datetime="2020-08-26 00:00", area=(50, -130, 10, -50))
+        assert h.config.year == 2020
+        assert h.config.month == 8
+        assert h.config.day == 26
+        assert h.config.time == "00:00"
+        assert h.config.area == [50.0, -130.0, 10.0, -50.0]
+        assert h.config_file is None
+
+    def test_init_from_datetime_object(self):
+        import datetime
+
+        dt = datetime.datetime(2020, 8, 26, 6, 0)
+        h = ConcreteHindcast(datetime=dt, area=[50, -130, 10, -50])
+        assert h.config.year == 2020
+        assert h.config.time == "06:00"
+
+    def test_init_from_pandas_timestamp(self):
+        pd = pytest.importorskip("pandas")
+        ts = pd.Timestamp("2020-08-26 12:00")
+        h = ConcreteHindcast(datetime=ts, area=[50, -130, 10, -50])
+        assert h.config.time == "12:00"
+
+    def test_init_datetime_creates_lambert_conformal(self):
+        h = ConcreteHindcast(datetime="2020-08-26", area=(50, -130, 10, -50))
+        assert "+proj=lcc" in h.lambert_conformal
+
+    def test_init_missing_both_raises(self):
+        with pytest.raises(ValueError, match="config_file or both datetime and area"):
+            ConcreteHindcast()
+
+    def test_init_datetime_without_area_raises(self):
+        with pytest.raises(ValueError, match="config_file or both datetime and area"):
+            ConcreteHindcast(datetime="2020-08-26")
+
+    def test_init_area_without_datetime_raises(self):
+        with pytest.raises(ValueError, match="config_file or both datetime and area"):
+            ConcreteHindcast(area=(50, -130, 10, -50))
 
 
 # ---------------------------------------------------------------------------

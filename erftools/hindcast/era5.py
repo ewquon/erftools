@@ -4,7 +4,7 @@ from __future__ import annotations
 import glob
 import logging
 import os
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple, Union
 
 from .base import HindcastBase
 
@@ -47,7 +47,7 @@ class ERA5Hindcast(HindcastBase):
 
     def __init__(
         self,
-        config_file: str,
+        config_file: Optional[Union[str, os.PathLike]] = None,
         do_forecast: bool = False,
         forecast_time_hours: Optional[int] = None,
         interval_hours: Optional[int] = None,

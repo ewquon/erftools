@@ -1,10 +1,11 @@
 """Configuration dataclass for ERA5/GFS hindcast preprocessing."""
 from __future__ import annotations
 
+import datetime as _dt
 import logging
 import os
 from dataclasses import dataclass
-from typing import List, Union
+from typing import List, Sequence, Union
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +75,54 @@ class HindcastConfig:
                     except ValueError:
                         data[key] = value
         return cls(**data)
+
+    @classmethod
+    def from_datetime(
+        cls,
+        dt: Union[str, _dt.datetime],
+        area: Sequence[float],
+    ) -> "HindcastConfig":
+        """Construct a :class:`HindcastConfig` from a datetime-like object and area.
+
+        Parameters
+        ----------
+        dt:
+            The date/time of the hindcast snapshot.  Accepted types are:
+
+            * ``str`` – ISO-format string (e.g. ``"2020-08-26"``,
+              ``"2020-08-26 00:00"``).  When :mod:`pandas` is available,
+              any string parseable by :class:`pandas.Timestamp` is accepted;
+              otherwise :func:`datetime.datetime.fromisoformat` is used.
+            * :class:`datetime.datetime` or :class:`pandas.Timestamp`
+              (which is a subclass of :class:`datetime.datetime`).
+
+        area:
+            Sequence of four floats ``[lat_max, lon_min, lat_min, lon_max]``.
+
+        Returns
+        -------
+        HindcastConfig
+        """
+        if isinstance(dt, str):
+            try:
+                import pandas as pd  # preferred: handles non-ISO formats too
+                dt = pd.Timestamp(dt)
+            except ImportError:
+                # Fallback for environments without pandas: accept ISO format strings
+                dt = _dt.datetime.fromisoformat(dt)
+        # At this point dt is a datetime.datetime (pd.Timestamp inherits from it)
+        if not isinstance(dt, _dt.datetime):
+            raise TypeError(
+                f"dt must be a str, datetime.datetime, or pandas.Timestamp; got {type(dt)!r}"
+            )
+        time_str = f"{dt.hour:02d}:{dt.minute:02d}"
+        return cls(
+            year=int(dt.year),
+            month=int(dt.month),
+            day=int(dt.day),
+            time=time_str,
+            area=list(area),
+        )
 
     def validate(self) -> None:
         """Validate the parsed configuration values.

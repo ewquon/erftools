@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any, List, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 from .base import HindcastBase
 
@@ -29,7 +29,7 @@ class GFSHindcast(HindcastBase):
 
     def __init__(
         self,
-        config_file: str,
+        config_file: Optional[Union[str, os.PathLike]] = None,
         do_forecast: bool = False,
         product: str = "forecast",
         **kwargs: Any,
