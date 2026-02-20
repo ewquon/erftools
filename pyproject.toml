@@ -55,8 +55,9 @@ all = [
     "erftools[dev,performance,grib]"
 ]
 
-[tool.setuptools]
-packages = ["erftools"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["erftools*"]
 
 # Console scripts -- creates command line tools
 [project.scripts]
@@ -69,3 +70,6 @@ Homepage = "https://erf.readthedocs.io/en/latest/"
 Repository = "https://github.com/erf-model/erftools"
 Issues = "https://github.com/erf-model/erftools/issues"
 
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

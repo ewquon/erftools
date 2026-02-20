@@ -3,6 +3,8 @@
 This directory contains the python scripts to write the initial condition file, lateral forcing files and surface fluxes files  
 for hurricane simulations in ERF from the ERA5 weather data.
 
+## Quick start
+
 1. Follow the steps here https://cds.climate.copernicus.eu/how-to-api to create a free account   
    to download ERA5 data
 
@@ -32,6 +34,38 @@ The domain extents to be used for the ERF run is written into `Output/domain_ext
 
 Various example inputs for different hurricanes are provided in this folder. 
 
+## Using the Python API
+
+The `ERA5Hindcast` class from `erftools.hindcast` can be used directly in Python scripts:
+
+```python
+from erftools.hindcast import ERA5Hindcast
+
+# Single reanalysis snapshot
+hindcast = ERA5Hindcast("input_for_Laura")
+hindcast.run()
+
+# Multi-timestep forecast (with MPI)
+from mpi4py import MPI
+comm = MPI.COMM_WORLD
+hindcast = ERA5Hindcast(
+    "input_for_Laura",
+    do_forecast=True,
+    forecast_time_hours=72,
+    interval_hours=3,
+)
+hindcast.run(comm=comm)
+```
+
+The `HindcastConfig` class provides standalone config parsing and validation:
+
+```python
+from erftools.hindcast import HindcastConfig
+
+cfg = HindcastConfig.from_file("input_for_Laura")
+cfg.validate()
+print(cfg.year, cfg.area)
+```
 
 ## VTK Visualization
 
