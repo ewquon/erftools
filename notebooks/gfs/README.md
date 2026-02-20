@@ -26,3 +26,33 @@ Example inputs are given in the input file `input_for_Laura` and `input_for_Henr
 1. Run `python3 WriteICFromGFSData.py input_for_Laura`.  
 2. Visualize the VTK files in the `Output` directory in VisIt or ParaView.
 
+## Using the Python API
+
+The `GFSHindcast` class from `erftools.hindcast` can be used directly in Python scripts:
+
+```python
+from erftools.hindcast import GFSHindcast
+
+# Single analysis snapshot (default)
+hindcast = GFSHindcast("input_for_Laura")
+hindcast.run()
+
+# Full forecast series
+hindcast = GFSHindcast("input_for_Laura", do_forecast=True)
+hindcast.run()
+
+# FNL reanalysis product
+hindcast = GFSHindcast("input_for_Laura", product="fnl")
+hindcast.run()
+```
+
+The `HindcastConfig` class provides standalone config parsing and validation:
+
+```python
+from erftools.hindcast import HindcastConfig
+
+cfg = HindcastConfig.from_file("input_for_Laura")
+cfg.validate()
+print(cfg.year, cfg.area)
+```
+
